@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GVC Signage — Login</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-card {
+      background: var(--bg2); border: 1px solid var(--bord2);
+      border-radius: 16px; padding: 36px; width: min(400px, 94vw);
+      box-shadow: var(--shadow);
+    }
+    .login-logo { text-align: center; margin-bottom: 28px; }
+    .login-logo .icon { font-size: 44px; margin-bottom: 10px; }
+    .login-logo h1  { font-size: 24px; font-weight: 800; letter-spacing: -.4px; }
+    .login-logo p   { font-size: 13px; color: var(--mut); margin-top: 5px; }
+    .fg { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+    .fg label { font-size: 12px; font-weight: 500; color: var(--txt2); }
+    input {
+      background: var(--bg3); border: 1px solid var(--bord2); border-radius: 7px;
+      color: var(--txt); padding: 10px 12px; font-size: 14px; width: 100%;
+      transition: border-color .18s, box-shadow .18s;
+    }
+    input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,140,255,.15); }
+    .btn-login {
+      width: 100%; padding: 11px; border: none; border-radius: 8px;
+      background: var(--primary); color: #fff;
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      transition: background .18s, transform .1s;
+      margin-top: 6px; font-family: var(--font-body);
+    }
+    .btn-login:hover  { background: var(--prim-h); }
+    .btn-login:active { transform: scale(.98); }
+    #l-err { color: var(--red); font-size: 13px; text-align: center; margin-top: 10px; display: none; }
+    .foot  { font-size: 11px; color: var(--mut); text-align: center; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="icon">📺</div>
+      <h1>GVC <span style="color:var(--primary);">Signage</span></h1>
+      <p>Sinalização Digital Corporativa</p>
+    </div>
+
+    <div class="fg"><label>E-mail</label>    <input type="email"    id="l-email" placeholder="admin@gvc.com" /></div>
+    <div class="fg"><label>Senha</label>     <input type="password" id="l-pass"  placeholder="••••••••" /></div>
+
+    <button class="btn-login" onclick="doLogin()">Entrar →</button>
+    <p id="l-err"></p>
+    <p class="foot">admin@gvc.com / admin123 — troque após o 1º acesso</p>
+  </div>
+
+  <script type="module">
+    import { token, API } from './js/api.js';
+
+    // Se já logado, redirecionar para o painel
+    if (token.get()) {
+      fetch(`${API}/dashboard/index.php`, { headers: { Authorization: `Bearer ${token.get()}` } })
+        .then(r => { if (r.ok) location.href = 'index.html'; })
+        .catch(() => {});
+    }
+
+    window.doLogin = async () => {
+      const email = document.getElementById('l-email').value.trim();
+      const pass  = document.getElementById('l-pass').value;
+      const err   = document.getElementById('l-err');
+      err.style.display = 'none';
+
+      if (!email || !pass) { err.textContent = 'Preencha e-mail e senha'; err.style.display = 'block'; return; }
+
+      try {
+        const res  = await fetch(`${API}/auth/login.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password: pass }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Credenciais inválidas');
+        token.set(json.data.token);
+        location.href = 'index.html';
+      } catch (e) {
+        err.textContent = e.message;
+        err.style.display = 'block';
+      }
+    };
+
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') window.doLogin(); });
+  </script>
+</body>
+</html>

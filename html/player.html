@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>GVC Signage Player</title>
+  <link rel="stylesheet" href="../css/player.css" />
+</head>
+<body>
+
+<!-- Previne modo sleep -->
+<video id="nosleep-vid" autoplay muted loop playsinline style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:.01;pointer-events:none;">
+  <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAA" type="video/mp4">
+</video>
+
+<!-- Stage de slides -->
+<div id="stage"></div>
+
+<!-- Barra de progresso (rodapé) -->
+<div id="hud"><div id="hud-bar" style="width:0%"></div></div>
+
+<!-- Debug (ativo com ?debug=1) -->
+<div id="debug"></div>
+
+<!-- Tela de pareamento -->
+<div id="pairing">
+  <div class="pair-logo">📺</div>
+  <div class="pair-title">GVC Signage</div>
+  <div class="pair-sub">Para configurar esta TV, acesse o painel administrativo</div>
+  <div class="pair-code" id="pair-code">------</div>
+  <div class="pair-hint"  id="pair-hint">Aguardando vinculação...</div>
+  <div class="pair-timer" id="pair-timer"></div>
+</div>
+
+<!-- Tela de erro -->
+<div id="error-screen">
+  <div class="err-icon">⚠️</div>
+  <div class="err-msg"  id="error-msg">Erro ao carregar conteúdo</div>
+  <div class="err-sub">Tentando reconectar...</div>
+</div>
+
+<script src="../js/player.js"></script>
+</body>
+</html>

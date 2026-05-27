@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GVC Signage — Painel Admin</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+
+<!-- ══ LOGIN ══════════════════════════════════════════════════ -->
+<div id="login-screen" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;">
+  <div style="background:var(--bg2);border:1px solid var(--bord2);border-radius:16px;padding:32px;width:min(400px,94vw);box-shadow:var(--shadow);">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:40px;margin-bottom:10px;">📺</div>
+      <h2 style="font-size:22px;font-weight:800;">GVC Signage</h2>
+      <p style="font-size:13px;color:var(--mut);margin-top:5px;">Acesso administrativo</p>
+    </div>
+    <div class="fg"><label>E-mail</label><input type="email"    id="l-email" placeholder="admin@gvc.com" /></div>
+    <div class="fg"><label>Senha</label> <input type="password" id="l-pass"  placeholder="••••••••" /></div>
+    <button class="btn btn-p" style="width:100%;justify-content:center;margin-top:6px;" onclick="doLogin()">Entrar →</button>
+    <p id="l-err" style="color:var(--red);font-size:13px;margin-top:10px;display:none;text-align:center;"></p>
+    <p style="font-size:11px;color:var(--mut);text-align:center;margin-top:18px;">admin@gvc.com / admin123 — troque após o 1º acesso</p>
+  </div>
+</div>
+
+<!-- ══ APP ════════════════════════════════════════════════════ -->
+<div id="app" style="display:none;">
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sb" id="sidebar">
+    <div class="sb-logo">
+      <div class="brand">📺 GVC <span style="color:var(--primary);">Signage</span></div>
+      <div class="sub">Sinalização Digital</div>
+    </div>
+    <nav class="sb-nav">
+      <div class="ni active" data-s="dashboard"    onclick="nav('dashboard')">  <span class="ic">📊</span>Dashboard</div>
+      <div class="ni"        data-s="dispositivos" onclick="nav('dispositivos')"><span class="ic">📺</span>Dispositivos</div>
+      <div class="ni"        data-s="grupos"       onclick="nav('grupos')">      <span class="ic">🗂️</span>Grupos</div>
+      <div class="ni"        data-s="playlists"    onclick="nav('playlists')">   <span class="ic">🎬</span>Playlists</div>
+      <div class="ni"        data-s="agendamentos" onclick="nav('agendamentos')"><span class="ic">📅</span>Agendamentos</div>
+      <div class="ni"        data-s="midia"        onclick="nav('midia')">       <span class="ic">🖼️</span>Mídia</div>
+      <div class="ni"        data-s="pareamento"   onclick="nav('pareamento')">  <span class="ic">🔗</span>Pareamento</div>
+      <div class="ni"        data-s="config"       onclick="nav('config')">      <span class="ic">⚙️</span>Config</div>
+    </nav>
+    <div class="sb-foot">
+      <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);"></span>
+      <span id="conn-user">—</span>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="mhdr">
+      <h1 id="ptitle">Dashboard</h1>
+      <div id="pact" style="display:flex;gap:8px;align-items:center;"></div>
+    </div>
+    <div class="mcnt">
+
+      <!-- Dashboard -->
+      <div id="sec-dashboard" class="sec active">
+        <div class="g4" style="margin-bottom:22px;">
+          <div class="stat"><div class="sl">Total de TVs</div><div class="sv" id="st-tvs">—</div></div>
+          <div class="stat"><div class="sl">Online agora</div><div class="sv" id="st-on" style="color:var(--green);">—</div></div>
+          <div class="stat"><div class="sl">Playlists</div><div class="sv" id="st-pl">—</div></div>
+          <div class="stat"><div class="sl">Mídias</div><div class="sv" id="st-md">—</div></div>
+        </div>
+        <div class="g2">
+          <div class="card">
+            <div class="ch"><span class="ct">Status das TVs</span>
+              <button class="btn btn-p btn-sm" onclick="openBroadcast()">📡 Broadcast</button>
+            </div>
+            <div id="dash-tv"></div>
+          </div>
+          <div class="card">
+            <div class="ch"><span class="ct">Atividade Recente</span></div>
+            <div id="dash-log"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dispositivos -->
+      <div id="sec-dispositivos" class="sec">
+        <div class="card">
+          <div class="ch"><span class="ct">Dispositivos</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input type="text" id="dev-search" placeholder="Buscar..." style="width:160px;padding:6px 10px;" oninput="filterDevs()" />
+              <select id="dev-filter-grupo" style="width:140px;padding:6px 10px;" onchange="filterDevs()"><option value="">Todos os grupos</option></select>
+              <button class="btn btn-p btn-sm" onclick="openAddDev()">+ Adicionar TV</button>
+            </div>
+          </div>
+          <table>
+            <thead><tr><th>Nome / Local</th><th>Grupo</th><th>Status</th><th>Playlist</th><th>Último ping</th><th>Ações</th></tr></thead>
+            <tbody id="dev-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Grupos -->
+      <div id="sec-grupos" class="sec">
+        <div class="card">
+          <div class="ch"><span class="ct">Grupos de TVs</span>
+            <button class="btn btn-p btn-sm" onclick="openAddGrupo()">+ Novo Grupo</button>
+          </div>
+          <div id="gr-list"></div>
+        </div>
+      </div>
+
+      <!-- Playlists -->
+      <div id="sec-playlists" class="sec">
+        <div id="pl-list">
+          <div class="card">
+            <div class="ch"><span class="ct">Playlists</span>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-g btn-sm" onclick="openDupPl()">⎘ Duplicar</button>
+                <button class="btn btn-p btn-sm" onclick="openAddPl()">+ Nova Playlist</button>
+              </div>
+            </div>
+            <div id="pl-tbody"></div>
+          </div>
+        </div>
+        <div id="pl-edit" class="hidden">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+            <button class="btn btn-g btn-sm" onclick="showPlList()">← Voltar</button>
+            <h2 id="pl-edit-name" style="font-size:16px;font-weight:700;"></h2>
+            <span id="pl-edit-default-badge" class="tag tg-def hidden">⭐ Padrão</span>
+            <button class="btn btn-d btn-sm" style="margin-left:auto;" onclick="deleteCurPl()">🗑 Excluir</button>
+          </div>
+          <div class="g2">
+            <div class="card">
+              <div class="ch"><span class="ct">Itens</span>
+                <button class="btn btn-p btn-sm" onclick="openAddItem()">+ Adicionar</button>
+              </div>
+              <div id="pl-items" class="sortable-list"></div>
+              <p id="pl-hint" style="font-size:12px;color:var(--mut);text-align:center;margin-top:10px;display:none;">Arraste para reordenar</p>
+            </div>
+            <div>
+              <div class="card" style="margin-bottom:16px;">
+                <div class="ct" style="margin-bottom:12px;">Pré-visualização</div>
+                <div id="preview" style="background:#000;aspect-ratio:16/9;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+                  <span style="color:rgba(255,255,255,.25);font-size:13px;">Clique em um item</span>
+                </div>
+                <div id="prev-hint" style="font-size:11px;color:var(--mut);text-align:center;margin-top:7px;"></div>
+              </div>
+              <div class="card">
+                <div class="ct" style="margin-bottom:14px;">Distribuição rápida</div>
+                <div class="fg"><label>Atribuir a</label>
+                  <select id="pl-assign-target"><option value="">— selecione —</option><option value="all">📺 Todas as TVs</option></select>
+                </div>
+                <button class="btn btn-p btn-sm" style="width:100%;justify-content:center;" onclick="quickAssign()">Aplicar →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agendamentos -->
+      <div id="sec-agendamentos" class="sec">
+        <div class="card">
+          <div class="ch"><span class="ct">Agendamentos</span>
+            <button class="btn btn-p btn-sm" onclick="openAddAgenda()">+ Novo Agendamento</button>
+          </div>
+          <div id="sch-list"></div>
+        </div>
+      </div>
+
+      <!-- Mídia -->
+      <div id="sec-midia" class="sec">
+        <div style="margin-bottom:20px;">
+          <div class="uparea" id="uparea" onclick="document.getElementById('finput').click()">
+            <div style="font-size:36px;margin-bottom:8px;">📁</div>
+            <p><strong>Clique ou arraste arquivos aqui</strong></p>
+            <p style="font-size:13px;color:var(--mut);margin-top:4px;">JPG, PNG, GIF, WebP, MP4, WebM — máx. 50 MB</p>
+            <input type="file" id="finput" multiple accept="image/*,video/*" style="display:none;" onchange="doUpload(this.files)" />
+          </div>
+          <div class="progwrap" id="upgprog">
+            <div style="display:flex;justify-content:space-between;font-size:13px;"><span id="upname">Enviando...</span><span id="uppct">0%</span></div>
+            <div class="progbar"><div class="progfill" id="upbar" style="width:0%"></div></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="media-search" placeholder="Buscar..." style="width:200px;padding:6px 10px;" oninput="renderMedia()" />
+          <select id="media-filter" style="width:130px;padding:6px 10px;" onchange="renderMedia()">
+            <option value="">Tudo</option>
+            <option value="image">Imagens</option>
+            <option value="video">Vídeos</option>
+          </select>
+          <span id="media-count" style="font-size:13px;color:var(--mut);margin-left:auto;"></span>
+        </div>
+        <div class="mgrid" id="mgrid"><div class="empty">Carregando...</div></div>
+      </div>
+
+      <!-- Pareamento -->
+      <div id="sec-pareamento" class="sec">
+        <div class="g2">
+          <div class="card">
+            <div class="ch"><span class="ct">Códigos pendentes</span>
+              <button class="btn btn-g btn-sm" onclick="loadPairing()">↺ Atualizar</button>
+            </div>
+            <div id="pair-list"></div>
+          </div>
+          <div class="card">
+            <div class="ct" style="margin-bottom:14px;">Como parear uma TV</div>
+            <ol style="font-size:14px;color:var(--mut);line-height:2.2;padding-left:18px;">
+              <li>Abra <strong style="color:var(--txt);">/html/player.html</strong> no navegador da TV</li>
+              <li>A TV exibe um <strong style="color:var(--txt);">código de 6 dígitos</strong></li>
+              <li>Clique em <strong style="color:var(--txt);">🔗 Vincular</strong> ao lado do código</li>
+              <li>Selecione ou crie o dispositivo</li>
+              <li>A TV redireciona automaticamente em ~5s</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <!-- Config -->
+      <div id="sec-config" class="sec">
+        <div class="g2">
+          <div class="card">
+            <div class="ct" style="margin-bottom:16px;">Alterar Senha</div>
+            <div class="fg"><label>Senha atual</label><input type="password" id="cfg-cur-pass" /></div>
+            <div class="fg"><label>Nova senha</label><input type="password" id="cfg-new-pass" /></div>
+            <button class="btn btn-p btn-sm" onclick="doChangePass()">Salvar</button>
+          </div>
+          <div class="card">
+            <div class="ct" style="margin-bottom:16px;">Informações do sistema</div>
+            <div style="font-size:13px;color:var(--mut);line-height:2.2;">
+              <div>Versão: <strong style="color:var(--txt);">3.0.0</strong></div>
+              <div>Stack: <strong style="color:var(--txt);">PHP 8 + MySQL + JWT</strong></div>
+              <div>TVs: <strong id="cfg-tv-count" style="color:var(--txt);">—</strong></div>
+              <div>Mídias: <strong id="cfg-media-count" style="color:var(--txt);">—</strong></div>
+              <div>Playlists: <strong id="cfg-pl-count" style="color:var(--txt);">—</strong></div>
+            </div>
+            <button class="btn btn-d btn-sm" style="margin-top:14px;" onclick="doLogout()">Sair</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /mcnt -->
+  </div><!-- /main -->
+</div><!-- /layout -->
+</div><!-- /app -->
+
+<!-- ══ MODAIS ═════════════════════════════════════════════════ -->
+
+<div class="ov hidden" id="m-dev">
+  <div class="modal">
+    <div class="mt" id="m-dev-title">📺 Adicionar TV</div>
+    <div class="fg"><label>Nome</label><input type="text" id="d-nome" placeholder="TV Recepção..." /></div>
+    <div class="fg"><label>Local / Unidade</label><input type="text" id="d-unit" placeholder="Andar 2, Unidade Norte..." /></div>
+    <div class="fg"><label>Grupo</label><select id="d-grupo"></select></div>
+    <div class="fg"><label>Playlist padrão</label><select id="d-playlist"></select></div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="cm('m-dev')">Cancelar</button>
+      <button class="btn btn-p" id="btn-save-dev" onclick="doSaveDev()">Criar</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov hidden" id="m-devinfo">
+  <div class="modal">
+    <div class="mt" id="m-devinfo-title">⚙ Configurar TV</div>
+    <div class="fg"><label>URL do Player</label>
+      <div class="tokdisp"><code id="dev-purl">—</code><button class="copybtn" onclick="copyT(document.getElementById('dev-purl').textContent)">Copiar</button></div>
+    </div>
+    <div class="fg"><label>Token</label>
+      <div class="tokdisp"><code id="dev-token">—</code><button class="copybtn" onclick="copyT(document.getElementById('dev-token').textContent)">Copiar</button></div>
+    </div>
+    <div class="mf"><button class="btn btn-p" onclick="cm('m-devinfo')">Fechar</button></div>
+  </div>
+</div>
+
+<div class="ov hidden" id="m-grupo">
+  <div class="modal">
+    <div class="mt" id="m-grupo-title">🗂️ Novo Grupo</div>
+    <div class="fg"><label>Nome</label><input type="text" id="gr-nome" placeholder="Unidade Norte..." /></div>
+    <div class="fg"><label>Descrição</label><input type="text" id="gr-desc" placeholder="Opcional..." /></div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="cm('m-grupo')">Cancelar</button>
+      <button class="btn btn-p" id="btn-save-grupo" onclick="doSaveGrupo()">Criar</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov hidden" id="m-pl">
+  <div class="modal">
+    <div class="mt">🎬 Nova Playlist</div>
+    <div class="fg"><label>Nome</label><input type="text" id="pl-nome" placeholder="Comunicados, Campanha Abril..." /></div>
+    <div class="fg" style="flex-direction:row;align-items:center;gap:10px;">
+      <input type="checkbox" id="pl-is-default" style="width:auto;padding:0;" />
+      <label for="pl-is-default" style="margin:0;cursor:pointer;font-size:14px;">Usar como <strong>playlist padrão global</strong></label>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="cm('m-pl')">Cancelar</button>
+      <button class="btn btn-p" onclick="doAddPl()">Criar</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov hidden" id="m-dup">
+  <div class="modal">
+    <div class="mt">⎘ Duplicar Playlist</div>
+    <div class="fg"><label>Origem</label><select id="dup-src"></select></div>
+    <div class="fg"><label>Nome da cópia</label><input type="text" id="dup-name" placeholder="Cópia de..." /></div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="cm('m-dup')">Cancelar</button>
+      <button class="btn btn-p" onclick="doDupPl()">Duplicar</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov hidden" id="m-item">
+  <div class="modal wide">
+    <div class="mt">➕ Adicionar Item</div>
+    <div class="fg"><label>Tipo</label>
+      <select id="it-tipo" onchange="togDur()">
+        <option value="image">Imagem</option>
+        <option value="video">Vídeo</option>
+        <option value="page">Página Web (URL)</option>
+      </select>
+    </div>
+    <div class="fg"><label>URL</label>
+      <input type="text" id="it-url" placeholder="https://..." />
+      <p class="hint">Cole a URL ou clique em uma mídia abaixo</p>
+    </div>
+    <div class="fg" id="dur-grp"><label>Duração (segundos)</label><input type="number" id="it-dur" value="10" min="1" max="600" /></div>
+    <div style="font-size:12px;color:var(--txt2);font-weight:500;margin-bottom:6px;">Selecionar da biblioteca:</div>
+    <div class="mpicker" id="mpicker"></div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="cm('m-item')">Cancelar</button>
+      <button class="btn btn-p" onclick="doAddItem()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov hidden" id="m-broadcast">
+  <div class="modal">
+    <div class="mt">📡 Broadcast</div>
+    <div class="fg"><label>Playlist</label><select id="bc-pl"><option value="">— selecione —</option></select></div>
+    <div class="fg"><label>Destino</label><select id="bc-target"><option value="all">📺 Todas as TVs</option></select></div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="cm('m-broadcast')">Cancelar</button>
+      <button class="btn btn-p" onclick="doBroadcast()">Enviar →</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov hidden" id="m-agenda">
+  <div class="modal">
+    <div class="mt">📅 Novo Agendamento</div>
+    <div class="fg"><label>Playlist</label><select id="ag-pl"><option value="">— selecione —</option></select></div>
+    <div class="fg"><label>Destino</label><select id="ag-target"><option value="all">📺 Todas as TVs</option></select></div>
+    <div class="g2">
+      <div class="fg"><label>Início</label><input type="datetime-local" id="ag-inicio" /></div>
+      <div class="fg"><label>Fim</label>   <input type="datetime-local" id="ag-fim" /></div>
+    </div>
+    <div class="fg" style="flex-direction:row;align-items:center;gap:10px;">
+      <input type="checkbox" id="ag-repeat" style="width:auto;padding:0;" onchange="togRepeat()" />
+      <label for="ag-repeat" style="margin:0;cursor:pointer;font-size:14px;">Repetir semanalmente</label>
+    </div>
+    <div id="ag-days-wrap" class="hidden" style="margin-top:8px;">
+      <label style="display:block;margin-bottom:8px;">Dias da semana</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <label class="day-check"><input type="checkbox" value="0" /> Dom</label>
+        <label class="day-check"><input type="checkbox" value="1" /> Seg</label>
+        <label class="day-check"><input type="checkbox" value="2" /> Ter</label>
+        <label class="day-check"><input type="checkbox" value="3" /> Qua</label>
+        <label class="day-check"><input type="checkbox" value="4" /> Qui</label>
+        <label class="day-check"><input type="checkbox" value="5" /> Sex</label>
+        <label class="day-check"><input type="checkbox" value="6" /> Sáb</label>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="cm('m-agenda')">Cancelar</button>
+      <button class="btn btn-p" onclick="doSaveAgenda()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov hidden" id="m-pair">
+  <div class="modal">
+    <div class="mt">🔗 Vincular TV</div>
+    <p style="font-size:14px;color:var(--mut);margin-bottom:16px;">
+      Código: <strong id="pair-code" style="font-family:monospace;font-size:20px;color:var(--txt);letter-spacing:5px;"></strong>
+    </p>
+    <div class="fg"><label>Dispositivo</label>
+      <select id="pair-dev-select" onchange="togPairNew()"></select>
+    </div>
+    <div id="pair-new-fields">
+      <div class="fg"><label>Nome</label><input type="text" id="pair-dev-nome" placeholder="TV Recepção..." /></div>
+      <div class="fg"><label>Local</label><input type="text" id="pair-dev-unit" placeholder="Andar, setor..." /></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="cm('m-pair')">Cancelar</button>
+      <button class="btn btn-p" onclick="doPairDevice()">Vincular →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-wrap" id="toasts"></div>
+
+<script type="module" src="js/admin.js"></script>
+</body>
+</html>

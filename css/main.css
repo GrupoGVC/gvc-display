@@ -1,0 +1,46 @@
+/* ============================================================
+   GVC Signage — CSS principal (compartilhado)
+   Importado por: index.html (admin) e html/player.html
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+
+/* ── Variáveis globais ───────────────────────────────────────── */
+:root {
+  /* Cores */
+  --bg:       #0b0d10;
+  --bg2:      #111318;
+  --bg3:      #181b21;
+  --card:     #13161c;
+  --bord:     #22262f;
+  --bord2:    #2c3140;
+  --txt:      #e8eaf0;
+  --txt2:     #a0a8bc;
+  --mut:      #6b7394;
+  --primary:  #4f8cff;
+  --prim-h:   #3a7aff;
+  --green:    #3bdb8a;
+  --red:      #ff4f6a;
+  --orange:   #ff9a3b;
+  --yellow:   #f5c84a;
+
+  /* Layout */
+  --sbw:    230px;
+  --rad:    10px;
+  --trans:  .18s ease;
+  --shadow: 0 4px 24px rgba(0,0,0,.45);
+
+  /* Tipografia */
+  --font-display: 'Syne', system-ui, sans-serif;
+  --font-body:    'DM Sans', system-ui, sans-serif;
+}
+
+/* ── Reset ───────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; -webkit-text-size-adjust: 100%; }
+body { font-family: var(--font-body); background: var(--bg); color: var(--txt); }
+a    { color: var(--primary); text-decoration: none; }
+button { cursor: pointer; font-family: inherit; }
+input, select, textarea { font-family: inherit; }
+img  { max-width: 100%; display: block; }
+h1, h2, h3 { font-family: var(--font-display); }
