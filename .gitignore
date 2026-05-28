@@ -1,4 +1,6 @@
 .env
-.bfg-report/
-.env
+seed.local.sql
+database.local.sql
+uploads/*
+!uploads/.gitkeep
 .bfg-report/

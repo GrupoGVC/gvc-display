@@ -1,0 +1,8 @@
+# Passa o header Authorization para o PHP
+# Sem isso, o Apache bloqueia e $_SERVER['HTTP_AUTHORIZATION'] fica vazio
+RewriteEngine On
+RewriteCond %{HTTP:Authorization} ^(.*)
+RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+
+# Alternativa para alguns ambientes Apache
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1

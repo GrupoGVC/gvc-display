@@ -1,46 +1,46 @@
-/* ============================================================
-   GVC Signage — CSS principal (compartilhado)
-   Importado por: index.html (admin) e html/player.html
-   ============================================================ */
+@import url("https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200");
 
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
-
-/* ── Variáveis globais ───────────────────────────────────────── */
 :root {
-  /* Cores */
-  --bg:       #0b0d10;
-  --bg2:      #111318;
-  --bg3:      #181b21;
-  --card:     #13161c;
-  --bord:     #22262f;
-  --bord2:    #2c3140;
-  --txt:      #e8eaf0;
-  --txt2:     #a0a8bc;
-  --mut:      #6b7394;
-  --primary:  #4f8cff;
-  --prim-h:   #3a7aff;
-  --green:    #3bdb8a;
-  --red:      #ff4f6a;
-  --orange:   #ff9a3b;
-  --yellow:   #f5c84a;
-
-  /* Layout */
-  --sbw:    230px;
-  --rad:    10px;
-  --trans:  .18s ease;
-  --shadow: 0 4px 24px rgba(0,0,0,.45);
-
-  /* Tipografia */
-  --font-display: 'Syne', system-ui, sans-serif;
-  --font-body:    'DM Sans', system-ui, sans-serif;
+  --bg:      #0b0d10;
+  --bg2:     #111318;
+  --bg3:     #181b21;
+  --card:    #13161c;
+  --bord:    #22262f;
+  --bord2:   #2c3140;
+  --txt:     #e8eaf0;
+  --txt2:    #a0a8bc;
+  --mut:     #6b7394;
+  --primary: #4f8cff;
+  --prim-h:  #3a7aff;
+  --green:   #3bdb8a;
+  --red:     #ff4f6a;
+  --orange:  #ff9a3b;
+  --yellow:  #f5c84a;
+  --sbw:     240px;
+  --topbar:  54px;
+  --font:    'Ubuntu', system-ui, sans-serif;
 }
 
-/* ── Reset ───────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 15px; -webkit-text-size-adjust: 100%; }
-body { font-family: var(--font-body); background: var(--bg); color: var(--txt); }
-a    { color: var(--primary); text-decoration: none; }
+html, body { height: 100%; overflow: hidden; font-family: var(--font); background: var(--bg); color: var(--txt); font-size: 14px; }
+a { color: var(--primary); text-decoration: none; }
 button { cursor: pointer; font-family: inherit; }
 input, select, textarea { font-family: inherit; }
-img  { max-width: 100%; display: block; }
-h1, h2, h3 { font-family: var(--font-display); }
+img { max-width: 100%; display: block; }
+
+/* Material Symbols */
+.msi {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal; font-style: normal;
+  font-size: 20px; line-height: 1;
+  letter-spacing: normal; text-transform: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  white-space: nowrap; direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;
+  vertical-align: middle; user-select: none;
+}
+.msi-fill { font-variation-settings: 'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24; }
+.msi-lg   { font-size: 28px; }
+.msi-xl   { font-size: 40px; }

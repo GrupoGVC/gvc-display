@@ -1,47 +1,80 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="robots" content="noindex,nofollow">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
-  <title>GVC Signage Player</title>
-  <link rel="stylesheet" href="../css/player.css" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+  <meta name="robots" content="noindex,nofollow"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <title>GVC Display | Player</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="../css/player.css"/>
+  <style>
+    /* Tela de pareamento Bootstrap */
+    #pairing {
+      position: fixed; inset: 0;
+      background: #0b0d10;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 100; gap: 12px;
+    }
+    #pairing.hidden { display: none; }
+    .pair-code {
+      font-family: monospace;
+      font-size: clamp(48px, 10vw, 80px);
+      font-weight: 700;
+      letter-spacing: 16px;
+      color: #4f8cff;
+      background: rgba(79,140,255,.08);
+      border: 2px solid rgba(79,140,255,.3);
+      border-radius: 16px;
+      padding: 16px 32px;
+    }
+    #error-screen {
+      position: fixed; inset: 0;
+      background: #0b0d10;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 100; gap: 12px;
+    }
+    #error-screen.hidden { display: none; }
+  </style>
 </head>
 <body>
+  <!-- Previne modo sleep -->
+  <video id="nosleep-vid" autoplay muted loop playsinline
+    style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:.01;pointer-events:none">
+    <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAA" type="video/mp4"/>
+  </video>
 
-<!-- Previne modo sleep -->
-<video id="nosleep-vid" autoplay muted loop playsinline style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:.01;pointer-events:none;">
-  <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAA" type="video/mp4">
-</video>
+  <!-- Stage de slides -->
+  <div id="stage"></div>
 
-<!-- Stage de slides -->
-<div id="stage"></div>
+  <!-- Barra de progresso -->
+  <div id="hud"><div id="hud-bar" style="width:0%"></div></div>
 
-<!-- Barra de progresso (rodapé) -->
-<div id="hud"><div id="hud-bar" style="width:0%"></div></div>
+  <!-- Debug -->
+  <div id="debug"></div>
 
-<!-- Debug (ativo com ?debug=1) -->
-<div id="debug"></div>
+  <!-- Tela de pareamento -->
+  <div id="pairing">
+    <span class="msi msi-fill" style="font-size:72px;color:#4f8cff">tv</span>
+    <div class="pair-title text-white fw-bold" style="font-size:clamp(22px,4vw,32px)">GVC Display</div>
+    <p class="text-secondary text-center px-4" style="font-size:clamp(14px,2vw,18px);max-width:500px">
+      Para configurar esta TV, acesse o painel administrativo
+    </p>
+    <div class="pair-code" id="pair-code">------</div>
+    <p class="text-secondary" id="pair-hint" style="font-size:16px">Aguardando vinculação...</p>
+    <small class="text-secondary opacity-50" id="pair-timer"></small>
+  </div>
 
-<!-- Tela de pareamento -->
-<div id="pairing">
-  <div class="pair-logo">📺</div>
-  <div class="pair-title">GVC Signage</div>
-  <div class="pair-sub">Para configurar esta TV, acesse o painel administrativo</div>
-  <div class="pair-code" id="pair-code">------</div>
-  <div class="pair-hint"  id="pair-hint">Aguardando vinculação...</div>
-  <div class="pair-timer" id="pair-timer"></div>
-</div>
+  <!-- Tela de erro -->
+  <div id="error-screen" class="hidden">
+    <span class="msi msi-fill" style="font-size:56px;color:#f59e0b">warning</span>
+    <div class="text-white fw-semibold" id="error-msg" style="font-size:20px">Erro ao carregar conteúdo</div>
+    <small class="text-secondary">Tentando reconectar...</small>
+  </div>
 
-<!-- Tela de erro -->
-<div id="error-screen">
-  <div class="err-icon">⚠️</div>
-  <div class="err-msg"  id="error-msg">Erro ao carregar conteúdo</div>
-  <div class="err-sub">Tentando reconectar...</div>
-</div>
-
-<script src="../js/player.js"></script>
+  <script src="../js/player.js"></script>
 </body>
 </html>

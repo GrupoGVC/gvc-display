@@ -24,20 +24,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // ── Respostas JSON ────────────────────────────────────────────
-function json_ok(mixed $data = null, int $code = 200): never {
+function json_ok(mixed $data = null, int $code = 200): never
+{
     http_response_code($code);
     echo json_encode(['success' => true, 'data' => $data], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
-function json_err(string $msg, int $code = 400): never {
+function json_err(string $msg, int $code = 400): never
+{
     http_response_code($code);
     echo json_encode(['success' => false, 'error' => $msg], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 // ── Body parser ───────────────────────────────────────────────
-function body(): array {
+function body(): array
+{
     static $parsed = null;
     if ($parsed === null) {
         $raw    = file_get_contents('php://input');
@@ -47,7 +50,8 @@ function body(): array {
     return $parsed;
 }
 
-function require_fields(array $fields): array {
+function require_fields(array $fields): array
+{
     $b = body();
     foreach ($fields as $f) {
         if (!isset($b[$f]) || trim((string)$b[$f]) === '') {
@@ -58,47 +62,68 @@ function require_fields(array $fields): array {
 }
 
 // ── Sanitização ───────────────────────────────────────────────
-function s(mixed $v, int $max = 255): string {
+function s(mixed $v, int $max = 255): string
+{
     return mb_substr(strip_tags(trim((string)$v)), 0, $max);
 }
 
-function sint(mixed $v): int {
+function sint(mixed $v): int
+{
     return (int) filter_var($v, FILTER_SANITIZE_NUMBER_INT);
 }
 
 // ── Autenticação JWT (admin) ──────────────────────────────────
-function auth(): array {
-    $h = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-    $t = str_starts_with($h, 'Bearer ') ? substr($h, 7) : ($_GET['_token'] ?? '');
+function get_bearer(): string
+{
+    // O Apache bloqueia HTTP_AUTHORIZATION por padrão.
+    // Tentamos 3 fontes em ordem de prioridade.
+    $h = $_SERVER['HTTP_AUTHORIZATION']       // PHP-FPM / Nginx
+        ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] // Apache mod_rewrite
+        ?? (function_exists('apache_request_headers')
+            ? (apache_request_headers()['Authorization']
+                ?? apache_request_headers()['authorization'] ?? '') : '')
+        ?? '';
+    if (str_starts_with($h, 'Bearer ')) return substr($h, 7);
+    return $_GET['_token'] ?? '';
+}
+
+function auth(): array
+{
+    $t = get_bearer();
     if (!$t) json_err('Autenticação necessária', 401);
     $p = JWT::decode($t, JWT_SECRET);
-    if (!$p)  json_err('Token inválido ou expirado', 401);
+    if (!$p) json_err('Token inválido ou expirado', 401);
     return $p;
 }
 
-function auth_admin(): array {
+function auth_admin(): array
+{
     $p = auth();
     if (($p['role'] ?? '') !== 'admin') json_err('Acesso negado', 403);
     return $p;
 }
 
 // ── Log de atividade ──────────────────────────────────────────
-function log_act(int $uid, string $action, string $entity = '', int $eid = 0, string $detail = ''): void {
+function log_act(int $uid, string $action, string $entity = '', int $eid = 0, string $detail = ''): void
+{
     try {
         $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
         db()->prepare("INSERT INTO activity_logs (user_id,action,entity,entity_id,detail,ip) VALUES (?,?,?,?,?,?)")
-             ->execute([$uid ?: null, $action, $entity ?: null, $eid ?: null, $detail ?: null, $ip]);
-    } catch (Throwable) {}
+            ->execute([$uid ?: null, $action, $entity ?: null, $eid ?: null, $detail ?: null, $ip]);
+    } catch (Throwable) {
+    }
 }
 
 // ── Tokens ───────────────────────────────────────────────────
-function rand_token(int $bytes = 32): string {
+function rand_token(int $bytes = 32): string
+{
     return bin2hex(random_bytes($bytes));
 }
 
 // ── Resolve playlist ativa para um device ────────────────────
 //    Prioridade: agendamento > playlist direta > playlist padrão
-function resolve_playlist(int $device_id, ?int $direct_pl, ?int $group_id): ?array {
+function resolve_playlist(int $device_id, ?int $direct_pl, ?int $group_id): ?array
+{
     $db  = db();
     $now = date('Y-m-d H:i:s');
     $dow = (int) date('w');
@@ -142,7 +167,8 @@ function resolve_playlist(int $device_id, ?int $direct_pl, ?int $group_id): ?arr
     return $def ? playlist_full((int)$def) : null;
 }
 
-function playlist_full(int $id): ?array {
+function playlist_full(int $id): ?array
+{
     $db = db();
     $pl = $db->prepare("SELECT * FROM playlists WHERE id=?");
     $pl->execute([$id]);
