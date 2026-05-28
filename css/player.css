@@ -170,3 +170,151 @@ body {
   z-index: 20;
   display: none;
 }
+
+/* ── Tela de pareamento ── */
+#pairing {
+  position: fixed;
+  inset: 0;
+  background: #0b0d10;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  gap: clamp(32px, 6vw, 80px);
+  padding: 40px;
+}
+#pairing.hidden {
+  display: none;
+}
+
+/* Coluna esquerda: info */
+.pair-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  max-width: 420px;
+}
+.pair-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pair-logo-txt {
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 700;
+  color: #e8eaf0;
+}
+.pair-logo-txt span {
+  color: #4f8cff;
+}
+.pair-headline {
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 700;
+  color: #e8eaf0;
+  line-height: 1.15;
+}
+.pair-sub {
+  font-size: clamp(14px, 1.6vw, 18px);
+  color: #6b7394;
+  line-height: 1.6;
+}
+
+/* Código */
+.pair-code-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.pair-code-label {
+  font-size: 12px;
+  color: #6b7394;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 600;
+}
+.pair-code {
+  font-family: "Courier New", monospace;
+  font-size: clamp(36px, 6vw, 64px);
+  font-weight: 800;
+  letter-spacing: clamp(8px, 1.5vw, 20px);
+  color: #4f8cff;
+  background: rgba(79, 140, 255, 0.08);
+  border: 2px solid rgba(79, 140, 255, 0.25);
+  border-radius: 12px;
+  padding: clamp(10px, 1.5vw, 18px) clamp(16px, 2.5vw, 32px);
+  display: inline-block;
+}
+.pair-timer {
+  font-size: 13px;
+  color: #6b7394;
+  margin-top: 2px;
+}
+.pair-hint {
+  font-size: clamp(13px, 1.4vw, 16px);
+  color: #a0a8bc;
+}
+
+/* Divisor */
+.pair-divider {
+  width: 1px;
+  height: clamp(200px, 30vh, 320px);
+  background: #22262f;
+  flex-shrink: 0;
+}
+
+/* Coluna direita: QR */
+.pair-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.pair-qr-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  width: clamp(160px, 22vw, 240px);
+  height: clamp(160px, 22vw, 240px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pair-qr-box canvas,
+.pair-qr-box img {
+  width: 100%;
+  height: 100%;
+}
+.pair-qr-label {
+  font-size: clamp(12px, 1.3vw, 15px);
+  color: #6b7394;
+  text-align: center;
+  max-width: 220px;
+  line-height: 1.5;
+}
+.pair-qr-url {
+  font-size: clamp(10px, 1.1vw, 13px);
+  color: #4f8cff;
+  text-align: center;
+  max-width: 240px;
+  word-break: break-all;
+  opacity: 0.7;
+}
+
+/* ── Tela de erro ── */
+#error-screen {
+  position: fixed;
+  inset: 0;
+  background: #0b0d10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  gap: 12px;
+}
+#error-screen.hidden {
+  display: none;
+}

@@ -1,5 +1,5 @@
 /* ============================================================
-   GVC Signage — Player JS
+   GVC Display — Player JS
    Fullscreen kiosk para Smart TVs
    ============================================================ */
 
@@ -194,7 +194,34 @@ async function startPairing() {
 
     document.getElementById("pair-code").textContent = pairingCode;
     document.getElementById("pair-hint").textContent =
-      "Digite este código no painel administrativo";
+      "Aguardando vinculação...";
+
+    // ── Gera QR Code com URL do painel admin ──────────────────
+    // URL do painel: raiz do projeto (sem /api e sem /html)
+    const adminBase = API_BASE.replace(/\/api$/, "");
+    const adminUrl  = adminBase + "/index.html";
+
+    // Mostra a URL embaixo do QR
+    const qrUrlEl = document.getElementById("qr-admin-url");
+    if (qrUrlEl) qrUrlEl.textContent = adminUrl;
+
+    // Gera o QR usando a lib qrcode.js (carregada no HTML)
+    const qrBox = document.getElementById("qr-box");
+    if (qrBox && window.QRCode) {
+      qrBox.innerHTML = ""; // limpa placeholder
+      QRCode.toCanvas(
+        document.createElement("canvas"),
+        adminUrl,
+        { width: qrBox.clientWidth || 200, margin: 1, color: { dark: "#000", light: "#fff" } },
+        (err, canvas) => {
+          if (!err) {
+            canvas.style.cssText = "width:100%;height:100%;border-radius:8px;";
+            qrBox.innerHTML = "";
+            qrBox.appendChild(canvas);
+          }
+        }
+      );
+    }
 
     // Countdown
     let ttl = PAIRING_TTL;

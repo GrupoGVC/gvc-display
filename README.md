@@ -1,6 +1,6 @@
-# 📺 GVC Signage v3.0
+# 📺 GVC Display
 
-Sistema de Sinalização Digital Corporativa para Smart TVs.
+Sistema de Apresentação Digital Corporativa para Smart TVs.
 
 **Stack:** PHP 8 · MySQL · JWT · Vanilla JS (ES Modules) · sem dependências externas
 
@@ -9,7 +9,7 @@ Sistema de Sinalização Digital Corporativa para Smart TVs.
 ## 🗂️ Estrutura do projeto
 
 ```
-gvc-signage/
+gvc-display/
 ├── api/                    ← Backend PHP
 │   ├── config.php          ← Carrega .env, PDO singleton
 │   ├── helpers.php         ← Middleware, auth, sanitização, resolve_playlist
@@ -57,11 +57,11 @@ gvc-signage/
 
 ---
 
-## 🚀 Deploy na Hostinger
+## 🚀 Deploy na VPS
 
 ### 1. Banco de dados
 ```
-hPanel → Banco de dados MySQL → Criar banco gvc_signage
+hPanel → Banco de dados MySQL → Criar banco db_gvc_display
 Abrir phpMyAdmin → executar database.sql
 ```
 
@@ -77,12 +77,12 @@ php -r "echo bin2hex(random_bytes(32));"
 ```
 
 ### 3. Upload
-- Enviar tudo para `public_html/gvc-signage/`
+- Enviar tudo para `public_html/gvc-display/`
 - Permissões da pasta `uploads/` → **755**
 
 ### 4. Primeiro acesso
 ```
-https://seudominio.com/gvc-signage/login.html
+https://seudominio.com/gvc-display/login.html
 admin@gvc.com / admin123   ← troque imediatamente!
 ```
 
@@ -92,16 +92,16 @@ admin@gvc.com / admin123   ← troque imediatamente!
 
 ```bash
 # XAMPP/WAMP/Laragon
-# Copiar para htdocs/gvc-signage/
+# Copiar para htdocs/gvc-display/
 # Criar banco e executar database.sql
 # Configurar .env
-# Acessar: http://localhost/gvc-signage/
+# Acessar: http://localhost/gvc-display/
 
 # Simular TVs (abrir em abas diferentes):
-http://localhost/gvc-signage/html/player.html?token=TOKEN_1
-http://localhost/gvc-signage/html/player.html?token=TOKEN_2
-http://localhost/gvc-signage/html/player.html            ← pareamento
-http://localhost/gvc-signage/html/player.html?debug=1    ← modo debug
+http://localhost/gvc-display/html/player.html?token=TOKEN_1
+http://localhost/gvc-display/html/player.html?token=TOKEN_2
+http://localhost/gvc-display/html/player.html            ← pareamento
+http://localhost/gvc-display/html/player.html?debug=1    ← modo debug
 ```
 
 ---
