@@ -168,4 +168,3 @@ WHERE email = 'admin@gvc.com';
 
 SHOW DATABASES;
 SHOW TABLES;
-DROP DATABASE db_gvc_display;
