@@ -13,57 +13,9 @@
     <link rel="stylesheet" href="css/admin.css"/>
   </head>
   <body>
-    <!-- LOGIN -->
-    <div id="login-screen">
-      <div style="width: min(420px, 94vw); padding: 0 12px">
-        <div
-          style="
-            background: var(--bg2);
-            border: 1px solid var(--bord2);
-            border-radius: 18px;
-            padding: 44px 36px 36px;
-            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
-          "
-        >
-          <div class="text-center mb-4">
-            <span
-              class="msi msi-fill"
-              style="font-size: 54px; color: var(--primary)"
-              >tv</span
-            >
-            <h1 style="font-size: 24px; font-weight: 700; margin-top: 8px">
-              GVC <span style="color: var(--primary)">Display</span>
-            </h1>
-            <p style="font-size: 13px; color: var(--mut); margin-top: 4px">
-              Sinalização Digital Corporativa
-            </p>
-          </div>
-          <form onsubmit="doLogin();return false;" autocomplete="on">
-          <div class="fg">
-            <label>E-mail</label>
-            <input type="email" id="l-email" placeholder="admin@gvc.com" autocomplete="email"/>
-          </div>
-          <div class="fg">
-            <label>Senha</label>
-            <input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password"/>
-          </div>
-          <div id="l-err" style="display:none;font-size:13px;color:var(--red);text-align:center;margin-bottom:12px;"></div>
-          <button type="submit" class="btn-p" style="width:100%;justify-content:center;padding:11px 14px;font-size:15px;">
-            Entrar <span class="msi">arrow_forward</span>
-          </button>
-          </form>
-          <p
-            class="text-center mt-3"
-            style="font-size: 11px; color: var(--mut)"
-          >
-            admin@gvc.com / admin123 — troque após o 1º acesso
-          </p>
-        </div>
-      </div>
-    </div>
 
     <!-- APP -->
-    <div id="app">
+    <div id="app" style="display:none;">
       <!-- SIDEBAR -->
       <div id="sb">
         <div class="sb-logo">
@@ -483,17 +435,17 @@
               <div class="col-12 col-md-5">
                 <div class="gvc-card">
                   <div class="gvc-card-title mb-3">Alterar Senha</div>
+                  <form onsubmit="doChangePass();return false;" autocomplete="on">
                   <div class="fg">
-                    <label>Senha atual</label
-                    ><input type="password" id="cfg-cur-pass" autocomplete="current-password"/>
+                    <label>Senha atual</label>
+                    <input type="password" id="cfg-cur-pass" autocomplete="current-password"/>
                   </div>
                   <div class="fg">
-                    <label>Nova senha</label
-                    ><input type="password" id="cfg-new-pass" autocomplete="new-password"/>
+                    <label>Nova senha</label>
+                    <input type="password" id="cfg-new-pass" autocomplete="new-password"/>
                   </div>
-                  <button class="btn-p btn-sm" onclick="doChangePass()">
-                    Salvar
-                  </button>
+                  <button type="submit" class="btn-p btn-sm">Salvar</button>
+                  </form>
                 </div>
               </div>
               <div class="col-12 col-md-7">
@@ -1018,20 +970,11 @@
           </div>
           <div class="modal-footer">
             <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
-            <button class="btn-p" onclick="doPairDevice()">Vincular <span class="msi" style="font-size:14px">link</span></button>
-          </div>
-        </div>
-      </div>
-    </div>
-          <div class="modal-footer">
-            <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
             <button class="btn-p" onclick="doPairDevice()">
               Vincular <span class="msi" style="font-size: 14px">link</span>
             </button>
           </div>
-        </div>
-      </div>
-    </div>
+        
 
     <!-- Toast container -->
     <div class="toast-wrap" id="toasts"></div>

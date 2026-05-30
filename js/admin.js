@@ -18,20 +18,22 @@ import {
 
 // ── Helper: resolve URL de mídia (relativa ou absoluta) ─────────
 function mediaUrl(url) {
-  if (!url) return '';
+  if (!url) return "";
   // Path relativo /uploads/... — usa BASE do projeto (ex: http://localhost/gvc-display)
-  if (url.startsWith('/uploads/')) return BASE + url;
-  if (url.startsWith('/')) return window.location.origin + url;
+  if (url.startsWith("/uploads/")) return BASE + url;
+  if (url.startsWith("/")) return window.location.origin + url;
   // URL absoluta — extrai /uploads/... e reconstrói com BASE atual
-  if (url.startsWith('http://') || url.startsWith('https://')) {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
     try {
       const u = new URL(url);
-      const i = u.pathname.indexOf('/uploads/');
+      const i = u.pathname.indexOf("/uploads/");
       if (i >= 0) return BASE + u.pathname.slice(i);
       return url; // URL externa (ex: página web para iframe)
-    } catch { return url; }
+    } catch {
+      return url;
+    }
   }
-  return BASE + '/' + url;
+  return BASE + "/" + url;
 }
 
 // ── Estado global ─────────────────────────────────────────────
@@ -64,52 +66,27 @@ const S = {
   showLogin();
 })();
 
-// ── Login ─────────────────────────────────────────────────────
+// ── Login — redireciona para login.html ──────────────────────
 function showLogin() {
-  q("#login-screen").style.display = "flex";
-  q("#app").style.display = "none";
+  // Login é feito na página dedicada login.html
+  token.clear();
+  location.href = "login.html";
 }
 
 window.doLogin = async () => {
-  const email = q("#l-email").value.trim();
-  const pass = q("#l-pass").value;
-  const errEl = q("#l-err");
-  errEl.style.display = "none";
-
-  if (!email || !pass) {
-    errEl.textContent = "Preencha e-mail e senha";
-    errEl.style.display = "block";
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API}/auth/login.php`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password: pass }),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Erro no login");
-    token.set(json.data.token);
-    S.user = json.data.user;
-    q("#login-screen").style.display = "none";
-    const d = await get("dashboard/index.php");
-    initApp(d);
-  } catch (e) {
-    errEl.textContent = e.message;
-    errEl.style.display = "block";
-  }
+  // Login é feito no login.html
+  showLogin();
 };
 
 window.doLogout = () => {
   token.clear();
-  location.reload();
+  location.href = "login.html";
 };
 
 // ── App init ──────────────────────────────────────────────────
 async function initApp(dashData) {
   q("#app").style.display = "block";
-  q("#conn-user").textContent = S.user?.name ?? "Admin";
+  q("#conn-user").textContent = S.user?.name || S.user?.email || "Admin";
 
   renderDash(dashData);
   await Promise.all([loadGroups(), loadPlaylists(), loadMedia()]);
@@ -216,19 +193,23 @@ window.openLogModal = () => {
     delete_device: '<span class="msi">delete</span>',
     login_failed: '<span class="msi" style="color:#f59e0b">warning</span>',
   };
-  const el = document.getElementById('log-modal-body');
+  const el = document.getElementById("log-modal-body");
   if (!el) return;
   el.innerHTML = logs.length
-    ? logs.map(l => `
+    ? logs
+        .map(
+          (l) => `
       <div class="log-item">
         <span class="log-ic">${icons[l.action] || '<span class="msi">article</span>'}</span>
         <div class="log-body">
-          <div class="log-act">${esc(l.action.replace(/_/g,' '))}${l.detail ? ` <em style="color:var(--mut)">${esc(l.detail)}</em>` : ''}</div>
-          <div class="log-time">${l.user_name ? esc(l.user_name) + ' · ' : ''}${fmtDate(l.created_at)}</div>
+          <div class="log-act">${esc(l.action.replace(/_/g, " "))}${l.detail ? ` <em style="color:var(--mut)">${esc(l.detail)}</em>` : ""}</div>
+          <div class="log-time">${l.user_name ? esc(l.user_name) + " · " : ""}${fmtDate(l.created_at)}</div>
         </div>
-      </div>`).join('')
+      </div>`,
+        )
+        .join("")
     : '<p class="empty">Sem atividade recente</p>';
-  openModal('m-log');
+  openModal("m-log");
 };
 
 // ── Devices ───────────────────────────────────────────────────
@@ -1048,80 +1029,97 @@ window.copyT = copyText;
 
 // ── Enter no login ────────────────────────────────────────────
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && q("#login-screen")?.style.display !== "none")
-    window.doLogin();
+  // Enter no login é tratado no login.html
 });
 
 // ── Pareamento via Dispositivos ────────────────────────────────
 
-let _pairDevId  = null;
-let _qrStream   = null;
+let _pairDevId = null;
+let _qrStream = null;
 let _qrInterval = null;
 
 window.openPairForDevice = (devId, devName) => {
   _pairDevId = devId;
-  const el = document.getElementById('pair-dev-name');
+  const el = document.getElementById("pair-dev-name");
   if (el) el.textContent = devName;
-  const inp = document.getElementById('pair-input-code');
-  if (inp) inp.value = '';
-  const err = document.getElementById('pair-error');
-  if (err) err.style.display = 'none';
-  switchPairTab('code');
-  openModal('m-pair-device');
+  const inp = document.getElementById("pair-input-code");
+  if (inp) inp.value = "";
+  const err = document.getElementById("pair-error");
+  if (err) err.style.display = "none";
+  switchPairTab("code");
+  openModal("m-pair-device");
 };
 
 window.switchPairTab = (tab) => {
-  const isCode = tab === 'code';
-  const tc = document.getElementById('pair-tab-code');
-  const tm = document.getElementById('pair-tab-cam');
-  const bc = document.getElementById('tab-code');
-  const bm = document.getElementById('tab-cam');
-  if (tc) tc.classList.toggle('hidden', !isCode);
-  if (tm) tm.classList.toggle('hidden', isCode);
-  if (bc) { bc.className = (isCode ? 'btn-p' : 'btn-g') + ' btn-sm'; bc.style.cssText = 'flex:1;justify-content:center;'; }
-  if (bm) { bm.className = (isCode ? 'btn-g' : 'btn-p') + ' btn-sm'; bm.style.cssText = 'flex:1;justify-content:center;'; }
-  if (!isCode) startCamera(); else stopCamera();
+  const isCode = tab === "code";
+  const tc = document.getElementById("pair-tab-code");
+  const tm = document.getElementById("pair-tab-cam");
+  const bc = document.getElementById("tab-code");
+  const bm = document.getElementById("tab-cam");
+  if (tc) tc.classList.toggle("hidden", !isCode);
+  if (tm) tm.classList.toggle("hidden", isCode);
+  if (bc) {
+    bc.className = (isCode ? "btn-p" : "btn-g") + " btn-sm";
+    bc.style.cssText = "flex:1;justify-content:center;";
+  }
+  if (bm) {
+    bm.className = (isCode ? "btn-g" : "btn-p") + " btn-sm";
+    bm.style.cssText = "flex:1;justify-content:center;";
+  }
+  if (!isCode) startCamera();
+  else stopCamera();
 };
 
 window.startCamera = async () => {
-  const video  = document.getElementById('qr-video');
-  const status = document.getElementById('qr-status');
+  const video = document.getElementById("qr-video");
+  const status = document.getElementById("qr-status");
   try {
-    _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    _qrStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+    });
     video.srcObject = _qrStream;
     await video.play();
-    if (status) status.textContent = 'Aponte a câmera para o QR Code da TV';
+    if (status) status.textContent = "Aponte a câmera para o QR Code da TV";
     scanQRFrame();
   } catch (e) {
-    if (status) status.textContent = 'Câmera não disponível: ' + e.message;
+    if (status) status.textContent = "Câmera não disponível: " + e.message;
   }
 };
 
 window.stopCamera = () => {
-  if (_qrInterval) { clearInterval(_qrInterval); _qrInterval = null; }
-  if (_qrStream)   { _qrStream.getTracks().forEach(t => t.stop()); _qrStream = null; }
+  if (_qrInterval) {
+    clearInterval(_qrInterval);
+    _qrInterval = null;
+  }
+  if (_qrStream) {
+    _qrStream.getTracks().forEach((t) => t.stop());
+    _qrStream = null;
+  }
 };
 
 function scanQRFrame() {
-  const video  = document.getElementById('qr-video');
-  const canvas = document.getElementById('qr-canvas');
-  const status = document.getElementById('qr-status');
+  const video = document.getElementById("qr-video");
+  const canvas = document.getElementById("qr-canvas");
+  const status = document.getElementById("qr-status");
   _qrInterval = setInterval(() => {
     if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
-    const ctx = canvas.getContext('2d');
-    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
     if (window.jsQR) {
-      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+      const code = jsQR(img.data, img.width, img.height, {
+        inversionAttempts: "dontInvert",
+      });
       if (code && code.data) {
         const match = code.data.match(/\b(\d{6})\b/);
         if (match) {
           stopCamera();
-          if (status) status.textContent = 'QR detectado: ' + match[1];
-          const inp = document.getElementById('pair-input-code');
+          if (status) status.textContent = "QR detectado: " + match[1];
+          const inp = document.getElementById("pair-input-code");
           if (inp) inp.value = match[1];
-          switchPairTab('code');
+          switchPairTab("code");
           doPairDeviceNew();
         }
       }
@@ -1130,24 +1128,38 @@ function scanQRFrame() {
 }
 
 window.doPairDeviceNew = async () => {
-  const code  = (document.getElementById('pair-input-code')?.value || '').replace(/\D/g, '');
-  const errEl = document.getElementById('pair-error');
-  if (errEl) errEl.style.display = 'none';
+  const code = (
+    document.getElementById("pair-input-code")?.value || ""
+  ).replace(/\D/g, "");
+  const errEl = document.getElementById("pair-error");
+  if (errEl) errEl.style.display = "none";
   if (code.length !== 6) {
-    if (errEl) { errEl.textContent = 'Digite os 6 dígitos do código exibido na TV'; errEl.style.display = 'block'; }
+    if (errEl) {
+      errEl.textContent = "Digite os 6 dígitos do código exibido na TV";
+      errEl.style.display = "block";
+    }
     return;
   }
   if (!_pairDevId) {
-    if (errEl) { errEl.textContent = 'Dispositivo não identificado'; errEl.style.display = 'block'; }
+    if (errEl) {
+      errEl.textContent = "Dispositivo não identificado";
+      errEl.style.display = "block";
+    }
     return;
   }
   try {
-    await post('pairing/index.php?action=pair', { code, device_id: _pairDevId });
+    await post("pairing/index.php?action=pair", {
+      code,
+      device_id: _pairDevId,
+    });
     stopCamera();
-    closeModal('m-pair-device');
-    toast('TV pareada com sucesso!');
+    closeModal("m-pair-device");
+    toast("TV pareada com sucesso!");
     loadDevices();
   } catch (e) {
-    if (errEl) { errEl.textContent = e.message || 'Erro ao parear — verifique o código'; errEl.style.display = 'block'; }
+    if (errEl) {
+      errEl.textContent = e.message || "Erro ao parear — verifique o código";
+      errEl.style.display = "block";
+    }
   }
 };
