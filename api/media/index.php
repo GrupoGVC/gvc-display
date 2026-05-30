@@ -87,7 +87,9 @@ if ($method === 'POST') {
     if (!is_dir(UPLOAD_DIR . $subdir)) mkdir(UPLOAD_DIR . $subdir, 0755, true);
     if (!move_uploaded_file($file['tmp_name'], $dest)) json_err('Falha ao salvar arquivo', 500);
 
-    $url = APP_URL . '/uploads/' . $subdir . $fname;
+    // Salva path relativo — o frontend constrói a URL absoluta com BASE do api.js
+    // Isso evita 404 quando APP_URL difere da URL de acesso atual
+    $url = '/uploads/' . $subdir . $fname;
     db()->prepare("INSERT INTO media (filename,original,type,mime,size,url,uploaded_by) VALUES (?,?,?,?,?,?,?)")
         ->execute([$fname, s($file['name'], 255), $type, $mime, $file['size'], $url, (int)$a['sub']]);
     $new_id = (int)db()->lastInsertId();

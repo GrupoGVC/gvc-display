@@ -1,6 +1,12 @@
-@import url("https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200");
+/* ============================================================
+   GVC Display — CSS Base (main.css)
+   Compartilhado por: index.html, login.html, html/player.html
+   ============================================================ */
 
+@import url("https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap");
+@import url("https://fonts.googleapis.com/icon?family=Material+Icons+Round");
+
+/* ── Variáveis globais ───────────────────────────────────────── */
 :root {
   --bg:      #0b0d10;
   --bg2:     #111318;
@@ -20,27 +26,34 @@
   --sbw:     240px;
   --topbar:  54px;
   --font:    'Ubuntu', system-ui, sans-serif;
+  --trans:   0.15s ease;
 }
 
+/* ── Reset base ─────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; overflow: hidden; font-family: var(--font); background: var(--bg); color: var(--txt); font-size: 14px; }
+html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--txt); font-size: 14px; }
 a { color: var(--primary); text-decoration: none; }
 button { cursor: pointer; font-family: inherit; }
 input, select, textarea { font-family: inherit; }
 img { max-width: 100%; display: block; }
 
-/* Material Symbols */
+/* ── Material Icons Round ────────────────────────────────── */
+/* Material Icons Round — google.com/icons?icon.set=Material+Icons&icon.style=Rounded */
 .msi {
-  font-family: 'Material Symbols Rounded';
+  font-family: 'Material Icons Round';
   font-weight: normal; font-style: normal;
   font-size: 20px; line-height: 1;
   letter-spacing: normal; text-transform: none;
   display: inline-flex; align-items: center; justify-content: center;
-  white-space: nowrap; direction: ltr;
-  -webkit-font-smoothing: antialiased;
-  font-variation-settings: 'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;
+  white-space: nowrap; word-wrap: normal;
+  direction: ltr; -webkit-font-smoothing: antialiased;
   vertical-align: middle; user-select: none;
 }
-.msi-fill { font-variation-settings: 'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24; }
+.msi-fill { font-variation-settings: 'FILL' 1; }
 .msi-lg   { font-size: 28px; }
 .msi-xl   { font-size: 40px; }
+
+/* ── Scrollbar customizada ───────────────────────────────────── */
+::-webkit-scrollbar       { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bord2); border-radius: 3px; }

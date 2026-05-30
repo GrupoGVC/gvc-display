@@ -1,700 +1,1111 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>GVC Signage</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
-  <link rel="stylesheet" href="css/main.css"/>
-  <style>
-  /* ── LAYOUT FIXO ── */
-  #login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9999;background:var(--bg);}
-  #app{display:none;height:100vh;overflow:hidden;}
-
-  /* ── SIDEBAR ── */
-  #sb{position:fixed;top:0;left:0;bottom:0;width:var(--sbw);background:var(--bg2);border-right:1px solid var(--bord);display:flex;flex-direction:column;z-index:300;transition:transform .22s ease;}
-  #sb.sb-hidden{transform:translateX(-100%);}
-  .sb-logo{padding:16px 16px 14px;border-bottom:1px solid var(--bord);display:flex;align-items:center;gap:10px;flex-shrink:0;}
-  .sb-brand{font-size:17px;font-weight:700;line-height:1.2;}
-  .sb-sub{font-size:10px;color:var(--mut);letter-spacing:.5px;text-transform:uppercase;}
-  .sb-nav{flex:1;padding:8px 6px;overflow-y:auto;}
-  .ni{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;font-size:13.5px;font-weight:500;color:var(--txt2);cursor:pointer;transition:background .13s,color .13s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;}
-  .ni:hover{background:var(--bg3);color:var(--txt);}
-  .ni.active{background:rgba(79,140,255,.13);color:var(--primary);}
-  .ni .msi{font-size:19px;width:22px;flex-shrink:0;}
-  .sb-foot{padding:12px 16px;border-top:1px solid var(--bord);font-size:12px;color:var(--mut);display:flex;align-items:center;gap:8px;flex-shrink:0;}
-  .dot-on{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);flex-shrink:0;}
-
-  /* ── MAIN ── */
-  #main{margin-left:var(--sbw);height:100vh;display:flex;flex-direction:column;overflow:hidden;transition:margin-left .22s ease;}
-  #main.full{margin-left:0;}
-
-  /* ── TOPBAR ── */
-  .topbar{height:var(--topbar);background:var(--bg2);border-bottom:1px solid var(--bord);padding:0 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:12px;}
-  .topbar h1{font-size:16px;font-weight:600;margin:0;white-space:nowrap;}
-  #btn-sb{background:none;border:none;color:var(--txt2);padding:6px;border-radius:7px;display:flex;align-items:center;}
-  #btn-sb:hover{background:var(--bg3);color:var(--txt);}
-
-  /* ── CONTENT ── */
-  .content{flex:1;overflow-y:auto;overflow-x:hidden;padding:20px;}
-  .sec{display:none;}
-  .sec.active{display:block;}
-
-  /* ── STAT CARDS ── */
-  .stat-card{background:var(--card);border:1px solid var(--bord);border-radius:12px;padding:18px 20px;}
-  .stat-card .sl{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;}
-  .stat-card .sv{font-size:30px;font-weight:700;margin-top:4px;line-height:1;}
-
-  /* ── GVC CARD ── */
-  .gvc-card{background:var(--card);border:1px solid var(--bord);border-radius:12px;padding:18px 20px;}
-  .gvc-card-title{font-size:14px;font-weight:600;}
-
-  /* ── TABLE ── */
-  .gvc-table{width:100%;border-collapse:collapse;font-size:13px;}
-  .gvc-table thead th{font-size:11px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;padding:8px 10px;border-bottom:1px solid var(--bord);}
-  .gvc-table tbody tr{border-bottom:1px solid var(--bord);}
-  .gvc-table tbody tr:last-child{border-bottom:none;}
-  .gvc-table tbody td{padding:10px;vertical-align:middle;}
-
-  /* ── BUTTONS ── */
-  .btn-p{background:var(--primary);color:#fff!important;border:none;border-radius:7px;padding:7px 14px;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background .13s;}
-  .btn-p:hover{background:var(--prim-h);}
-  .btn-g{background:var(--bg3);color:var(--txt2);border:1px solid var(--bord2);border-radius:7px;padding:7px 14px;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background .13s;}
-  .btn-g:hover{color:var(--txt);background:var(--bord);}
-  .btn-d{background:rgba(255,79,106,.1);color:var(--red);border:1px solid rgba(255,79,106,.2);border-radius:7px;padding:7px 14px;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:5px;}
-  .btn-d:hover{background:rgba(255,79,106,.18);}
-  .btn-sm{padding:5px 10px!important;font-size:12px!important;}
-  .btn-icon{background:none;border:none;color:var(--txt2);padding:4px 6px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;}
-  .btn-icon:hover{background:var(--bg3);color:var(--txt);}
-
-  /* ── FORM ── */
-  .fg{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
-  .fg label{font-size:12px;font-weight:500;color:var(--txt2);}
-  .fg input,.fg select,.fg textarea{background:var(--bg3);border:1px solid var(--bord2);border-radius:8px;color:var(--txt);padding:8px 11px;font-size:13px;font-family:inherit;transition:border-color .15s;width:100%;}
-  .fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(79,140,255,.12);}
-  .fg select option{background:var(--bg3);}
-  .hint{font-size:11px;color:var(--mut);margin-top:3px;}
-
-  /* ── TAGS ── */
-  .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
-  .tg-on{background:rgba(59,219,138,.12);color:var(--green);}
-  .tg-off{background:rgba(107,115,148,.12);color:var(--mut);}
-  .tg-def{background:rgba(245,200,74,.12);color:var(--yellow);}
-  .tg{background:rgba(79,140,255,.12);color:var(--primary);}
-  .sdot{display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-  .sdot-on{background:var(--green);box-shadow:0 0 5px var(--green);}
-  .sdot-off{background:var(--mut);}
-
-  /* ── TV ROW (dashboard) ── */
-  .tv-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bord);}
-  .tv-row:last-child{border-bottom:none;}
-  .tv-info{flex:1;min-width:0;}
-  .tv-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .tv-loc{font-size:11px;color:var(--mut);}
-
-  /* ── LOG ITEM ── */
-  .log-item{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--bord);}
-  .log-item:last-child{border-bottom:none;}
-  .log-ic{width:22px;flex-shrink:0;color:var(--txt2);margin-top:1px;}
-  .log-body{flex:1;min-width:0;}
-  .log-act{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .log-time{font-size:11px;color:var(--mut);margin-top:1px;}
-
-  /* ── TOKEN DISPLAY ── */
-  .tokdisp{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--bord2);border-radius:8px;padding:7px 10px;}
-  .tokdisp code{flex:1;font-size:11px;color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .copybtn{background:var(--bg2);border:1px solid var(--bord2);color:var(--primary);font-size:11px;border-radius:5px;padding:3px 8px;cursor:pointer;flex-shrink:0;}
-
-  /* ── UPLOAD ── */
-  .uparea{border:2px dashed var(--bord2);border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;}
-  .uparea:hover{border-color:var(--primary);background:rgba(79,140,255,.04);}
-  .progwrap{display:none;margin-top:10px;}
-  .progbar{height:4px;background:var(--bord);border-radius:2px;margin-top:6px;}
-  .progfill{height:100%;background:var(--primary);border-radius:2px;transition:width .3s;}
-
-  /* ── MEDIA GRID ── */
-  .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:12px;}
-  .mcard{background:var(--bg3);border:1px solid var(--bord);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color .15s;position:relative;}
-  .mcard:hover{border-color:var(--primary);}
-  .mcard-thumb{aspect-ratio:16/9;background:#000;overflow:hidden;}
-  .mcard-thumb img,.mcard-thumb video{width:100%;height:100%;object-fit:cover;}
-  .mcard-info{padding:7px 9px;}
-  .mcard-name{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .mcard-type{font-size:10px;color:var(--mut);margin-top:1px;}
-  .mcard-delbtn{position:absolute;top:4px;right:4px;background:rgba(255,79,106,.85);color:#fff;border:none;border-radius:4px;padding:2px 5px;cursor:pointer;display:none;align-items:center;}
-  .mcard:hover .mcard-delbtn{display:flex;}
-
-  /* ── PLAYLIST ITEMS ── */
-  .pl-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--bord);border-radius:8px;margin-bottom:7px;background:var(--bg3);cursor:grab;}
-  .pl-drag{color:var(--mut);font-size:16px;flex-shrink:0;}
-  .pl-thumb{width:54px;height:30px;background:#000;border-radius:4px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
-  .pl-info{flex:1;min-width:0;}
-  .pl-iname{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .pl-imeta{font-size:11px;color:var(--mut);}
-  .pl-dur{font-size:12px;color:var(--mut);flex-shrink:0;}
-  .sortable-list{min-height:60px;}
-
-  /* ── MPICKER ── */
-  .mpicker{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;max-height:190px;overflow-y:auto;}
-  .mp-item{aspect-ratio:16/9;background:var(--bg3);border:2px solid var(--bord);border-radius:6px;overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-  .mp-item:hover,.mp-item.selected{border-color:var(--primary);}
-  .mp-item img,.mp-item video{width:100%;height:100%;object-fit:cover;pointer-events:none;}
-
-  /* ── PAIR CODE ── */
-  .pair-code-box{font-family:monospace;font-size:22px;font-weight:700;letter-spacing:8px;color:var(--primary);background:rgba(79,140,255,.08);border:1px solid rgba(79,140,255,.25);border-radius:8px;padding:5px 14px;display:inline-block;}
-
-  /* ── DAY CHECK ── */
-  .day-check{display:inline-flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--bord2);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:13px;}
-  .day-check input{width:auto;padding:0;margin:0;accent-color:var(--primary);}
-
-  /* ── EMPTY ── */
-  .empty{text-align:center;color:var(--mut);padding:32px 20px;font-size:13px;}
-
-  /* ── HIDDEN ── */
-  .hidden{display:none!important;}
-
-  /* ── BOOTSTRAP MODAL OVERRIDE ── */
-  .modal-content{background:var(--bg2)!important;border:1px solid var(--bord2)!important;border-radius:14px!important;color:var(--txt)!important;}
-  .modal-header{border-bottom:1px solid var(--bord)!important;padding:15px 20px!important;}
-  .modal-title{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px;}
-  .modal-body{padding:20px!important;}
-  .modal-footer{border-top:1px solid var(--bord)!important;padding:12px 20px!important;}
-  .btn-close{filter:invert(1) opacity(.5);}
-  .modal-backdrop{background:rgba(0,0,0,.65)!important;}
-
-  /* ── TOAST ── */
-  .toast-wrap{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
-  .tst{background:var(--card);border:1px solid var(--bord2);border-left:3px solid var(--primary);border-radius:9px;padding:10px 14px;font-size:13px;color:var(--txt);pointer-events:auto;animation:tsIn .2s ease;max-width:340px;display:flex;align-items:flex-start;gap:8px;}
-  .tst.err{border-left-color:var(--red);}
-  @keyframes tsIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
-
-  /* ── SCROLLBAR CUSTOM ── */
-  ::-webkit-scrollbar{width:5px;height:5px;}
-  ::-webkit-scrollbar-track{background:transparent;}
-  ::-webkit-scrollbar-thumb{background:var(--bord2);border-radius:3px;}
-  </style>
-</head>
-<body>
-
-<!-- LOGIN -->
-<div id="login-screen">
-  <div style="width:min(420px,94vw);padding:0 12px;">
-    <div style="background:var(--bg2);border:1px solid var(--bord2);border-radius:18px;padding:44px 36px 36px;box-shadow:0 12px 48px rgba(0,0,0,.55);">
-      <div class="text-center mb-4">
-        <span class="msi msi-fill" style="font-size:54px;color:var(--primary)">tv</span>
-        <h1 style="font-size:24px;font-weight:700;margin-top:8px;">GVC <span style="color:var(--primary)">Signage</span></h1>
-        <p style="font-size:13px;color:var(--mut);margin-top:4px;">Sinalização Digital Corporativa</p>
-      </div>
-      <div class="fg"><label>E-mail</label><input type="email" id="l-email" placeholder="admin@gvc.com" autocomplete="email"/></div>
-      <div class="fg"><label>Senha</label><input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password"/></div>
-      <div id="l-err" style="display:none;font-size:13px;color:var(--red);text-align:center;margin-bottom:12px;"></div>
-      <button class="btn-p" style="width:100%;justify-content:center;padding:11px 14px;font-size:15px;" onclick="doLogin()">
-        Entrar <span class="msi">arrow_forward</span>
-      </button>
-      <p class="text-center mt-3" style="font-size:11px;color:var(--mut);">admin@gvc.com / admin123 — troque após o 1º acesso</p>
-    </div>
-  </div>
-</div>
-
-<!-- APP -->
-<div id="app">
-
-  <!-- SIDEBAR -->
-  <div id="sb">
-    <div class="sb-logo">
-      <span class="msi msi-fill" style="font-size:22px;color:var(--primary)">tv</span>
-      <div>
-        <div class="sb-brand">GVC <span style="color:var(--primary)">Signage</span></div>
-        <div class="sb-sub">Sinalização Digital</div>
-      </div>
-    </div>
-    <nav class="sb-nav">
-      <button class="ni active" data-s="dashboard"    onclick="nav('dashboard')">   <span class="msi">dashboard</span>     Dashboard</button>
-      <button class="ni"        data-s="dispositivos" onclick="nav('dispositivos')"><span class="msi">tv</span>              Dispositivos</button>
-      <button class="ni"        data-s="grupos"       onclick="nav('grupos')">      <span class="msi">folder_special</span> Grupos</button>
-      <button class="ni"        data-s="playlists"    onclick="nav('playlists')">   <span class="msi">playlist_play</span>  Playlists</button>
-      <button class="ni"        data-s="agendamentos" onclick="nav('agendamentos')"><span class="msi">calendar_month</span> Agendamentos</button>
-      <button class="ni"        data-s="midia"        onclick="nav('midia')">       <span class="msi">perm_media</span>     Mídia</button>
-      <button class="ni"        data-s="pareamento"   onclick="nav('pareamento')">  <span class="msi">link</span>           Pareamento</button>
-      <button class="ni"        data-s="config"       onclick="nav('config')">      <span class="msi">settings</span>       Config</button>
-    </nav>
-    <div class="sb-foot">
-      <span class="dot-on"></span>
-      <span id="conn-user">—</span>
-    </div>
-  </div>
-
-  <!-- MAIN -->
-  <div id="main">
-    <div class="topbar">
-      <div class="d-flex align-items-center gap-3">
-        <button id="btn-sb" onclick="toggleSb()"><span class="msi" style="font-size:22px">menu</span></button>
-        <h1 id="ptitle">Dashboard</h1>
-      </div>
-      <div id="pact" class="d-flex gap-2 align-items-center"></div>
-    </div>
-
-    <div class="content">
-
-      <!-- DASHBOARD -->
-      <div id="sec-dashboard" class="sec active">
-        <div class="row g-3 mb-3">
-          <div class="col-6 col-xl-3"><div class="stat-card"><div class="sl">Total de TVs</div><div class="sv" id="st-tvs">—</div></div></div>
-          <div class="col-6 col-xl-3"><div class="stat-card"><div class="sl">Online agora</div><div class="sv" id="st-on" style="color:var(--green)">—</div></div></div>
-          <div class="col-6 col-xl-3"><div class="stat-card"><div class="sl">Playlists</div><div class="sv" id="st-pl">—</div></div></div>
-          <div class="col-6 col-xl-3"><div class="stat-card"><div class="sl">Mídias</div><div class="sv" id="st-md">—</div></div></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>GVC Display</title>
+    <link rel="icon" href="assets/logos/logo_grupogvc_white.ico" type="image/x-icon"/>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    />
+    <link rel="stylesheet" href="css/main.css"/>
+    <link rel="stylesheet" href="css/admin.css"/>
+  </head>
+  <body>
+    <!-- LOGIN -->
+    <div id="login-screen">
+      <div style="width: min(420px, 94vw); padding: 0 12px">
+        <div
+          style="
+            background: var(--bg2);
+            border: 1px solid var(--bord2);
+            border-radius: 18px;
+            padding: 44px 36px 36px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+          "
+        >
+          <div class="text-center mb-4">
+            <span
+              class="msi msi-fill"
+              style="font-size: 54px; color: var(--primary)"
+              >tv</span
+            >
+            <h1 style="font-size: 24px; font-weight: 700; margin-top: 8px">
+              GVC <span style="color: var(--primary)">Display</span>
+            </h1>
+            <p style="font-size: 13px; color: var(--mut); margin-top: 4px">
+              Sinalização Digital Corporativa
+            </p>
+          </div>
+          <form onsubmit="doLogin();return false;" autocomplete="on">
+          <div class="fg">
+            <label>E-mail</label>
+            <input type="email" id="l-email" placeholder="admin@gvc.com" autocomplete="email"/>
+          </div>
+          <div class="fg">
+            <label>Senha</label>
+            <input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password"/>
+          </div>
+          <div id="l-err" style="display:none;font-size:13px;color:var(--red);text-align:center;margin-bottom:12px;"></div>
+          <button type="submit" class="btn-p" style="width:100%;justify-content:center;padding:11px 14px;font-size:15px;">
+            Entrar <span class="msi">arrow_forward</span>
+          </button>
+          </form>
+          <p
+            class="text-center mt-3"
+            style="font-size: 11px; color: var(--mut)"
+          >
+            admin@gvc.com / admin123 — troque após o 1º acesso
+          </p>
         </div>
-        <div class="row g-3">
-          <div class="col-12 col-lg-5">
-            <div class="gvc-card h-100">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="gvc-card-title">Status das TVs</span>
-                <button class="btn-p btn-sm" onclick="openBroadcast()"><span class="msi" style="font-size:15px">cell_tower</span>Broadcast</button>
-              </div>
-              <div id="dash-tv"></div>
+      </div>
+    </div>
+
+    <!-- APP -->
+    <div id="app">
+      <!-- SIDEBAR -->
+      <div id="sb">
+        <div class="sb-logo">
+          <span
+            class="msi msi-fill"
+            style="font-size: 22px; color: var(--primary)"
+            >tv</span
+          >
+          <div>
+            <div class="sb-brand">
+              GVC <span style="color: var(--primary)">Display</span>
             </div>
+            <div class="sb-sub">Sinalização Digital</div>
           </div>
-          <div class="col-12 col-lg-7">
-            <div class="gvc-card h-100">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="gvc-card-title">Atividade Recente</span>
-                <!-- Botão ver tudo abre modal com scroll -->
-                <button class="btn-g btn-sm" onclick="openLogModal()"><span class="msi" style="font-size:14px">open_in_full</span>Ver tudo</button>
-              </div>
-              <!-- Mostra só os primeiros 5 logs -->
-              <div id="dash-log"></div>
-            </div>
-          </div>
+        </div>
+        <nav class="sb-nav">
+          <button
+            class="ni active"
+            data-s="dashboard"
+            onclick="nav('dashboard')"
+          >
+            <span class="msi">dashboard</span> Dashboard
+          </button>
+          <button
+            class="ni"
+            data-s="dispositivos"
+            onclick="nav('dispositivos')"
+          >
+            <span class="msi">tv</span> Dispositivos
+          </button>
+          <button class="ni" data-s="grupos" onclick="nav('grupos')">
+            <span class="msi">folder_special</span> Grupos
+          </button>
+          <button class="ni" data-s="playlists" onclick="nav('playlists')">
+            <span class="msi">playlist_play</span> Playlists
+          </button>
+          <button
+            class="ni"
+            data-s="agendamentos"
+            onclick="nav('agendamentos')"
+          >
+            <span class="msi">calendar_month</span> Agendamentos
+          </button>
+          <button class="ni" data-s="midia" onclick="nav('midia')">
+            <span class="msi">perm_media</span> Mídia
+          </button>
+          <button class="ni" data-s="config" onclick="nav('config')">
+            <span class="msi">settings</span> Config
+          </button>
+        </nav>
+        <div class="sb-foot">
+          <span class="dot-on"></span>
+          <span id="conn-user">—</span>
         </div>
       </div>
 
-      <!-- DISPOSITIVOS -->
-      <div id="sec-dispositivos" class="sec">
-        <div class="gvc-card">
-          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-            <span class="gvc-card-title">Dispositivos</span>
-            <div class="d-flex gap-2 flex-wrap">
-              <input type="text" id="dev-search" placeholder="Buscar..." style="width:150px;" class="fg" oninput="filterDevs()" style="padding:6px 10px;background:var(--bg3);border:1px solid var(--bord2);border-radius:7px;color:var(--txt);font-size:13px;"/>
-              <select id="dev-filter-grupo" onchange="filterDevs()" style="padding:6px 10px;background:var(--bg3);border:1px solid var(--bord2);border-radius:7px;color:var(--txt);font-size:13px;width:140px;">
-                <option value="">Todos os grupos</option>
+      <!-- MAIN -->
+      <div id="main">
+        <div class="topbar">
+          <div class="d-flex align-items-center gap-3">
+            <button id="btn-sb" onclick="toggleSb()">
+              <span class="msi" style="font-size: 22px">menu</span>
+            </button>
+            <h1 id="ptitle">Dashboard</h1>
+          </div>
+          <div id="pact" class="d-flex gap-2 align-items-center"></div>
+        </div>
+
+        <div class="content">
+          <!-- DASHBOARD -->
+          <div id="sec-dashboard" class="sec active">
+            <div class="row g-3 mb-3">
+              <div class="col-6 col-xl-3">
+                <div class="stat-card">
+                  <div class="sl">Total de TVs</div>
+                  <div class="sv" id="st-tvs">—</div>
+                </div>
+              </div>
+              <div class="col-6 col-xl-3">
+                <div class="stat-card">
+                  <div class="sl">Online agora</div>
+                  <div class="sv" id="st-on" style="color: var(--green)">—</div>
+                </div>
+              </div>
+              <div class="col-6 col-xl-3">
+                <div class="stat-card">
+                  <div class="sl">Playlists</div>
+                  <div class="sv" id="st-pl">—</div>
+                </div>
+              </div>
+              <div class="col-6 col-xl-3">
+                <div class="stat-card">
+                  <div class="sl">Mídias</div>
+                  <div class="sv" id="st-md">—</div>
+                </div>
+              </div>
+            </div>
+            <div class="row g-3">
+              <div class="col-12 col-lg-5">
+                <div class="gvc-card h-100">
+                  <div
+                    class="d-flex justify-content-between align-items-center mb-3"
+                  >
+                    <span class="gvc-card-title">Status das TVs</span>
+                    <button class="btn-p btn-sm" onclick="openBroadcast()">
+                      <span class="msi" style="font-size: 15px">cell_tower</span
+                      >Broadcast
+                    </button>
+                  </div>
+                  <div id="dash-tv"></div>
+                </div>
+              </div>
+              <div class="col-12 col-lg-7">
+                <div class="gvc-card h-100">
+                  <div
+                    class="d-flex justify-content-between align-items-center mb-3"
+                  >
+                    <span class="gvc-card-title">Atividade Recente</span>
+                    <!-- Botão ver tudo abre modal com scroll -->
+                    <button class="btn-g btn-sm" onclick="openLogModal()">
+                      <span class="msi" style="font-size: 14px"
+                        >open_in_full</span
+                      >Ver tudo
+                    </button>
+                  </div>
+                  <!-- Mostra só os primeiros 5 logs -->
+                  <div id="dash-log"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DISPOSITIVOS -->
+          <div id="sec-dispositivos" class="sec">
+            <div class="gvc-card">
+              <div
+                class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2"
+              >
+                <span class="gvc-card-title">Dispositivos</span>
+                <div class="d-flex gap-2 flex-wrap">
+                  <input
+                    type="text"
+                    id="dev-search"
+                    placeholder="Buscar..."
+                    oninput="filterDevs()"
+                    style="width:160px;padding:6px 10px;background:var(--bg3);border:1px solid var(--bord2);border-radius:7px;color:var(--txt);font-size:13px;"
+                  />
+                  <select
+                    id="dev-filter-grupo"
+                    onchange="filterDevs()"
+                    style="
+                      padding: 6px 10px;
+                      background: var(--bg3);
+                      border: 1px solid var(--bord2);
+                      border-radius: 7px;
+                      color: var(--txt);
+                      font-size: 13px;
+                      width: 140px;
+                    "
+                  >
+                    <option value="">Todos os grupos</option>
+                  </select>
+                  <button class="btn-p btn-sm" onclick="openAddDev()">
+                    + Adicionar TV
+                  </button>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="gvc-table">
+                  <thead>
+                    <tr>
+                      <th>Nome / Local</th>
+                      <th>Grupo</th>
+                      <th>Status</th>
+                      <th>Playlist</th>
+                      <th>Último ping</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dev-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- GRUPOS -->
+          <div id="sec-grupos" class="sec">
+            <div class="gvc-card">
+              <div
+                class="d-flex justify-content-between align-items-center mb-3"
+              >
+                <span class="gvc-card-title">Grupos de TVs</span>
+                <button class="btn-p btn-sm" onclick="openAddGrupo()">
+                  + Novo Grupo
+                </button>
+              </div>
+              <div id="gr-list"></div>
+            </div>
+          </div>
+
+          <!-- PLAYLISTS -->
+          <div id="sec-playlists" class="sec">
+            <div id="pl-list">
+              <div class="gvc-card">
+                <div
+                  class="d-flex justify-content-between align-items-center mb-3"
+                >
+                  <span class="gvc-card-title">Playlists</span>
+                  <div class="d-flex gap-2">
+                    <button class="btn-g btn-sm" onclick="openDupPl()">
+                      <span class="msi" style="font-size: 14px"
+                        >content_copy</span
+                      >Duplicar
+                    </button>
+                    <button class="btn-p btn-sm" onclick="openAddPl()">
+                      + Nova Playlist
+                    </button>
+                  </div>
+                </div>
+                <div id="pl-tbody"></div>
+              </div>
+            </div>
+            <div id="pl-edit" class="hidden">
+              <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+                <button class="btn-g btn-sm" onclick="showPlList()">
+                  <span class="msi" style="font-size: 14px">arrow_back</span
+                  >Voltar
+                </button>
+                <h2
+                  id="pl-edit-name"
+                  style="font-size: 15px; font-weight: 700; margin: 0"
+                ></h2>
+                <span id="pl-edit-default-badge" class="tag tg-def hidden"
+                  >⭐ Padrão</span
+                >
+                <button class="btn-d btn-sm ms-auto" onclick="deleteCurPl()">
+                  <span class="msi" style="font-size: 14px">delete</span>Excluir
+                </button>
+              </div>
+              <div class="row g-3">
+                <div class="col-12 col-lg-7">
+                  <div class="gvc-card">
+                    <div
+                      class="d-flex justify-content-between align-items-center mb-3"
+                    >
+                      <span class="gvc-card-title">Itens</span>
+                      <button class="btn-p btn-sm" onclick="openAddItem()">
+                        + Adicionar
+                      </button>
+                    </div>
+                    <div id="pl-items" class="sortable-list"></div>
+                    <p
+                      id="pl-hint"
+                      style="
+                        font-size: 12px;
+                        color: var(--mut);
+                        text-align: center;
+                        margin-top: 8px;
+                        display: none;
+                      "
+                    >
+                      Arraste para reordenar
+                    </p>
+                  </div>
+                </div>
+                <div class="col-12 col-lg-5">
+                  <div class="gvc-card mb-3">
+                    <div class="gvc-card-title mb-2">Pré-visualização</div>
+                    <div
+                      id="preview"
+                      style="
+                        background: #000;
+                        aspect-ratio: 16/9;
+                        border-radius: 8px;
+                        overflow: hidden;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                      "
+                    >
+                      <span
+                        style="color: rgba(255, 255, 255, 0.2); font-size: 12px"
+                        >Clique em um item</span
+                      >
+                    </div>
+                    <div
+                      id="prev-hint"
+                      style="
+                        font-size: 11px;
+                        color: var(--mut);
+                        text-align: center;
+                        margin-top: 6px;
+                      "
+                    ></div>
+                  </div>
+                  <div class="gvc-card">
+                    <div class="gvc-card-title mb-3">Distribuição rápida</div>
+                    <div class="fg">
+                      <label>Atribuir a</label
+                      ><select id="pl-assign-target">
+                        <option value="">— selecione —</option>
+                        <option value="all">Todas as TVs</option>
+                      </select>
+                    </div>
+                    <button
+                      class="btn-p btn-sm w-100 justify-content-center"
+                      onclick="quickAssign()"
+                    >
+                      Aplicar
+                      <span class="msi" style="font-size: 14px"
+                        >arrow_forward</span
+                      >
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AGENDAMENTOS -->
+          <div id="sec-agendamentos" class="sec">
+            <div class="gvc-card">
+              <div
+                class="d-flex justify-content-between align-items-center mb-3"
+              >
+                <span class="gvc-card-title">Agendamentos</span>
+                <button class="btn-p btn-sm" onclick="openAddAgenda()">
+                  + Novo Agendamento
+                </button>
+              </div>
+              <div id="sch-list"></div>
+            </div>
+          </div>
+
+          <!-- MÍDIA -->
+          <div id="sec-midia" class="sec">
+            <div
+              class="uparea mb-3"
+              id="uparea"
+              onclick="document.getElementById('finput').click()"
+            >
+              <span
+                class="msi msi-fill"
+                style="font-size: 38px; color: var(--primary)"
+                >upload_file</span
+              >
+              <p class="fw-semibold mt-2 mb-1">
+                Clique ou arraste arquivos aqui
+              </p>
+              <p style="font-size: 13px; color: var(--mut)">
+                JPG, PNG, GIF, WebP, MP4, WebM — máx. 50 MB
+              </p>
+              <input
+                type="file"
+                id="finput"
+                multiple
+                accept="image/*,video/*"
+                style="display: none"
+                onchange="doUpload(this.files)"
+              />
+            </div>
+            <div class="progwrap" id="upgprog">
+              <div
+                class="d-flex justify-content-between"
+                style="font-size: 13px"
+              >
+                <span id="upname">Enviando...</span><span id="uppct">0%</span>
+              </div>
+              <div class="progbar">
+                <div class="progfill" id="upbar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
+              <input
+                type="text"
+                id="media-search"
+                placeholder="Buscar..."
+                oninput="renderMedia()"
+                style="
+                  width: 180px;
+                  padding: 6px 10px;
+                  background: var(--bg3);
+                  border: 1px solid var(--bord2);
+                  border-radius: 7px;
+                  color: var(--txt);
+                  font-size: 13px;
+                "
+              />
+              <select
+                id="media-filter"
+                onchange="renderMedia()"
+                style="
+                  width: 120px;
+                  padding: 6px 10px;
+                  background: var(--bg3);
+                  border: 1px solid var(--bord2);
+                  border-radius: 7px;
+                  color: var(--txt);
+                  font-size: 13px;
+                "
+              >
+                <option value="">Tudo</option>
+                <option value="image">Imagens</option>
+                <option value="video">Vídeos</option>
               </select>
-              <button class="btn-p btn-sm" onclick="openAddDev()">+ Adicionar TV</button>
+              <span
+                id="media-count"
+                style="font-size: 13px; color: var(--mut); margin-left: auto"
+              ></span>
             </div>
-          </div>
-          <div class="table-responsive">
-            <table class="gvc-table">
-              <thead><tr><th>Nome / Local</th><th>Grupo</th><th>Status</th><th>Playlist</th><th>Último ping</th><th>Ações</th></tr></thead>
-              <tbody id="dev-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- GRUPOS -->
-      <div id="sec-grupos" class="sec">
-        <div class="gvc-card">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <span class="gvc-card-title">Grupos de TVs</span>
-            <button class="btn-p btn-sm" onclick="openAddGrupo()">+ Novo Grupo</button>
-          </div>
-          <div id="gr-list"></div>
-        </div>
-      </div>
-
-      <!-- PLAYLISTS -->
-      <div id="sec-playlists" class="sec">
-        <div id="pl-list">
-          <div class="gvc-card">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <span class="gvc-card-title">Playlists</span>
-              <div class="d-flex gap-2">
-                <button class="btn-g btn-sm" onclick="openDupPl()"><span class="msi" style="font-size:14px">content_copy</span>Duplicar</button>
-                <button class="btn-p btn-sm" onclick="openAddPl()">+ Nova Playlist</button>
-              </div>
+            <div class="mgrid" id="mgrid">
+              <div class="empty">Carregando...</div>
             </div>
-            <div id="pl-tbody"></div>
-          </div>
-        </div>
-        <div id="pl-edit" class="hidden">
-          <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-            <button class="btn-g btn-sm" onclick="showPlList()"><span class="msi" style="font-size:14px">arrow_back</span>Voltar</button>
-            <h2 id="pl-edit-name" style="font-size:15px;font-weight:700;margin:0;"></h2>
-            <span id="pl-edit-default-badge" class="tag tg-def hidden">⭐ Padrão</span>
-            <button class="btn-d btn-sm ms-auto" onclick="deleteCurPl()"><span class="msi" style="font-size:14px">delete</span>Excluir</button>
-          </div>
-          <div class="row g-3">
-            <div class="col-12 col-lg-7">
-              <div class="gvc-card">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                  <span class="gvc-card-title">Itens</span>
-                  <button class="btn-p btn-sm" onclick="openAddItem()">+ Adicionar</button>
+          </div><!-- CONFIG -->
+          <div id="sec-config" class="sec">
+            <div class="row g-3">
+              <div class="col-12 col-md-5">
+                <div class="gvc-card">
+                  <div class="gvc-card-title mb-3">Alterar Senha</div>
+                  <div class="fg">
+                    <label>Senha atual</label
+                    ><input type="password" id="cfg-cur-pass" autocomplete="current-password"/>
+                  </div>
+                  <div class="fg">
+                    <label>Nova senha</label
+                    ><input type="password" id="cfg-new-pass" autocomplete="new-password"/>
+                  </div>
+                  <button class="btn-p btn-sm" onclick="doChangePass()">
+                    Salvar
+                  </button>
                 </div>
-                <div id="pl-items" class="sortable-list"></div>
-                <p id="pl-hint" style="font-size:12px;color:var(--mut);text-align:center;margin-top:8px;display:none;">Arraste para reordenar</p>
               </div>
-            </div>
-            <div class="col-12 col-lg-5">
-              <div class="gvc-card mb-3">
-                <div class="gvc-card-title mb-2">Pré-visualização</div>
-                <div id="preview" style="background:#000;aspect-ratio:16/9;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;">
-                  <span style="color:rgba(255,255,255,.2);font-size:12px;">Clique em um item</span>
+              <div class="col-12 col-md-7">
+                <div class="gvc-card">
+                  <div class="gvc-card-title mb-3">Informações do sistema</div>
+                  <div
+                    style="font-size: 13px; color: var(--mut); line-height: 2.4"
+                  >
+                    <div>
+                      Versão: <strong style="color: var(--txt)">3.0.0</strong>
+                    </div>
+                    <div>
+                      Stack:
+                      <strong style="color: var(--txt)"
+                        >PHP 8 + MySQL + JWT</strong
+                      >
+                    </div>
+                    <div>
+                      TVs:
+                      <strong id="cfg-tv-count" style="color: var(--txt)"
+                        >—</strong
+                      >
+                    </div>
+                    <div>
+                      Mídias:
+                      <strong id="cfg-media-count" style="color: var(--txt)"
+                        >—</strong
+                      >
+                    </div>
+                    <div>
+                      Playlists:
+                      <strong id="cfg-pl-count" style="color: var(--txt)"
+                        >—</strong
+                      >
+                    </div>
+                  </div>
+                  <button class="btn-d btn-sm mt-3" onclick="doLogout()">
+                    Sair
+                  </button>
                 </div>
-                <div id="prev-hint" style="font-size:11px;color:var(--mut);text-align:center;margin-top:6px;"></div>
-              </div>
-              <div class="gvc-card">
-                <div class="gvc-card-title mb-3">Distribuição rápida</div>
-                <div class="fg"><label>Atribuir a</label><select id="pl-assign-target"><option value="">— selecione —</option><option value="all">Todas as TVs</option></select></div>
-                <button class="btn-p btn-sm w-100 justify-content-center" onclick="quickAssign()">Aplicar <span class="msi" style="font-size:14px">arrow_forward</span></button>
               </div>
             </div>
           </div>
         </div>
+        <!-- /content -->
       </div>
+      <!-- /main -->
+    </div>
+    <!-- /app -->
 
-      <!-- AGENDAMENTOS -->
-      <div id="sec-agendamentos" class="sec">
-        <div class="gvc-card">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <span class="gvc-card-title">Agendamentos</span>
-            <button class="btn-p btn-sm" onclick="openAddAgenda()">+ Novo Agendamento</button>
+    <!-- ════════════ MODAIS ════════════ -->
+
+    <!-- Modal: Atividade Recente completa (com scroll) -->
+    <div class="modal fade" id="m-log" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title">
+              <span class="msi">history</span>Atividade Recente
+            </div>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
           </div>
-          <div id="sch-list"></div>
+          <div class="modal-body" style="max-height: 60vh; overflow-y: auto">
+            <div id="log-modal-body"></div>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- MÍDIA -->
-      <div id="sec-midia" class="sec">
-        <div class="uparea mb-3" id="uparea" onclick="document.getElementById('finput').click()">
-          <span class="msi msi-fill" style="font-size:38px;color:var(--primary)">upload_file</span>
-          <p class="fw-semibold mt-2 mb-1">Clique ou arraste arquivos aqui</p>
-          <p style="font-size:13px;color:var(--mut);">JPG, PNG, GIF, WebP, MP4, WebM — máx. 50 MB</p>
-          <input type="file" id="finput" multiple accept="image/*,video/*" style="display:none;" onchange="doUpload(this.files)"/>
+    <!-- Modal: Dispositivo -->
+    <div class="modal fade" id="m-dev" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title" id="m-dev-title">
+              <span class="msi">tv</span>Adicionar TV
+            </div>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="fg">
+              <label>Nome</label
+              ><input type="text" id="d-nome" placeholder="TV Recepção..." />
+            </div>
+            <div class="fg">
+              <label>Local / Unidade</label
+              ><input
+                type="text"
+                id="d-unit"
+                placeholder="Andar 2, Unidade Norte..."
+              />
+            </div>
+            <div class="fg">
+              <label>Grupo</label
+              ><select id="d-grupo"></select>
+            </div>
+            <div class="fg">
+              <label>Playlist padrão</label
+              ><select id="d-playlist"></select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
+            <button class="btn-p" id="btn-save-dev" onclick="doSaveDev()">
+              Criar
+            </button>
+          </div>
         </div>
-        <div class="progwrap" id="upgprog">
-          <div class="d-flex justify-content-between" style="font-size:13px;"><span id="upname">Enviando...</span><span id="uppct">0%</span></div>
-          <div class="progbar"><div class="progfill" id="upbar" style="width:0%"></div></div>
-        </div>
-        <div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
-          <input type="text" id="media-search" placeholder="Buscar..." oninput="renderMedia()" style="width:180px;padding:6px 10px;background:var(--bg3);border:1px solid var(--bord2);border-radius:7px;color:var(--txt);font-size:13px;"/>
-          <select id="media-filter" onchange="renderMedia()" style="width:120px;padding:6px 10px;background:var(--bg3);border:1px solid var(--bord2);border-radius:7px;color:var(--txt);font-size:13px;">
-            <option value="">Tudo</option><option value="image">Imagens</option><option value="video">Vídeos</option>
-          </select>
-          <span id="media-count" style="font-size:13px;color:var(--mut);margin-left:auto;"></span>
-        </div>
-        <div class="mgrid" id="mgrid"><div class="empty">Carregando...</div></div>
       </div>
+    </div>
 
-      <!-- PAREAMENTO -->
-      <div id="sec-pareamento" class="sec">
-        <div class="row g-3">
-          <div class="col-12 col-lg-6">
-            <div class="gvc-card">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="gvc-card-title">Códigos pendentes</span>
-                <button class="btn-g btn-sm" onclick="loadPairing()"><span class="msi" style="font-size:14px">refresh</span>Atualizar</button>
+    <!-- Modal: Detalhes TV -->
+    <div class="modal fade" id="m-devinfo" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title" id="m-devinfo-title">
+              <span class="msi">settings</span>Configurar TV
+            </div>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="fg">
+              <label>URL do Player</label>
+              <div class="tokdisp">
+                <code id="dev-purl">—</code
+                ><button
+                  class="copybtn"
+                  onclick="
+                    copyT(document.getElementById('dev-purl').textContent)
+                  "
+                >
+                  Copiar
+                </button>
               </div>
-              <div id="pair-list"></div>
             </div>
-          </div>
-          <div class="col-12 col-lg-6">
-            <div class="gvc-card">
-              <div class="gvc-card-title mb-3">Como parear uma TV</div>
-              <ol style="font-size:13px;color:var(--mut);line-height:2.4;padding-left:18px;">
-                <li>Abra <strong style="color:var(--txt)">/html/player.html</strong> no navegador da TV</li>
-                <li>A TV exibe um <strong style="color:var(--txt)">código de 6 dígitos</strong></li>
-                <li>Clique em <strong style="color:var(--txt)">Vincular</strong> ao lado do código</li>
-                <li>Selecione ou crie o dispositivo</li>
-                <li>A TV redireciona automaticamente em ~5s</li>
-              </ol>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- CONFIG -->
-      <div id="sec-config" class="sec">
-        <div class="row g-3">
-          <div class="col-12 col-md-5">
-            <div class="gvc-card">
-              <div class="gvc-card-title mb-3">Alterar Senha</div>
-              <div class="fg"><label>Senha atual</label><input type="password" id="cfg-cur-pass"/></div>
-              <div class="fg"><label>Nova senha</label><input type="password" id="cfg-new-pass"/></div>
-              <button class="btn-p btn-sm" onclick="doChangePass()">Salvar</button>
-            </div>
-          </div>
-          <div class="col-12 col-md-7">
-            <div class="gvc-card">
-              <div class="gvc-card-title mb-3">Informações do sistema</div>
-              <div style="font-size:13px;color:var(--mut);line-height:2.4;">
-                <div>Versão: <strong style="color:var(--txt)">3.0.0</strong></div>
-                <div>Stack: <strong style="color:var(--txt)">PHP 8 + MySQL + JWT</strong></div>
-                <div>TVs: <strong id="cfg-tv-count" style="color:var(--txt)">—</strong></div>
-                <div>Mídias: <strong id="cfg-media-count" style="color:var(--txt)">—</strong></div>
-                <div>Playlists: <strong id="cfg-pl-count" style="color:var(--txt)">—</strong></div>
+            <div class="fg">
+              <label>Token</label>
+              <div class="tokdisp">
+                <code id="dev-token">—</code
+                ><button
+                  class="copybtn"
+                  onclick="
+                    copyT(document.getElementById('dev-token').textContent)
+                  "
+                >
+                  Copiar
+                </button>
               </div>
-              <button class="btn-d btn-sm mt-3" onclick="doLogout()">Sair</button>
             </div>
           </div>
-        </div>
-      </div>
-
-    </div><!-- /content -->
-  </div><!-- /main -->
-</div><!-- /app -->
-
-<!-- ════════════ MODAIS ════════════ -->
-
-<!-- Modal: Atividade Recente completa (com scroll) -->
-<div class="modal fade" id="m-log" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title"><span class="msi">history</span>Atividade Recente</div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" style="max-height:60vh;overflow-y:auto;">
-        <div id="log-modal-body"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Dispositivo -->
-<div class="modal fade" id="m-dev" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title" id="m-dev-title"><span class="msi">tv</span>Adicionar TV</div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="fg"><label>Nome</label><input type="text" id="d-nome" placeholder="TV Recepção..."/></div>
-        <div class="fg"><label>Local / Unidade</label><input type="text" id="d-unit" placeholder="Andar 2, Unidade Norte..."/></div>
-        <div class="fg"><label>Grupo</label><select id="d-grupo"></select></div>
-        <div class="fg"><label>Playlist padrão</label><select id="d-playlist"></select></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn-p" id="btn-save-dev" onclick="doSaveDev()">Criar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Detalhes TV -->
-<div class="modal fade" id="m-devinfo" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title" id="m-devinfo-title"><span class="msi">settings</span>Configurar TV</div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="fg"><label>URL do Player</label><div class="tokdisp"><code id="dev-purl">—</code><button class="copybtn" onclick="copyT(document.getElementById('dev-purl').textContent)">Copiar</button></div></div>
-        <div class="fg"><label>Token</label><div class="tokdisp"><code id="dev-token">—</code><button class="copybtn" onclick="copyT(document.getElementById('dev-token').textContent)">Copiar</button></div></div>
-      </div>
-      <div class="modal-footer"><button class="btn-p" data-bs-dismiss="modal">Fechar</button></div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Grupo -->
-<div class="modal fade" id="m-grupo" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title" id="m-grupo-title"><span class="msi">create_new_folder</span>Novo Grupo</div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="fg"><label>Nome</label><input type="text" id="gr-nome" placeholder="Unidade Norte..."/></div>
-        <div class="fg"><label>Descrição</label><input type="text" id="gr-desc" placeholder="Opcional..."/></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn-p" id="btn-save-grupo" onclick="doSaveGrupo()">Criar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Nova Playlist -->
-<div class="modal fade" id="m-pl" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title"><span class="msi">playlist_add</span>Nova Playlist</div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="fg"><label>Nome</label><input type="text" id="pl-nome" placeholder="Comunicados, Campanha Abril..."/></div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <input type="checkbox" id="pl-is-default" style="width:auto;accent-color:var(--primary);"/>
-          <label for="pl-is-default" style="font-size:13px;cursor:pointer;">Usar como <strong>playlist padrão global</strong></label>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn-p" onclick="doAddPl()">Criar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Duplicar Playlist -->
-<div class="modal fade" id="m-dup" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title"><span class="msi">content_copy</span>Duplicar Playlist</div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="fg"><label>Origem</label><select id="dup-src"></select></div>
-        <div class="fg"><label>Nome da cópia</label><input type="text" id="dup-name" placeholder="Cópia de..."/></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn-p" onclick="doDupPl()">Duplicar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Adicionar Item -->
-<div class="modal fade" id="m-item" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title"><span class="msi">add_circle</span>Adicionar Item</div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="fg"><label>Tipo</label><select id="it-tipo" onchange="togDur()"><option value="image">Imagem</option><option value="video">Vídeo</option><option value="page">Página Web (URL)</option></select></div>
-        <div class="fg"><label>URL</label><input type="text" id="it-url" placeholder="https://..."/><p class="hint">Cole a URL ou clique em uma mídia abaixo</p></div>
-        <div class="fg" id="dur-grp"><label>Duração (segundos)</label><input type="number" id="it-dur" value="10" min="1" max="600"/></div>
-        <div style="font-size:12px;color:var(--txt2);font-weight:500;margin-bottom:8px;">Selecionar da biblioteca:</div>
-        <div class="mpicker" id="mpicker"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn-p" onclick="doAddItem()">Adicionar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Broadcast -->
-<div class="modal fade" id="m-broadcast" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title"><span class="msi">cell_tower</span>Broadcast</div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="fg"><label>Playlist</label><select id="bc-pl"><option value="">— selecione —</option></select></div>
-        <div class="fg"><label>Destino</label><select id="bc-target"><option value="all">Todas as TVs</option></select></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn-p" onclick="doBroadcast()">Enviar <span class="msi" style="font-size:14px">send</span></button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Agendamento -->
-<div class="modal fade" id="m-agenda" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title"><span class="msi">calendar_add_on</span>Novo Agendamento</div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="fg"><label>Playlist</label><select id="ag-pl"><option value="">— selecione —</option></select></div>
-        <div class="fg"><label>Destino</label><select id="ag-target"><option value="all">Todas as TVs</option></select></div>
-        <div class="row g-2">
-          <div class="col-6"><div class="fg"><label>Início</label><input type="datetime-local" id="ag-inicio"/></div></div>
-          <div class="col-6"><div class="fg"><label>Fim</label><input type="datetime-local" id="ag-fim"/></div></div>
-        </div>
-        <div class="d-flex align-items-center gap-2 mb-2">
-          <input type="checkbox" id="ag-repeat" style="width:auto;accent-color:var(--primary);" onchange="togRepeat()"/>
-          <label for="ag-repeat" style="font-size:13px;cursor:pointer;">Repetir semanalmente</label>
-        </div>
-        <div id="ag-days-wrap" class="hidden">
-          <label style="display:block;font-size:12px;color:var(--txt2);margin-bottom:8px;">Dias da semana</label>
-          <div class="d-flex gap-2 flex-wrap">
-            <label class="day-check"><input type="checkbox" value="0"/>Dom</label>
-            <label class="day-check"><input type="checkbox" value="1"/>Seg</label>
-            <label class="day-check"><input type="checkbox" value="2"/>Ter</label>
-            <label class="day-check"><input type="checkbox" value="3"/>Qua</label>
-            <label class="day-check"><input type="checkbox" value="4"/>Qui</label>
-            <label class="day-check"><input type="checkbox" value="5"/>Sex</label>
-            <label class="day-check"><input type="checkbox" value="6"/>Sáb</label>
+          <div class="modal-footer">
+            <button class="btn-p" data-bs-dismiss="modal">Fechar</button>
           </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn-p" onclick="doSaveAgenda()">Salvar</button>
-      </div>
     </div>
-  </div>
-</div>
 
-<!-- Modal: Vincular TV -->
-<div class="modal fade" id="m-pair" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title"><span class="msi">link</span>Vincular TV</div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <p style="font-size:13px;color:var(--mut);margin-bottom:14px;">Código: <span class="pair-code-box" id="pair-code"></span></p>
-        <div class="fg"><label>Dispositivo</label><select id="pair-dev-select" onchange="togPairNew()"></select></div>
-        <div id="pair-new-fields">
-          <div class="fg"><label>Nome</label><input type="text" id="pair-dev-nome" placeholder="TV Recepção..."/></div>
-          <div class="fg"><label>Local</label><input type="text" id="pair-dev-unit" placeholder="Andar, setor..."/></div>
+    <!-- Modal: Grupo -->
+    <div class="modal fade" id="m-grupo" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title" id="m-grupo-title">
+              <span class="msi">create_new_folder</span>Novo Grupo
+            </div>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="fg">
+              <label>Nome</label
+              ><input type="text" id="gr-nome" placeholder="Unidade Norte..." />
+            </div>
+            <div class="fg">
+              <label>Descrição</label
+              ><input type="text" id="gr-desc" placeholder="Opcional..." />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
+            <button class="btn-p" id="btn-save-grupo" onclick="doSaveGrupo()">
+              Criar
+            </button>
+          </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn-p" onclick="doPairDevice()">Vincular <span class="msi" style="font-size:14px">link</span></button>
+    </div>
+
+    <!-- Modal: Nova Playlist -->
+    <div class="modal fade" id="m-pl" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title">
+              <span class="msi">playlist_add</span>Nova Playlist
+            </div>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="fg">
+              <label>Nome</label
+              ><input
+                type="text"
+                id="pl-nome"
+                placeholder="Comunicados, Campanha Abril..."
+              />
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <input
+                type="checkbox"
+                id="pl-is-default"
+                style="width: auto; accent-color: var(--primary)"
+              />
+              <label
+                for="pl-is-default"
+                style="font-size: 13px; cursor: pointer"
+                >Usar como <strong>playlist padrão global</strong></label
+              >
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
+            <button class="btn-p" onclick="doAddPl()">Criar</button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- Toast container -->
-<div class="toast-wrap" id="toasts"></div>
+    <!-- Modal: Duplicar Playlist -->
+    <div class="modal fade" id="m-dup" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title">
+              <span class="msi">content_copy</span>Duplicar Playlist
+            </div>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="fg">
+              <label>Origem</label
+              ><select id="dup-src"></select>
+            </div>
+            <div class="fg">
+              <label>Nome da cópia</label
+              ><input type="text" id="dup-name" placeholder="Cópia de..." />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
+            <button class="btn-p" onclick="doDupPl()">Duplicar</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-<script>
-  // Guard de funções (módulo carrega assíncrono)
-  ['doLogin','doLogout','nav','loadPairing','openAddDev','openEditDev','doSaveDev',
-   'openDevInfo','delDev','openAddGrupo','openEditGrupo','doSaveGrupo','delGrupo',
-   'showPlList','editPlaylist','openDupPl','openAddPl','deleteCurPl','openAddItem',
-   'delItem','openAddAgenda','delAgenda','doSaveAgenda','quickAssign','openBroadcast',
-   'doBroadcast','filterDevs','onDragStart','onDragOver','onDrop','previewItem',
-   'doChangePass','doUpload','renderMedia','togDur','togRepeat','doAddPl','doDupPl',
-   'doAddItem','togPairNew','doPairDevice','copyT','openLogModal','delSched','toggleSched',
-   'openPair','pickMedia','delPl'
-  ].forEach(fn=>{
-    window[fn]=window[fn]||function(){
-      var a=arguments;
-      setTimeout(function(){if(typeof window[fn]==='function')window[fn].apply(null,a);},150);
-    };
-  });
+    <!-- Modal: Adicionar Item -->
+    <div class="modal fade" id="m-item" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title">
+              <span class="msi">add_circle</span>Adicionar Item
+            </div>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="fg">
+              <label>Tipo</label
+              ><select id="it-tipo" onchange="togDur()">
+                <option value="image">Imagem</option>
+                <option value="video">Vídeo</option>
+                <option value="page">Página Web (URL)</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label>URL</label
+              ><input type="text" id="it-url" placeholder="https://..." />
+              <p class="hint">Cole a URL ou clique em uma mídia abaixo</p>
+            </div>
+            <div class="fg" id="dur-grp">
+              <label>Duração (segundos)</label
+              ><input type="number" id="it-dur" value="10" min="1" max="600" />
+            </div>
+            <div
+              style="
+                font-size: 12px;
+                color: var(--txt2);
+                font-weight: 500;
+                margin-bottom: 8px;
+              "
+            >
+              Selecionar da biblioteca:
+            </div>
+            <div class="mpicker" id="mpicker"></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
+            <button class="btn-p" onclick="doAddItem()">Adicionar</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-  // Toggle sidebar
-  function toggleSb(){
-    document.getElementById('sb').classList.toggle('sb-hidden');
-    document.getElementById('main').classList.toggle('full');
-  }
-</script>
+    <!-- Modal: Broadcast -->
+    <div class="modal fade" id="m-broadcast" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title">
+              <span class="msi">cell_tower</span>Broadcast
+            </div>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="fg">
+              <label>Playlist</label
+              ><select id="bc-pl">
+                <option value="">— selecione —</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label>Destino</label
+              ><select id="bc-target">
+                <option value="all">Todas as TVs</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
+            <button class="btn-p" onclick="doBroadcast()">
+              Enviar <span class="msi" style="font-size: 14px">send</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Agendamento -->
+    <div class="modal fade" id="m-agenda" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title">
+              <span class="msi">event_available</span>Novo Agendamento
+            </div>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="fg">
+              <label>Playlist</label
+              ><select id="ag-pl">
+                <option value="">— selecione —</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label>Destino</label
+              ><select id="ag-target">
+                <option value="all">Todas as TVs</option>
+              </select>
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <div class="fg">
+                  <label>Início</label
+                  ><input type="datetime-local" id="ag-inicio" />
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="fg">
+                  <label>Fim</label><input type="datetime-local" id="ag-fim" />
+                </div>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <input
+                type="checkbox"
+                id="ag-repeat"
+                style="width: auto; accent-color: var(--primary)"
+                onchange="togRepeat()"
+              />
+              <label for="ag-repeat" style="font-size: 13px; cursor: pointer"
+                >Repetir semanalmente</label
+              >
+            </div>
+            <div id="ag-days-wrap" class="hidden">
+              <label
+                style="
+                  display: block;
+                  font-size: 12px;
+                  color: var(--txt2);
+                  margin-bottom: 8px;
+                "
+                >Dias da semana</label
+              >
+              <div class="d-flex gap-2 flex-wrap">
+                <label class="day-check"
+                  ><input type="checkbox" value="0" />Dom</label
+                >
+                <label class="day-check"
+                  ><input type="checkbox" value="1" />Seg</label
+                >
+                <label class="day-check"
+                  ><input type="checkbox" value="2" />Ter</label
+                >
+                <label class="day-check"
+                  ><input type="checkbox" value="3" />Qua</label
+                >
+                <label class="day-check"
+                  ><input type="checkbox" value="4" />Qui</label
+                >
+                <label class="day-check"
+                  ><input type="checkbox" value="5" />Sex</label
+                >
+                <label class="day-check"
+                  ><input type="checkbox" value="6" />Sáb</label
+                >
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
+            <button class="btn-p" onclick="doSaveAgenda()">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Parear TV (abre de Dispositivos) -->
+    <div class="modal fade" id="m-pair-device" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title"><span class="msi">tv</span>Parear: <span id="pair-dev-name" style="color:var(--primary);margin-left:4px;"></span></div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopCamera()"></button>
+          </div>
+          <div class="modal-body">
+            <p style="font-size:13px;color:var(--mut);margin-bottom:16px;">Digite o código exibido na TV ou escaneie o QR Code com a câmera.</p>
+            <div style="display:flex;gap:8px;margin-bottom:16px;">
+              <button id="tab-code" class="btn-p btn-sm" onclick="switchPairTab('code')" style="flex:1;justify-content:center;"><span class="msi" style="font-size:15px">pin</span>Código</button>
+              <button id="tab-cam" class="btn-g btn-sm" onclick="switchPairTab('cam')" style="flex:1;justify-content:center;"><span class="msi" style="font-size:15px">qr_code_scanner</span>Câmera QR</button>
+            </div>
+            <div id="pair-tab-code">
+              <div class="fg">
+                <label>Código da TV (6 dígitos)</label>
+                <input type="text" id="pair-input-code" placeholder="000000" maxlength="6"
+                  style="font-size:28px;letter-spacing:10px;text-align:center;font-family:monospace;padding:12px;"
+                  oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"/>
+              </div>
+            </div>
+            <div id="pair-tab-cam" class="hidden">
+              <div style="position:relative;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:4/3;">
+                <video id="qr-video" playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+                <canvas id="qr-canvas" style="display:none;"></canvas>
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+                  <div style="width:55%;aspect-ratio:1;border:3px solid #4f8cff;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.45);"></div>
+                </div>
+              </div>
+              <p id="qr-status" style="font-size:12px;color:var(--mut);text-align:center;margin-top:8px;">Aponte a câmera para o QR Code da TV</p>
+            </div>
+            <div id="pair-error" style="display:none;color:var(--red);font-size:13px;margin-top:10px;text-align:center;"></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-g" data-bs-dismiss="modal" onclick="stopCamera()">Cancelar</button>
+            <button class="btn-p" onclick="doPairDeviceNew()">Parear <span class="msi" style="font-size:14px">link</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Vincular TV (seção Pareamento) -->
+    <div class="modal fade" id="m-pair" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title"><span class="msi">link</span>Vincular TV</div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p style="font-size:13px;color:var(--mut);margin-bottom:14px;">Código: <span class="pair-code-box" id="pair-code"></span></p>
+            <div class="fg"><label>Dispositivo</label><select id="pair-dev-select" onchange="togPairNew()"></select></div>
+            <div id="pair-new-fields">
+              <div class="fg"><label>Nome</label><input type="text" id="pair-dev-nome" placeholder="TV Recepção..."/></div>
+              <div class="fg"><label>Local</label><input type="text" id="pair-dev-unit" placeholder="Andar, setor..."/></div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
+            <button class="btn-p" onclick="doPairDevice()">Vincular <span class="msi" style="font-size:14px">link</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+          <div class="modal-footer">
+            <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
+            <button class="btn-p" onclick="doPairDevice()">
+              Vincular <span class="msi" style="font-size: 14px">link</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast container -->
+    <div class="toast-wrap" id="toasts"></div>
+
+    <script>
+      // Guard de funções (módulo carrega assíncrono)
+      [
+        "doLogin",
+        "doLogout",
+        "nav",
+        "loadPairing",
+        "openAddDev",
+        "openEditDev",
+        "doSaveDev",
+        "openDevInfo",
+        "delDev",
+        "openAddGrupo",
+        "openEditGrupo",
+        "doSaveGrupo",
+        "delGrupo",
+        "showPlList",
+        "editPlaylist",
+        "openDupPl",
+        "openAddPl",
+        "deleteCurPl",
+        "openAddItem",
+        "delItem",
+        "openAddAgenda",
+        "delAgenda",
+        "doSaveAgenda",
+        "quickAssign",
+        "openBroadcast",
+        "doBroadcast",
+        "filterDevs",
+        "onDragStart",
+        "onDragOver",
+        "onDrop",
+        "previewItem",
+        "doChangePass",
+        "doUpload",
+        "renderMedia",
+        "togDur",
+        "togRepeat",
+        "doAddPl",
+        "doDupPl",
+        "doAddItem",
+        "togPairNew",
+        "doPairDevice",
+        "copyT",
+        "openLogModal",
+        "delSched",
+        "toggleSched",
+        "openPair",
+        "pickMedia",
+        "delPl",
+      ].forEach((fn) => {
+        window[fn] =
+          window[fn] ||
+          function () {
+            var a = arguments;
+            setTimeout(function () {
+              if (typeof window[fn] === "function") window[fn].apply(null, a);
+            }, 150);
+          };
+      });
+
+      // Toggle sidebar
+      function toggleSb() {
+        document.getElementById("sb").classList.toggle("sb-hidden");
+        document.getElementById("main").classList.toggle("full");
+      }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script type="module" src="js/admin.js"></script>
-</body>
+    <script type="module" src="js/admin.js"></script>
+  </body>
 </html>

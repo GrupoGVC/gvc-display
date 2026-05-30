@@ -6,6 +6,13 @@
 "use strict";
 
 // ── Config ────────────────────────────────────────────────────
+// Resolve URL relativa ou absoluta de mídia
+function mediaUrl(url) {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return API_BASE.replace(/\/api$/, '') + url;
+}
+
 const API_BASE = (() => {
   const u = new URL(location.href);
   // /html/player.html → raiz do projeto
@@ -96,7 +103,7 @@ function buildSlides() {
     slide.className = "slide";
     slide.dataset.idx = i;
 
-    const src = item.media_url || item.url || "";
+    const src = mediaUrl(item.media_url || item.url || "");
 
     if (item.type === "video") {
       const v = document.createElement("video");
@@ -185,8 +192,12 @@ async function startPairing() {
   clearInterval(pairingInterval);
 
   try {
+    // Passa slug da URL (?slug=sala1) para associar ao device quando parear
+    const urlSlug = new URLSearchParams(window.location.search).get('slug') || '';
     const res = await fetch(`${API_BASE}/pairing/index.php?action=generate`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug: urlSlug }),
     });
     if (!res.ok) throw new Error("Erro ao gerar código");
     const json = await res.json();

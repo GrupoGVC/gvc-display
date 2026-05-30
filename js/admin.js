@@ -16,6 +16,24 @@ import {
   populateSelect,
 } from "./utils.js";
 
+// ── Helper: resolve URL de mídia (relativa ou absoluta) ─────────
+function mediaUrl(url) {
+  if (!url) return '';
+  // Path relativo /uploads/... — usa BASE do projeto (ex: http://localhost/gvc-display)
+  if (url.startsWith('/uploads/')) return BASE + url;
+  if (url.startsWith('/')) return window.location.origin + url;
+  // URL absoluta — extrai /uploads/... e reconstrói com BASE atual
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const u = new URL(url);
+      const i = u.pathname.indexOf('/uploads/');
+      if (i >= 0) return BASE + u.pathname.slice(i);
+      return url; // URL externa (ex: página web para iframe)
+    } catch { return url; }
+  }
+  return BASE + '/' + url;
+}
+
 // ── Estado global ─────────────────────────────────────────────
 const S = {
   user: null,
@@ -215,7 +233,8 @@ window.openLogModal = () => {
 
 // ── Devices ───────────────────────────────────────────────────
 async function loadDevices() {
-  S.devices = await get("devices/index.php");
+  const _devs = await get("devices/index.php");
+  S.devices = Array.isArray(_devs) ? _devs : [];
   renderDevices();
   buildGroupFilter();
 }
@@ -241,10 +260,11 @@ function renderDevices() {
         <td>${d.playlist_name ? esc(d.playlist_name) : '<span style="color:var(--mut);">—</span>'}</td>
         <td style="font-size:12px;color:var(--mut);">${d.last_ping ? fmtDate(d.last_ping) : "nunca"}</td>
         <td>
-          <div style="display:flex;gap:6px;">
-            <button class="btn btn-g btn-sm" onclick="openEditDev(${d.id})"><span class="msi">edit</span></button>
-            <button class="btn btn-g btn-sm" onclick="openDevInfo(${d.id})"><span class="msi">settings</span></button>
-            <button class="btn btn-d btn-sm" onclick="delDev(${d.id})"><span class="msi">delete</span></button>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-p btn-sm" onclick="openPairForDevice(${d.id},'${esc(d.name)}')" title="Parear TV"><span class="msi" style="font-size:14px">qr_code_scanner</span>Parear</button>
+            <button class="btn btn-g btn-sm" onclick="openEditDev(${d.id})" title="Editar"><span class="msi">edit</span></button>
+            <button class="btn btn-g btn-sm" onclick="openDevInfo(${d.id})" title="Info"><span class="msi">settings</span></button>
+            <button class="btn btn-d btn-sm" onclick="delDev(${d.id})" title="Excluir"><span class="msi">delete</span></button>
           </div>
         </td>
       </tr>`,
@@ -339,7 +359,8 @@ window.delDev = async (id) => {
 
 // ── Groups ────────────────────────────────────────────────────
 async function loadGroups() {
-  S.groups = await get("groups/index.php");
+  const _grps = await get("groups/index.php");
+  S.groups = Array.isArray(_grps) ? _grps : [];
   renderGroups();
 }
 
@@ -347,7 +368,7 @@ function renderGroups() {
   const el = q("#gr-list");
   if (!el) return;
   el.innerHTML = S.groups.length
-    ? `<table><thead><tr><th>Nome</th><th>Descrição</th><th>TVs</th><th>Ações</th></tr></thead><tbody>
+    ? `<table class="gvc-table"><thead><tr><th>Nome</th><th>Descrição</th><th>TVs</th><th>Ações</th></tr></thead><tbody>
        ${S.groups
          .map(
            (g) => `
@@ -413,7 +434,8 @@ window.delGrupo = async (id) => {
 
 // ── Playlists ─────────────────────────────────────────────────
 async function loadPlaylists() {
-  S.playlists = await get("playlists/index.php");
+  const _playlists = await get("playlists/index.php");
+  S.playlists = Array.isArray(_playlists) ? _playlists : [];
   renderPlaylists();
 }
 
@@ -421,7 +443,7 @@ function renderPlaylists() {
   const el = q("#pl-tbody");
   if (!el) return;
   el.innerHTML = S.playlists.length
-    ? `<table><thead><tr><th>Nome</th><th>Itens</th><th>Tipo</th><th>Ações</th></tr></thead><tbody>
+    ? `<table class="gvc-table"><thead><tr><th>Nome</th><th>Itens</th><th>Tipo</th><th>Ações</th></tr></thead><tbody>
        ${S.playlists
          .map(
            (p) => `
@@ -471,7 +493,7 @@ function renderPlItems() {
       const src = item.media_url || item.url || "";
       const thumb =
         item.type === "video"
-          ? `<video src="${src}" style="width:100%;height:100%;object-fit:cover;" muted></video>`
+          ? `<video src="${src}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>`
           : item.type === "page"
             ? `<span class="msi msi-fill" style="font-size:28px;color:var(--primary)">language</span>`
             : `<img src="${src}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;" />`;
@@ -518,7 +540,7 @@ window.previewItem = (i) => {
   const src = item.media_url || item.url || "";
   const pv = q("#preview");
   if (item.type === "video")
-    pv.innerHTML = `<video src="${src}" controls autoplay style="width:100%;height:100%;object-fit:contain;"></video>`;
+    pv.innerHTML = `<video src="${src}" controls autoplay preload="metadata" style="width:100%;height:100%;object-fit:contain;"></video>`;
   else if (item.type === "page")
     pv.innerHTML = `<iframe src="${src}" style="width:100%;height:100%;border:none;"></iframe>`;
   else
@@ -604,8 +626,8 @@ function renderMpicker() {
       <div class="mp-item" onclick="pickMedia('${m.url}',this)">
         ${
           m.type === "video"
-            ? `<video src="${m.url}" muted style="width:100%;height:100%;object-fit:cover;"></video>`
-            : `<img src="${m.url}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;" />`
+            ? `<video src="${mediaUrl(m.url)}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>`
+            : `<img src="${mediaUrl(m.url)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;" />`
         }
       </div>`,
         )
@@ -735,8 +757,8 @@ function renderMedia() {
         <div class="mcard-thumb">
           ${
             m.type === "video"
-              ? `<video src="${m.url}" muted style="width:100%;height:100%;object-fit:cover;"></video>`
-              : `<img src="${m.url}" alt="${esc(m.original)}" loading="lazy" />`
+              ? `<video src="${mediaUrl(m.url)}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>`
+              : `<img src="${mediaUrl(m.url)}" alt="${esc(m.original)}" loading="lazy" />`
           }
         </div>
         <div class="mcard-info">
@@ -842,7 +864,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ── Schedules ─────────────────────────────────────────────────
 async function loadSchedules() {
-  S.schedules = await get("schedules/index.php");
+  const _schedules = await get("schedules/index.php");
+  S.schedules = Array.isArray(_schedules) ? _schedules : [];
   renderSchedules();
 }
 
@@ -851,7 +874,7 @@ function renderSchedules() {
   if (!el) return;
   const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
   el.innerHTML = S.schedules.length
-    ? `<table><thead><tr><th>Playlist</th><th>Destino</th><th>Início</th><th>Fim</th><th>Repetição</th><th>Status</th><th>Ações</th></tr></thead><tbody>
+    ? `<table class="gvc-table"><thead><tr><th>Playlist</th><th>Destino</th><th>Início</th><th>Fim</th><th>Repetição</th><th>Status</th><th>Ações</th></tr></thead><tbody>
        ${S.schedules
          .map(
            (s) => `
@@ -863,7 +886,7 @@ function renderSchedules() {
           <td style="font-size:12px;">${s.repeat_weekly ? (s.weekdays || []).map((d) => days[d]).join(", ") : "Único"}</td>
           <td><span class="tag ${s.active ? "tg-on" : "tg-off"}">${s.active ? "Ativo" : "Inativo"}</span></td>
           <td><div style="display:flex;gap:6px;">
-            <button class="btn btn-g btn-sm" onclick="toggleSched(${s.id},${s.active})">${s.active ? "⏸" : "▶"}</button>
+            <button class="btn btn-g btn-sm" onclick="toggleSched(${s.id},${s.active})">${s.active ? '<span class="msi">pause_circle</span>' : '<span class="msi">play_circle</span>'}</button>
             <button class="btn btn-d btn-sm" onclick="delSched(${s.id})"><span class="msi">delete</span></button>
           </div></td>
         </tr>`,
@@ -1028,3 +1051,103 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && q("#login-screen")?.style.display !== "none")
     window.doLogin();
 });
+
+// ── Pareamento via Dispositivos ────────────────────────────────
+
+let _pairDevId  = null;
+let _qrStream   = null;
+let _qrInterval = null;
+
+window.openPairForDevice = (devId, devName) => {
+  _pairDevId = devId;
+  const el = document.getElementById('pair-dev-name');
+  if (el) el.textContent = devName;
+  const inp = document.getElementById('pair-input-code');
+  if (inp) inp.value = '';
+  const err = document.getElementById('pair-error');
+  if (err) err.style.display = 'none';
+  switchPairTab('code');
+  openModal('m-pair-device');
+};
+
+window.switchPairTab = (tab) => {
+  const isCode = tab === 'code';
+  const tc = document.getElementById('pair-tab-code');
+  const tm = document.getElementById('pair-tab-cam');
+  const bc = document.getElementById('tab-code');
+  const bm = document.getElementById('tab-cam');
+  if (tc) tc.classList.toggle('hidden', !isCode);
+  if (tm) tm.classList.toggle('hidden', isCode);
+  if (bc) { bc.className = (isCode ? 'btn-p' : 'btn-g') + ' btn-sm'; bc.style.cssText = 'flex:1;justify-content:center;'; }
+  if (bm) { bm.className = (isCode ? 'btn-g' : 'btn-p') + ' btn-sm'; bm.style.cssText = 'flex:1;justify-content:center;'; }
+  if (!isCode) startCamera(); else stopCamera();
+};
+
+window.startCamera = async () => {
+  const video  = document.getElementById('qr-video');
+  const status = document.getElementById('qr-status');
+  try {
+    _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = _qrStream;
+    await video.play();
+    if (status) status.textContent = 'Aponte a câmera para o QR Code da TV';
+    scanQRFrame();
+  } catch (e) {
+    if (status) status.textContent = 'Câmera não disponível: ' + e.message;
+  }
+};
+
+window.stopCamera = () => {
+  if (_qrInterval) { clearInterval(_qrInterval); _qrInterval = null; }
+  if (_qrStream)   { _qrStream.getTracks().forEach(t => t.stop()); _qrStream = null; }
+};
+
+function scanQRFrame() {
+  const video  = document.getElementById('qr-video');
+  const canvas = document.getElementById('qr-canvas');
+  const status = document.getElementById('qr-status');
+  _qrInterval = setInterval(() => {
+    if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    if (window.jsQR) {
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+      if (code && code.data) {
+        const match = code.data.match(/\b(\d{6})\b/);
+        if (match) {
+          stopCamera();
+          if (status) status.textContent = 'QR detectado: ' + match[1];
+          const inp = document.getElementById('pair-input-code');
+          if (inp) inp.value = match[1];
+          switchPairTab('code');
+          doPairDeviceNew();
+        }
+      }
+    }
+  }, 300);
+}
+
+window.doPairDeviceNew = async () => {
+  const code  = (document.getElementById('pair-input-code')?.value || '').replace(/\D/g, '');
+  const errEl = document.getElementById('pair-error');
+  if (errEl) errEl.style.display = 'none';
+  if (code.length !== 6) {
+    if (errEl) { errEl.textContent = 'Digite os 6 dígitos do código exibido na TV'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (!_pairDevId) {
+    if (errEl) { errEl.textContent = 'Dispositivo não identificado'; errEl.style.display = 'block'; }
+    return;
+  }
+  try {
+    await post('pairing/index.php?action=pair', { code, device_id: _pairDevId });
+    stopCamera();
+    closeModal('m-pair-device');
+    toast('TV pareada com sucesso!');
+    loadDevices();
+  } catch (e) {
+    if (errEl) { errEl.textContent = e.message || 'Erro ao parear — verifique o código'; errEl.style.display = 'block'; }
+  }
+};

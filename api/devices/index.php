@@ -11,7 +11,7 @@ if ($method === 'GET') {
     $rows = db()->query(
         "SELECT d.*, g.name AS group_name, p.name AS playlist_name
          FROM devices d
-         LEFT JOIN groups g    ON g.id = d.group_id
+         LEFT JOIN `groups` g    ON g.id = d.group_id
          LEFT JOIN playlists p ON p.id = d.playlist_id
          ORDER BY d.name"
     )->fetchAll();
@@ -24,6 +24,7 @@ if ($method === 'GET') {
             $d['status'] = (time() - strtotime($d['last_ping'])) < 120 ? 'online' : 'offline';
         }
         $d['player_url'] = APP_URL . '/html/player.html?token=' . $d['token'];
+        $d['tv_url']     = $d['slug'] ? (APP_URL . '/tv/' . $d['slug']) : null;
     }
     json_ok($rows);
 }

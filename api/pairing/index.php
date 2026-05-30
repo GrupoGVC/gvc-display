@@ -78,4 +78,32 @@ if ($method === 'POST' && $action === 'link') {
     ]);
 }
 
+// ── POST pair: admin pareia device pelo código (vindo de Dispositivos) ──
+if ($method === 'POST' && $action === 'pair') {
+    auth_admin();
+    $b      = require_fields(['code', 'device_id']);
+    $code   = s($b['code'], 10);
+    $dev_id = sint($b['device_id']);
+
+    // Aceita código com ou sem zeros à esquerda
+    $code = preg_replace('/\D/', '', $code); // só dígitos
+    $code = str_pad($code, 6, '0', STR_PAD_LEFT);
+
+    $row = db()->prepare("SELECT * FROM pairing_codes WHERE code=? AND paired=0 AND expires_at > NOW()");
+    $row->execute([$code]);
+    $row = $row->fetch();
+    if (!$row) json_err('Código inválido, expirado ou já utilizado', 404);
+
+    $tk = db()->prepare("SELECT token FROM devices WHERE id=?");
+    $tk->execute([$dev_id]);
+    $token = $tk->fetchColumn();
+    if (!$token) json_err('Dispositivo não encontrado', 404);
+
+    db()->prepare("UPDATE pairing_codes SET paired=1, device_id=?, token=? WHERE code=?")
+        ->execute([$dev_id, $token, $code]);
+
+    log_act(0, 'pair_device', 'device', $dev_id, "code=$code");
+    json_ok(['device_id' => $dev_id, 'token' => $token]);
+}
+
 json_err('Ação não suportada', 405);

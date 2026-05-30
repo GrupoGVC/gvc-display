@@ -1,6 +1,16 @@
-# Passa o header Authorization para o PHP em toda a aplicação
+# GVC Display — Configuração Apache/Nginx
 RewriteEngine On
 RewriteCond %{HTTP:Authorization} ^(.*)
 RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
-
 SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+
+# Limites de upload PHP
+php_value upload_max_filesize 100M
+php_value post_max_size 100M
+php_value memory_limit 256M
+
+# Proteger arquivos sensíveis
+<FilesMatch "(^\.env|\.git|\.sql$)">
+  Order allow,deny
+  Deny from all
+</FilesMatch>

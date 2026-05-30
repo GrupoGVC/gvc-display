@@ -12,7 +12,7 @@ $stats = [
     'total_devices'   => (int)$db->query("SELECT COUNT(*) FROM devices")->fetchColumn(),
     'online_devices'  => (int)$db->query("SELECT COUNT(*) FROM devices WHERE status='online'")->fetchColumn(),
     'total_playlists' => (int)$db->query("SELECT COUNT(*) FROM playlists")->fetchColumn(),
-    'total_groups'    => (int)$db->query("SELECT COUNT(*) FROM groups")->fetchColumn(),
+    'total_groups'    => (int)$db->query("SELECT COUNT(*) FROM `groups`")->fetchColumn(),
     'total_media'     => (int)$db->query("SELECT COUNT(*) FROM media")->fetchColumn(),
 ];
 
@@ -20,7 +20,7 @@ $devices = $db->query(
     "SELECT d.id, d.name, d.location, d.status, d.last_ping, d.token,
             g.name AS group_name, p.name AS playlist_name
      FROM devices d
-     LEFT JOIN groups g    ON g.id = d.group_id
+     LEFT JOIN `groups` g    ON g.id = d.group_id
      LEFT JOIN playlists p ON p.id = d.playlist_id
      ORDER BY d.status DESC, d.name"
 )->fetchAll();
