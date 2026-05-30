@@ -21,7 +21,7 @@ const API_BASE = (() => {
 
 const HEARTBEAT_MS = 30_000;
 const PAIRING_POLL = 5_000;
-const PAIRING_TTL = 10 * 60; // segundos
+const PAIRING_TTL = 30 * 60; // segundos (30 minutos)
 
 const DEBUG = new URLSearchParams(location.search).has("debug");
 if (DEBUG) document.getElementById("debug").style.display = "block";
@@ -218,20 +218,26 @@ async function startPairing() {
 
     // Gera o QR usando a lib qrcode.js (carregada no HTML)
     const qrBox = document.getElementById("qr-box");
-    if (qrBox && window.QRCode) {
-      qrBox.innerHTML = ""; // limpa placeholder
+    const genQR = () => {
+      if (!qrBox || !window.QRCode) return;
+      const size = qrBox.getBoundingClientRect().width || 200;
+      qrBox.innerHTML = "";
       QRCode.toCanvas(
         document.createElement("canvas"),
         adminUrl,
-        { width: qrBox.clientWidth || 200, margin: 1, color: { dark: "#000", light: "#fff" } },
+        { width: size, margin: 1, color: { dark: "#000", light: "#fff" } },
         (err, canvas) => {
           if (!err) {
-            canvas.style.cssText = "width:100%;height:100%;border-radius:8px;";
+            canvas.style.cssText = "width:100%;height:100%;border-radius:8px;display:block;";
             qrBox.innerHTML = "";
             qrBox.appendChild(canvas);
           }
         }
       );
+    };
+    // Aguarda o elemento estar visível antes de gerar
+    if (qrBox) {
+      requestAnimationFrame(() => setTimeout(genQR, 100));
     }
 
     // Countdown

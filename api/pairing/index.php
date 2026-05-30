@@ -24,7 +24,7 @@ if ($method === 'POST' && $action === 'generate') {
         $exists->execute([$code]);
     } while ($exists->fetch());
 
-    $expires = date('Y-m-d H:i:s', strtotime('+10 minutes'));
+    $expires = date('Y-m-d H:i:s', strtotime('+30 minutes'));
     db()->prepare("INSERT INTO pairing_codes (code,expires_at) VALUES (?,?)")->execute([$code, $expires]);
     json_ok(['code' => $code, 'expires_at' => $expires]);
 }
