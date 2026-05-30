@@ -1,6 +1,11 @@
-# Configuração correta do Nginx para o GVC Display
-# Substitua o conteúdo de /etc/nginx/sites-available/gvc-display
-# pelo server block abaixo (mantenha o bloco HTTP→HTTPS do Certbot)
+# ================================================================
+# GVC Display — Nginx config
+# Arquivo: /etc/nginx/sites-available/gvc-display
+#
+# INSTRUÇÃO: substitua todo o bloco "server {" principal pelo
+# conteúdo abaixo. Mantenha o segundo bloco "server {" do
+# Certbot (HTTP → HTTPS redirect) intacto.
+# ================================================================
 
 server {
     server_name display.drc-gvc.tech 72.61.42.148;
@@ -9,22 +14,11 @@ server {
 
     client_max_body_size 100M;
 
-    # Arquivos estáticos
-    location / {
-        try_files $uri $uri/ =404;
-    }
+    # Segurança
+    location ~ /\.(env|git)         { deny all; }
+    location ~* ^/uploads/.*\.php$  { deny all; }
 
-    # API PHP — passa query string corretamente
-    location ~ ^/api/.*\.php$ {
-        try_files $uri =404;
-        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        fastcgi_param QUERY_STRING    $query_string;
-        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
-    }
-
-    # tv.php
+    # Rota curta TVs: /tv/nome
     location ~ ^/tv(/(.*))?$ {
         fastcgi_pass unix:/run/php/php8.2-fpm.sock;
         include fastcgi_params;
@@ -33,7 +27,17 @@ server {
         fastcgi_param HTTP_AUTHORIZATION $http_authorization;
     }
 
-    # Outros PHP
+    # API — DEVE vir antes do location ~ \.php$
+    location ~ ^/api/ {
+        try_files $uri =404;
+        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param QUERY_STRING    $query_string;
+        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+    }
+
+    # Outros PHP (tv.php fallback)
     location ~ \.php$ {
         try_files $uri =404;
         fastcgi_pass unix:/run/php/php8.2-fpm.sock;
@@ -43,14 +47,24 @@ server {
         fastcgi_param HTTP_AUTHORIZATION $http_authorization;
     }
 
-    # Segurança
-    location ~ /\.(env|git) { deny all; }
-    location ~* ^/uploads/.*\.php$ { deny all; }
+    # Arquivos estáticos
+    location / {
+        try_files $uri $uri/ =404;
+    }
 
     # Cache
-    location ~* \.html$ { add_header Cache-Control "no-cache, must-revalidate"; expires 0; }
-    location ~* \.(js|css)$ { add_header Cache-Control "public, max-age=3600"; expires 1h; }
-    location ~* \.(png|jpg|jpeg|gif|ico|svg|mp4|woff|woff2|ttf)$ { add_header Cache-Control "public, max-age=604800"; expires 7d; }
+    location ~* \.html$ {
+        add_header Cache-Control "no-cache, must-revalidate";
+        expires 0;
+    }
+    location ~* \.(js|css)$ {
+        add_header Cache-Control "public, max-age=3600";
+        expires 1h;
+    }
+    location ~* \.(png|jpg|jpeg|gif|ico|svg|mp4|woff|woff2|ttf)$ {
+        add_header Cache-Control "public, max-age=604800";
+        expires 7d;
+    }
 
     listen 443 ssl;
     ssl_certificate /etc/letsencrypt/live/display.drc-gvc.tech/fullchain.pem;

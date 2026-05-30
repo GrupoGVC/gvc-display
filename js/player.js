@@ -216,28 +216,20 @@ async function startPairing() {
     const qrUrlEl = document.getElementById("qr-admin-url");
     if (qrUrlEl) qrUrlEl.textContent = adminUrl;
 
-    // Gera o QR usando a lib qrcode.js (carregada no HTML)
+    // QR Code via Google Charts API (gratuito, sem chave, sem lib)
     const qrBox = document.getElementById("qr-box");
-    const genQR = () => {
-      if (!qrBox || !window.QRCode) return;
-      const size = qrBox.getBoundingClientRect().width || 200;
-      qrBox.innerHTML = "";
-      QRCode.toCanvas(
-        document.createElement("canvas"),
-        adminUrl,
-        { width: size, margin: 1, color: { dark: "#000", light: "#fff" } },
-        (err, canvas) => {
-          if (!err) {
-            canvas.style.cssText = "width:100%;height:100%;border-radius:8px;display:block;";
-            qrBox.innerHTML = "";
-            qrBox.appendChild(canvas);
-          }
-        }
-      );
-    };
-    // Aguarda o elemento estar visível antes de gerar
     if (qrBox) {
-      requestAnimationFrame(() => setTimeout(genQR, 100));
+      const sz  = Math.round(qrBox.getBoundingClientRect().width) || 220;
+      const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=${sz}x${sz}&chl=${encodeURIComponent(adminUrl)}&chco=000000&chf=bg,s,ffffff&chld=M|1`;
+      const img = document.createElement("img");
+      img.src   = qrUrl;
+      img.alt   = "QR Code";
+      img.style.cssText = "width:100%;height:100%;border-radius:8px;display:block;";
+      img.onerror = () => {
+        qrBox.innerHTML = '<p style="color:#888;font-size:11px;text-align:center;padding:16px;">QR indisponível<br>use o código</p>';
+      };
+      qrBox.innerHTML = "";
+      qrBox.appendChild(img);
     }
 
     // Countdown
