@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+date_default_timezone_set('UTC'); // garante que expires_at seja gerado em UTC
 require_once __DIR__ . '/../helpers.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -24,7 +25,7 @@ if ($method === 'POST' && $action === 'generate') {
         $exists->execute([$code]);
     } while ($exists->fetch());
 
-    $expires = date('Y-m-d H:i:s', strtotime('+30 minutes'));
+    $expires = gmdate('Y-m-d H:i:s', time() + 1800); // +30min em UTC
     db()->prepare("INSERT INTO pairing_codes (code,expires_at) VALUES (?,?)")->execute([$code, $expires]);
     json_ok(['code' => $code, 'expires_at' => $expires]);
 }

@@ -5,6 +5,7 @@
 // ============================================================
 
 declare(strict_types=1);
+date_default_timezone_set('UTC');
 
 // ── Carregar .env ─────────────────────────────────────────────
 // Lê o .env e garante que funciona mesmo com arquivos salvos no
