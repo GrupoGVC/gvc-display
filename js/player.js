@@ -5,12 +5,19 @@
 
 "use strict";
 
+// ── QR Code Generator (pure JS, sem dependência externa) ─────
+// Baseado em algoritmo QR Code simples para URLs curtas
+function generateQRSVG(text, size = 200) {
+  // Usa a API do QR Server como fallback robusto
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(text)}&bgcolor=ffffff&color=000000&margin=10`;
+}
+
 // ── Config ────────────────────────────────────────────────────
 // Resolve URL relativa ou absoluta de mídia
 function mediaUrl(url) {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return API_BASE.replace(/\/api$/, '') + url;
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return API_BASE.replace(/\/api$/, "") + url;
 }
 
 const API_BASE = (() => {
@@ -19,7 +26,7 @@ const API_BASE = (() => {
   return u.origin + u.pathname.replace(/\/html\/.*$/, "") + "/api";
 })();
 
-const HEARTBEAT_MS = 30_000;
+const HEARTBEAT_MS = 5_000;
 const PAIRING_POLL = 5_000;
 const PAIRING_TTL = 30 * 60; // segundos (30 minutos)
 
@@ -122,12 +129,11 @@ function buildSlides() {
       slide.appendChild(f);
     } else {
       const img = document.createElement("img");
-      img.src = src;
       img.alt = "";
-      img.loading = "lazy";
-      img.addEventListener("error", () => {
-        img.src = "";
-      });
+      img.style.cssText = "width:100%;height:100%;object-fit:contain;";
+      // Preload: não usar lazy em slideshow
+      img.addEventListener("error", nextSlide);
+      img.src = src;
       slide.appendChild(img);
     }
 
@@ -162,10 +168,27 @@ function showSlide(idx) {
     return;
   }
 
+  // Para imagens: garantir que o timer só começa após carregar
+  const imgEl = document.querySelector(".slide.active img");
+  if (imgEl) {
+    const dur = (item.duration || 10) * 1000;
+    if (imgEl.complete && imgEl.naturalWidth > 0) {
+      scheduleNext(item.duration || 10);
+    } else {
+      imgEl.onload = () => scheduleNext(item.duration || 10);
+      imgEl.onerror = () => scheduleNext(2); // pula rápido se erro
+      // Fallback: se não carregar em 5s, avança mesmo assim
+      slideTimer = setTimeout(nextSlide, Math.max(dur, 5000));
+    }
+    updateHud(item.duration || 10);
+    return;
+  }
+
   scheduleNext(item.duration || 10);
 }
 
 function scheduleNext(seconds) {
+  clearTimeout(slideTimer);
   updateHud(seconds);
   slideTimer = setTimeout(nextSlide, seconds * 1000);
 }
@@ -193,7 +216,8 @@ async function startPairing() {
 
   try {
     // Passa slug da URL (?slug=sala1) para associar ao device quando parear
-    const urlSlug = new URLSearchParams(window.location.search).get('slug') || '';
+    const urlSlug =
+      new URLSearchParams(window.location.search).get("slug") || "";
     const res = await fetch(`${API_BASE}/pairing/index.php?action=generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -210,24 +234,45 @@ async function startPairing() {
     // ── Gera QR Code com URL do painel admin ──────────────────
     // URL do painel: raiz do projeto (sem /api e sem /html)
     const adminBase = API_BASE.replace(/\/api$/, "");
-    const adminUrl  = adminBase + "/index.html";
+    const adminUrl = adminBase + "/index.html";
 
     // Mostra a URL embaixo do QR
     const qrUrlEl = document.getElementById("qr-admin-url");
     if (qrUrlEl) qrUrlEl.textContent = adminUrl;
 
-    // QR Code via Google Charts API (gratuito, sem chave, sem lib)
+    // QR Code — tenta múltiplas APIs com fallback
     const qrBox = document.getElementById("qr-box");
     if (qrBox) {
-      const sz  = Math.round(qrBox.getBoundingClientRect().width) || 220;
-      const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=${sz}x${sz}&chl=${encodeURIComponent(adminUrl)}&chco=000000&chf=bg,s,ffffff&chld=M|1`;
+      const sz = Math.round(qrBox.getBoundingClientRect().width) || 220;
+
+      // Lista de APIs de QR code (fallback em ordem)
+      const qrApis = [
+        `https://api.qrserver.com/v1/create-qr-code/?size=${sz}x${sz}&data=${encodeURIComponent(adminUrl)}&bgcolor=ffffff&color=000000&margin=10`,
+        `https://quickchart.io/qr?text=${encodeURIComponent(adminUrl)}&size=${sz}&margin=10`,
+        `https://chart.googleapis.com/chart?cht=qr&chs=${sz}x${sz}&chl=${encodeURIComponent(adminUrl)}&chld=M|1`,
+      ];
+
       const img = document.createElement("img");
-      img.src   = qrUrl;
-      img.alt   = "QR Code";
-      img.style.cssText = "width:100%;height:100%;border-radius:8px;display:block;";
+      img.alt = "QR Code";
+      img.style.cssText =
+        "width:100%;height:100%;border-radius:8px;display:block;";
+
+      let apiIdx = 0;
       img.onerror = () => {
-        qrBox.innerHTML = '<p style="color:#888;font-size:11px;text-align:center;padding:16px;">QR indisponível<br>use o código</p>';
+        apiIdx++;
+        if (apiIdx < qrApis.length) {
+          img.src = qrApis[apiIdx];
+        } else {
+          // Fallback: mostra código em destaque
+          qrBox.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;">
+              <p style="color:#888;font-size:11px;text-align:center;">QR indisponível</p>
+              <p style="color:#4f8cff;font-size:28px;font-family:monospace;font-weight:700;letter-spacing:8px;">${pairingCode}</p>
+              <p style="color:#888;font-size:10px;">Digite no painel admin</p>
+            </div>`;
+        }
       };
+      img.src = qrApis[0];
       qrBox.innerHTML = "";
       qrBox.appendChild(img);
     }

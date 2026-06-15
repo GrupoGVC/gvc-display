@@ -6,7 +6,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') json_err('Método não permitido', 405
 auth();
 
 $db = db();
-$db->exec("UPDATE devices SET status='offline' WHERE last_ping < DATE_SUB(NOW(), INTERVAL 2 MINUTE) OR last_ping IS NULL");
+// Marca offline: sem ping há 30s OU sem token (não pareada)
+$db->exec("UPDATE devices SET status='offline' WHERE last_ping < DATE_SUB(NOW(), INTERVAL 30 SECOND) OR last_ping IS NULL OR token='' OR token IS NULL");
 
 $stats = [
     'total_devices'   => (int)$db->query("SELECT COUNT(*) FROM devices")->fetchColumn(),

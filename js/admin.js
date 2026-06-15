@@ -14,24 +14,32 @@ import {
   fmtDate,
   fmtSize,
   populateSelect,
+  confirmAction,
 } from "./utils.js";
 
 // ── Helper: resolve URL de mídia (relativa ou absoluta) ─────────
 function mediaUrl(url) {
-  if (!url) return '';
-  // Path relativo /uploads/... — usa BASE do projeto (ex: http://localhost/gvc-display)
-  if (url.startsWith('/uploads/')) return BASE + url;
-  if (url.startsWith('/')) return window.location.origin + url;
+  if (!url) return "";
+  // Calcula base dinamicamente para evitar problemas com o BASE importado
+  const base =
+    window.location.origin +
+    window.location.pathname
+      .replace(/\/(index|login)\.html.*$/, "")
+      .replace(/\/+$/, "");
+  if (url.startsWith("/uploads/")) return base + url;
+  if (url.startsWith("/")) return window.location.origin + url;
   // URL absoluta — extrai /uploads/... e reconstrói com BASE atual
-  if (url.startsWith('http://') || url.startsWith('https://')) {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
     try {
       const u = new URL(url);
-      const i = u.pathname.indexOf('/uploads/');
-      if (i >= 0) return BASE + u.pathname.slice(i);
-      return url; // URL externa (ex: página web para iframe)
-    } catch { return url; }
+      const i = u.pathname.indexOf("/uploads/");
+      if (i >= 0) return base + u.pathname.slice(i);
+      return url;
+    } catch {
+      return url;
+    }
   }
-  return BASE + '/' + url;
+  return base + "/" + url;
 }
 
 // ── Estado global ─────────────────────────────────────────────
@@ -68,7 +76,7 @@ const S = {
 function showLogin() {
   // Login é feito na página dedicada login.html
   token.clear();
-  location.href = 'login.html';
+  location.href = "login.html";
 }
 
 window.doLogin = async () => {
@@ -78,7 +86,7 @@ window.doLogin = async () => {
 
 window.doLogout = () => {
   token.clear();
-  location.href = 'login.html';
+  location.href = "login.html";
 };
 
 // ── App init ──────────────────────────────────────────────────
@@ -87,17 +95,54 @@ async function initApp(dashData) {
   q("#conn-user").textContent = S.user?.name || S.user?.email || "Admin";
 
   renderDash(dashData);
-  await Promise.all([loadGroups(), loadPlaylists(), loadMedia()]);
+  // Carrega dados essenciais primeiro, depois os demais
+  try {
+    await Promise.all([
+      loadDevices(),
+      loadGroups(),
+      loadPlaylists(),
+      loadMedia(),
+    ]);
+  } catch (e) {
+    console.warn("Erro ao carregar dados iniciais:", e.message);
+    // Tenta de novo após 2s se falhar
+    setTimeout(async () => {
+      try {
+        await Promise.all([
+          loadDevices(),
+          loadGroups(),
+          loadPlaylists(),
+          loadMedia(),
+        ]);
+      } catch {}
+    }, 2000);
+  }
 
+  // Auto-refresh do dashboard a cada 10s
   setInterval(async () => {
     try {
-      renderDash(await get("dashboard/index.php"));
+      const d = await get("dashboard/index.php");
+      renderDash(d);
+      // Atualiza status das TVs se estiver na tela de dispositivos
+      const sec = document.querySelector(".sec.active");
+      if (sec?.id === "sec-dispositivos") loadDevices();
     } catch {}
-  }, 30_000);
+  }, 10_000);
 }
 
 // ── Navigation ────────────────────────────────────────────────
 window.nav = (section) => {
+  // Fechar sidebar no mobile ao navegar
+  if (window.innerWidth <= 992) {
+    const sb = document.getElementById("sb");
+    const ov = document.getElementById("sb-overlay");
+    if (sb && !sb.classList.contains("sb-hidden")) {
+      sb.classList.add("sb-hidden");
+      document.body.classList.add("sb-closed");
+      if (ov) ov.classList.remove("visible");
+    }
+  }
+
   qa(".ni").forEach((n) =>
     n.classList.toggle("active", n.dataset.s === section),
   );
@@ -117,7 +162,9 @@ window.nav = (section) => {
   q("#ptitle").textContent = titles[section] ?? section;
   q("#pact").innerHTML = "";
 
-  if (section === "dispositivos") loadDevices();
+  if (section === "dispositivos") {
+    loadDevices();
+  }
   if (section === "agendamentos") loadSchedules();
   if (section === "pareamento") loadPairing();
 };
@@ -137,26 +184,39 @@ function renderDash(d) {
         .map(
           (tv) => `
       <div class="tv-row">
-        <span class="sdot ${tv.status === "online" ? "sdot-on" : "sdot-off"}"></span>
+        <div class="tv-icon"><i class="bi bi-display" style="font-size:15px;"></i></div>
         <div class="tv-info">
           <div class="tv-name">${esc(tv.name)}</div>
           <div class="tv-loc">${esc(tv.location || "—")}${tv.playlist_name ? " · " + esc(tv.playlist_name) : ""}</div>
         </div>
-        <span class="tag ${tv.status === "online" ? "tg-on" : "tg-off"}">${tv.status}</span>
+        <span class="tag ${tv.status === "online" ? "tg-on" : "tg-off"}">
+          <span class="sdot ${tv.status === "online" ? "sdot-on" : "sdot-off"}"></span>
+          ${tv.status}
+        </span>
       </div>`,
         )
         .join("")
     : '<p class="empty">Nenhuma TV cadastrada</p>';
 
   const icons = {
-    login: '<span class="msi">key</span>',
-    create_device: '<span class="msi">tv</span>',
-    broadcast: '<span class="msi">cell_tower</span>',
-    upload_media: '<span class="msi">upload_file</span>',
-    create_playlist: '<span class="msi">playlist_add</span>',
-    pair_device: '<span class="msi">link</span>',
-    delete_device: '<span class="msi">delete</span>',
-    login_failed: '<span class="msi" style="color:#f59e0b">warning</span>',
+    login: '<i class="fi fi-rr-key"></i>',
+    logout: '<i class="fi fi-rr-sign-out-alt"></i>',
+    create_device: '<i class="bi bi-display"></i>',
+    delete_device: '<i class="fi fi-rr-trash"></i>',
+    update_device: '<i class="fi fi-rr-pencil"></i>',
+    pair_device: '<i class="fi fi-rr-link"></i>',
+    unpair_device: '<i class="fi fi-rr-link"></i>',
+    broadcast: '<i class="fi fi-rr-signal-alt-2"></i>',
+    upload_media: '<i class="fi fi-rr-cloud-upload"></i>',
+    delete_media: '<i class="fi fi-rr-trash"></i>',
+    create_playlist: '<i class="fi fi-rr-film"></i>',
+    delete_playlist: '<i class="fi fi-rr-trash"></i>',
+    create_group: '<i class="fi fi-rr-layers"></i>',
+    delete_group: '<i class="fi fi-rr-trash"></i>',
+    create_schedule: '<i class="bi bi-calendar3"></i>',
+    delete_schedule: '<i class="fi fi-rr-trash"></i>',
+    login_failed:
+      '<i class="fi fi-rr-triangle-warning" style="color:#f59e0b"></i>',
   };
   // Guarda logs completos para o modal "Ver tudo"
   window._allLogs = d.logs;
@@ -167,7 +227,7 @@ function renderDash(d) {
         .map(
           (l) => `
       <div class="log-item">
-        <span class="log-ic">${icons[l.action] || '<span class="msi">article</span>'}</span>
+        <div class="log-ic">${icons[l.action] || '<i class="fi fi-rr-document"></i>'}</div>
         <div class="log-body">
           <div class="log-act">${esc(l.action.replace(/_/g, " "))}${l.detail ? ` <em style="color:var(--mut)">${esc(l.detail)}</em>` : ""}</div>
           <div class="log-time">${l.user_name ? esc(l.user_name) + " · " : ""}${fmtDate(l.created_at)}</div>
@@ -182,28 +242,42 @@ function renderDash(d) {
 window.openLogModal = () => {
   const logs = window._allLogs || [];
   const icons = {
-    login: '<span class="msi">key</span>',
-    create_device: '<span class="msi">tv</span>',
-    broadcast: '<span class="msi">cell_tower</span>',
-    upload_media: '<span class="msi">upload_file</span>',
-    create_playlist: '<span class="msi">playlist_add</span>',
-    pair_device: '<span class="msi">link</span>',
-    delete_device: '<span class="msi">delete</span>',
-    login_failed: '<span class="msi" style="color:#f59e0b">warning</span>',
+    login: '<i class="fi fi-rr-key"></i>',
+    logout: '<i class="fi fi-rr-sign-out-alt"></i>',
+    create_device: '<i class="bi bi-display"></i>',
+    delete_device: '<i class="fi fi-rr-trash"></i>',
+    update_device: '<i class="fi fi-rr-pencil"></i>',
+    pair_device: '<i class="fi fi-rr-link"></i>',
+    unpair_device: '<i class="fi fi-rr-link"></i>',
+    broadcast: '<i class="fi fi-rr-signal-alt-2"></i>',
+    upload_media: '<i class="fi fi-rr-cloud-upload"></i>',
+    delete_media: '<i class="fi fi-rr-trash"></i>',
+    create_playlist: '<i class="fi fi-rr-film"></i>',
+    delete_playlist: '<i class="fi fi-rr-trash"></i>',
+    create_group: '<i class="fi fi-rr-layers"></i>',
+    delete_group: '<i class="fi fi-rr-trash"></i>',
+    create_schedule: '<i class="bi bi-calendar3"></i>',
+    delete_schedule: '<i class="fi fi-rr-trash"></i>',
+    login_failed:
+      '<i class="fi fi-rr-triangle-warning" style="color:#f59e0b"></i>',
   };
-  const el = document.getElementById('log-modal-body');
+  const el = document.getElementById("log-modal-body");
   if (!el) return;
   el.innerHTML = logs.length
-    ? logs.map(l => `
+    ? logs
+        .map(
+          (l) => `
       <div class="log-item">
-        <span class="log-ic">${icons[l.action] || '<span class="msi">article</span>'}</span>
+        <div class="log-ic">${icons[l.action] || '<i class="fi fi-rr-document"></i>'}</div>
         <div class="log-body">
-          <div class="log-act">${esc(l.action.replace(/_/g,' '))}${l.detail ? ` <em style="color:var(--mut)">${esc(l.detail)}</em>` : ''}</div>
-          <div class="log-time">${l.user_name ? esc(l.user_name) + ' · ' : ''}${fmtDate(l.created_at)}</div>
+          <div class="log-act">${esc(l.action.replace(/_/g, " "))}${l.detail ? ` <em style="color:var(--mut)">${esc(l.detail)}</em>` : ""}</div>
+          <div class="log-time">${l.user_name ? esc(l.user_name) + " · " : ""}${fmtDate(l.created_at)}</div>
         </div>
-      </div>`).join('')
+      </div>`,
+        )
+        .join("")
     : '<p class="empty">Sem atividade recente</p>';
-  openModal('m-log');
+  openModal("m-log");
 };
 
 // ── Devices ───────────────────────────────────────────────────
@@ -235,11 +309,11 @@ function renderDevices() {
         <td>${d.playlist_name ? esc(d.playlist_name) : '<span style="color:var(--mut);">—</span>'}</td>
         <td style="font-size:12px;color:var(--mut);">${d.last_ping ? fmtDate(d.last_ping) : "nunca"}</td>
         <td>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="btn btn-p btn-sm" onclick="openPairForDevice(${d.id},'${esc(d.name)}')" title="Parear TV"><span class="msi" style="font-size:14px">qr_code_scanner</span>Parear</button>
-            <button class="btn btn-g btn-sm" onclick="openEditDev(${d.id})" title="Editar"><span class="msi">edit</span></button>
-            <button class="btn btn-g btn-sm" onclick="openDevInfo(${d.id})" title="Info"><span class="msi">settings</span></button>
-            <button class="btn btn-d btn-sm" onclick="delDev(${d.id})" title="Excluir"><span class="msi">delete</span></button>
+          <div class="action-btns">
+            <button class="btn-p btn-sm" onclick="openPairForDevice(${d.id},'${esc(d.name)}')" title="Parear TV"><span class="msi" style="font-size:14px">qr_code_scanner</span>Parear</button>
+            <button class="btn-g btn-sm btn-icon" onclick="openEditDev(${d.id})" title="Editar"><span class="msi">edit</span></button>
+            <button class="btn-g btn-sm btn-icon" onclick="openDevInfo(${d.id})" title="Info"><span class="msi">settings</span></button>
+            <button class="btn-d btn-sm btn-icon" onclick="delDev(${d.id})" title="Excluir"><span class="msi">delete</span></button>
           </div>
         </td>
       </tr>`,
@@ -318,18 +392,63 @@ window.doSaveDev = async () => {
 window.openDevInfo = (id) => {
   const d = S.devices.find((x) => x.id === id);
   if (!d) return;
+  S._infoDevId = id;
   q("#m-devinfo-title").innerHTML =
     `<span class="msi" style="font-size:18px;vertical-align:middle;margin-right:6px">settings</span>${esc(d.name)}`;
-  q("#dev-purl").textContent = d.player_url;
-  q("#dev-token").textContent = d.token;
+  q("#dev-purl").textContent = d.tv_url || d.player_url || "—";
+  q("#dev-token").textContent = d.token || "—";
+
+  const pairEl = q("#dev-pair-status");
+  const cancelBtn = q("#btn-cancel-pair");
+  if (pairEl) {
+    if (d.status === "online") {
+      pairEl.innerHTML =
+        '<span style="color:var(--green)">● Pareada e online</span>';
+    } else if (d.token) {
+      pairEl.innerHTML =
+        '<span style="color:var(--mut)">● Pareada (offline)</span>';
+    } else {
+      pairEl.innerHTML =
+        '<span style="color:var(--orange)">● Não pareada</span>';
+    }
+  }
+  if (cancelBtn) cancelBtn.style.display = d.token ? "inline-flex" : "none";
   openModal("m-devinfo");
 };
 
+window.cancelDevPairing = () => {
+  const id = S._infoDevId;
+  if (!id) return;
+  confirmAction(
+    "Encerrar pareamento desta TV? Ela voltará para a tela de código.",
+    async () => {
+      try {
+        await put(`devices/index.php?id=${id}`, { reset_token: true });
+        toast("Pareamento encerrado — TV voltará à tela de código");
+        closeModal("m-devinfo");
+        loadDevices();
+      } catch (e) {
+        toast(e.message || "Erro ao encerrar pareamento", "err");
+      }
+    },
+    { danger: true, confirmLabel: "Encerrar", cancelLabel: "Cancelar" },
+  );
+};
+
 window.delDev = async (id) => {
-  if (!confirm("Remover este dispositivo?")) return;
-  await del(`devices/index.php?id=${id}`);
-  toast("Dispositivo removido");
-  loadDevices();
+  confirmAction(
+    "Remover este dispositivo permanentemente?",
+    async () => {
+      try {
+        await del(`devices/index.php?id=${id}`);
+        toast("Dispositivo removido");
+        loadDevices();
+      } catch (e) {
+        toast(e.message, "err");
+      }
+    },
+    { danger: true, confirmLabel: "Remover" },
+  );
 };
 
 // ── Groups ────────────────────────────────────────────────────
@@ -401,10 +520,19 @@ window.doSaveGrupo = async () => {
 };
 
 window.delGrupo = async (id) => {
-  if (!confirm("Remover este grupo?")) return;
-  await del(`groups/index.php?id=${id}`);
-  toast("Grupo removido");
-  loadGroups();
+  confirmAction(
+    "Remover este grupo permanentemente?",
+    async () => {
+      try {
+        await del(`groups/index.php?id=${id}`);
+        toast("Grupo removido");
+        loadGroups();
+      } catch (e) {
+        toast(e.message, "err");
+      }
+    },
+    { danger: true, confirmLabel: "Remover" },
+  );
 };
 
 // ── Playlists ─────────────────────────────────────────────────
@@ -465,7 +593,7 @@ function renderPlItems() {
   q("#pl-hint").style.display = "block";
   el.innerHTML = S.curPlItems
     .map((item, i) => {
-      const src = item.media_url || item.url || "";
+      const src = mediaUrl(item.media_url || item.url || "");
       const thumb =
         item.type === "video"
           ? `<video src="${src}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>`
@@ -512,7 +640,7 @@ window.onDrop = async (e, i) => {
 window.previewItem = (i) => {
   const item = S.curPlItems[i];
   if (!item) return;
-  const src = item.media_url || item.url || "";
+  const src = mediaUrl(item.media_url || item.url || "");
   const pv = q("#preview");
   if (item.type === "video")
     pv.innerHTML = `<video src="${src}" controls autoplay preload="metadata" style="width:100%;height:100%;object-fit:contain;"></video>`;
@@ -556,24 +684,57 @@ window.doDupPl = async () => {
   const src = q("#dup-src").value;
   const name = q("#dup-name").value.trim();
   if (!src || !name) return toast("Preencha todos os campos", "err");
-  await post("playlists/index.php", { name, copy_from: src });
-  closeModal("m-dup");
-  toast("Playlist duplicada");
-  loadPlaylists();
+  const btn = document.querySelector("#m-dup .modal-footer .btn-p");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Duplicando...";
+  }
+  try {
+    await post("playlists/index.php", { name, copy_from: src });
+    closeModal("m-dup");
+    toast("✓ Playlist duplicada");
+    loadPlaylists();
+  } catch (e) {
+    toast(e.message || "Erro ao duplicar", "err");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Duplicar";
+    }
+  }
 };
 
 window.deleteCurPl = async () => {
-  if (!S.curPlId || !confirm("Excluir esta playlist?")) return;
-  await del(`playlists/index.php?id=${S.curPlId}`);
-  toast("Playlist excluída");
-  window.showPlList();
+  if (!S.curPlId) return;
+  confirmAction(
+    "Excluir esta playlist e todos os seus itens?",
+    async () => {
+      try {
+        await del(`playlists/index.php?id=${S.curPlId}`);
+        toast("Playlist excluída");
+        window.showPlList();
+      } catch (e) {
+        toast(e.message, "err");
+      }
+    },
+    { danger: true, confirmLabel: "Excluir" },
+  );
 };
 
 window.delPl = async (id) => {
-  if (!confirm("Excluir esta playlist?")) return;
-  await del(`playlists/index.php?id=${id}`);
-  toast("Playlist excluída");
-  loadPlaylists();
+  confirmAction(
+    "Excluir esta playlist e todos os seus itens?",
+    async () => {
+      try {
+        await del(`playlists/index.php?id=${id}`);
+        toast("Playlist excluída");
+        loadPlaylists();
+      } catch (e) {
+        toast(e.message, "err");
+      }
+    },
+    { danger: true, confirmLabel: "Excluir" },
+  );
 };
 
 // ── Items ─────────────────────────────────────────────────────
@@ -619,29 +780,53 @@ window.pickMedia = (url, el) => {
 window.doAddItem = async () => {
   const url = q("#it-url").value.trim();
   const type = q("#it-tipo").value;
-  if (!url || !S.curPlId) return toast("Informe a URL", "err");
+  if (!url || !S.curPlId)
+    return toast("Informe a URL ou selecione uma mídia", "err");
+  const btn = document.querySelector("#m-item .modal-footer .btn-p");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Adicionando...";
+  }
   const mediaId = S.media.find((m) => m.url === url)?.id || null;
-  await post("items/index.php", {
-    playlist_id: S.curPlId,
-    type,
-    url,
-    duration: parseInt(q("#it-dur").value) || 10,
-    media_id: mediaId,
-  });
-  closeModal("m-item");
-  toast("Item adicionado");
-  const pl = await get(`playlists/index.php?id=${S.curPlId}`);
-  S.curPlItems = pl.items || [];
-  renderPlItems();
+  try {
+    await post("items/index.php", {
+      playlist_id: S.curPlId,
+      type,
+      url,
+      duration: parseInt(q("#it-dur").value) || 10,
+      media_id: mediaId,
+    });
+    closeModal("m-item");
+    toast("✓ Item adicionado à playlist");
+    const pl = await get(`playlists/index.php?id=${S.curPlId}`);
+    S.curPlItems = pl.items || [];
+    renderPlItems();
+  } catch (e) {
+    toast(e.message || "Erro ao adicionar item", "err");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Adicionar";
+    }
+  }
 };
 
 window.delItem = async (id) => {
-  if (!confirm("Remover este item?")) return;
-  await del(`items/index.php?id=${id}`);
-  toast("Item removido");
-  const pl = await get(`playlists/index.php?id=${S.curPlId}`);
-  S.curPlItems = pl.items || [];
-  renderPlItems();
+  confirmAction(
+    "Remover este item da playlist?",
+    async () => {
+      try {
+        await del(`items/index.php?id=${id}`);
+        toast("Item removido");
+        const pl = await get(`playlists/index.php?id=${S.curPlId}`);
+        S.curPlItems = pl.items || [];
+        renderPlItems();
+      } catch (e) {
+        toast(e.message, "err");
+      }
+    },
+    { danger: true, confirmLabel: "Remover" },
+  );
 };
 
 // ── Assign ────────────────────────────────────────────────────
@@ -667,11 +852,31 @@ function buildAssignSelect() {
 window.quickAssign = async () => {
   const target = q("#pl-assign-target").value;
   if (!target || !S.curPlId) return toast("Selecione o destino", "err");
-  const res = await post("devices/broadcast.php", {
-    playlist_id: S.curPlId,
-    target,
-  });
-  toast(`Playlist enviada para ${res.affected} TV(s)!`);
+  // Seleciona o botão Aplicar especificamente pelo onclick
+  const btn =
+    document.querySelector("button[onclick='quickAssign()']") ||
+    q("#pl-assign-target")?.closest(".gvc-card")?.querySelector(".btn-p");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML =
+      '<i class="fi fi-rr-refresh" style="font-size:13px"></i> Aplicando...';
+  }
+  try {
+    const res = await post("devices/broadcast.php", {
+      playlist_id: S.curPlId,
+      target,
+    });
+    const count = res?.affected ?? res?.count ?? "?";
+    toast(`✓ Playlist aplicada para ${count} TV(s)!`);
+  } catch (e) {
+    toast(e.message || "Erro ao aplicar playlist", "err");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML =
+        'Aplicar <i class="fi fi-rr-arrow-right" style="font-size:14px"></i>';
+    }
+  }
 };
 
 // ── Broadcast ─────────────────────────────────────────────────
@@ -698,13 +903,29 @@ window.doBroadcast = async () => {
   const plId = q("#bc-pl").value;
   const target = q("#bc-target").value;
   if (!plId) return toast("Selecione a playlist", "err");
-  const res = await post("devices/broadcast.php", {
-    playlist_id: plId,
-    target,
-  });
-  closeModal("m-broadcast");
-  toast(`Enviado para ${res.affected} TVs`);
-  if (S.devices.length) loadDevices();
+  const btn = document.querySelector("#m-broadcast .modal-footer .btn-p");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
+  }
+  try {
+    const res = await post("devices/broadcast.php", {
+      playlist_id: plId,
+      target,
+    });
+    closeModal("m-broadcast");
+    const count = res?.affected ?? res?.count ?? "?";
+    toast(`✓ Broadcast enviado para ${count} TV(s)!`);
+    if (S.devices.length) loadDevices();
+  } catch (e) {
+    toast(e.message || "Erro ao enviar broadcast", "err");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML =
+        'Enviar <i class="fi fi-rr-paper-plane" style="font-size:14px"></i>';
+    }
+  }
 };
 
 // ── Media ─────────────────────────────────────────────────────
@@ -812,11 +1033,20 @@ window.doUpload = async (files) => {
 
 window.delMedia = async (id, e) => {
   e.stopPropagation();
-  if (!confirm("Remover esta mídia?")) return;
-  await del(`media/index.php?id=${id}`);
-  S.media = S.media.filter((m) => m.id !== id);
-  renderMedia();
-  toast("Mídia removida");
+  confirmAction(
+    "Remover esta mídia permanentemente?",
+    async () => {
+      try {
+        await del(`media/index.php?id=${id}`);
+        S.media = S.media.filter((m) => m.id !== id);
+        renderMedia();
+        toast("Mídia removida");
+      } catch (e) {
+        toast(e.message, "err");
+      }
+    },
+    { danger: true, confirmLabel: "Remover" },
+  );
 };
 
 // Drag-and-drop upload
@@ -918,30 +1148,58 @@ window.doSaveAgenda = async () => {
     tid = parseInt(target.split(":")[1]);
   }
 
-  await post("schedules/index.php", {
-    playlist_id: pl,
-    target_type: ttype,
-    target_id: tid,
-    starts_at: starts.replace("T", " "),
-    ends_at: ends.replace("T", " "),
-    repeat_weekly: repeat,
-    weekdays,
-  });
-  closeModal("m-agenda");
-  toast("Agendamento criado");
-  loadSchedules();
+  const btn = document.querySelector("#m-agenda .modal-footer .btn-p");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Salvando...";
+  }
+  try {
+    await post("schedules/index.php", {
+      playlist_id: pl,
+      target_type: ttype,
+      target_id: tid,
+      starts_at: starts.replace("T", " "),
+      ends_at: ends.replace("T", " "),
+      repeat_weekly: repeat,
+      weekdays,
+    });
+    closeModal("m-agenda");
+    toast("✓ Agendamento criado com sucesso");
+    loadSchedules();
+  } catch (e) {
+    toast(e.message || "Erro ao criar agendamento", "err");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Salvar";
+    }
+  }
 };
 
 window.toggleSched = async (id, active) => {
-  await put(`schedules/index.php?id=${id}`, { active: !active });
-  loadSchedules();
+  try {
+    await put(`schedules/index.php?id=${id}`, { active: !active });
+    toast(active ? "Agendamento pausado" : "✓ Agendamento ativado");
+    loadSchedules();
+  } catch (e) {
+    toast(e.message || "Erro ao alterar status", "err");
+  }
 };
 
 window.delSched = async (id) => {
-  if (!confirm("Remover agendamento?")) return;
-  await del(`schedules/index.php?id=${id}`);
-  toast("Agendamento removido");
-  loadSchedules();
+  confirmAction(
+    "Remover este agendamento?",
+    async () => {
+      try {
+        await del(`schedules/index.php?id=${id}`);
+        toast("Agendamento removido");
+        loadSchedules();
+      } catch (e) {
+        toast(e.message, "err");
+      }
+    },
+    { danger: true, confirmLabel: "Remover" },
+  );
 };
 
 // ── Pairing ───────────────────────────────────────────────────
@@ -1028,74 +1286,92 @@ document.addEventListener("keydown", (e) => {
 
 // ── Pareamento via Dispositivos ────────────────────────────────
 
-let _pairDevId  = null;
-let _qrStream   = null;
+let _pairDevId = null;
+let _qrStream = null;
 let _qrInterval = null;
 
 window.openPairForDevice = (devId, devName) => {
   _pairDevId = devId;
-  const el = document.getElementById('pair-dev-name');
+  const el = document.getElementById("pair-dev-name");
   if (el) el.textContent = devName;
-  const inp = document.getElementById('pair-input-code');
-  if (inp) inp.value = '';
-  const err = document.getElementById('pair-error');
-  if (err) err.style.display = 'none';
-  switchPairTab('code');
-  openModal('m-pair-device');
+  const inp = document.getElementById("pair-input-code");
+  if (inp) inp.value = "";
+  const err = document.getElementById("pair-error");
+  if (err) err.style.display = "none";
+  switchPairTab("code");
+  openModal("m-pair-device");
 };
 
 window.switchPairTab = (tab) => {
-  const isCode = tab === 'code';
-  const tc = document.getElementById('pair-tab-code');
-  const tm = document.getElementById('pair-tab-cam');
-  const bc = document.getElementById('tab-code');
-  const bm = document.getElementById('tab-cam');
-  if (tc) tc.classList.toggle('hidden', !isCode);
-  if (tm) tm.classList.toggle('hidden', isCode);
-  if (bc) { bc.className = (isCode ? 'btn-p' : 'btn-g') + ' btn-sm'; bc.style.cssText = 'flex:1;justify-content:center;'; }
-  if (bm) { bm.className = (isCode ? 'btn-g' : 'btn-p') + ' btn-sm'; bm.style.cssText = 'flex:1;justify-content:center;'; }
-  if (!isCode) startCamera(); else stopCamera();
+  const isCode = tab === "code";
+  const tc = document.getElementById("pair-tab-code");
+  const tm = document.getElementById("pair-tab-cam");
+  const bc = document.getElementById("tab-code");
+  const bm = document.getElementById("tab-cam");
+  if (tc) tc.classList.toggle("hidden", !isCode);
+  if (tm) tm.classList.toggle("hidden", isCode);
+  if (bc) {
+    bc.className = (isCode ? "btn-p" : "btn-g") + " btn-sm";
+    bc.style.cssText = "flex:1;justify-content:center;";
+  }
+  if (bm) {
+    bm.className = (isCode ? "btn-g" : "btn-p") + " btn-sm";
+    bm.style.cssText = "flex:1;justify-content:center;";
+  }
+  if (!isCode) startCamera();
+  else stopCamera();
 };
 
 window.startCamera = async () => {
-  const video  = document.getElementById('qr-video');
-  const status = document.getElementById('qr-status');
+  const video = document.getElementById("qr-video");
+  const status = document.getElementById("qr-status");
   try {
-    _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    _qrStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+    });
     video.srcObject = _qrStream;
     await video.play();
-    if (status) status.textContent = 'Aponte a câmera para o QR Code da TV';
+    if (status) status.textContent = "Aponte a câmera para o QR Code da TV";
     scanQRFrame();
   } catch (e) {
-    if (status) status.textContent = 'Câmera não disponível: ' + e.message;
+    if (status) status.textContent = "Câmera não disponível: " + e.message;
   }
 };
 
 window.stopCamera = () => {
-  if (_qrInterval) { clearInterval(_qrInterval); _qrInterval = null; }
-  if (_qrStream)   { _qrStream.getTracks().forEach(t => t.stop()); _qrStream = null; }
+  if (_qrInterval) {
+    clearInterval(_qrInterval);
+    _qrInterval = null;
+  }
+  if (_qrStream) {
+    _qrStream.getTracks().forEach((t) => t.stop());
+    _qrStream = null;
+  }
 };
 
 function scanQRFrame() {
-  const video  = document.getElementById('qr-video');
-  const canvas = document.getElementById('qr-canvas');
-  const status = document.getElementById('qr-status');
+  const video = document.getElementById("qr-video");
+  const canvas = document.getElementById("qr-canvas");
+  const status = document.getElementById("qr-status");
   _qrInterval = setInterval(() => {
     if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
-    const ctx = canvas.getContext('2d');
-    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
     if (window.jsQR) {
-      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+      const code = jsQR(img.data, img.width, img.height, {
+        inversionAttempts: "dontInvert",
+      });
       if (code && code.data) {
         const match = code.data.match(/\b(\d{6})\b/);
         if (match) {
           stopCamera();
-          if (status) status.textContent = 'QR detectado: ' + match[1];
-          const inp = document.getElementById('pair-input-code');
+          if (status) status.textContent = "QR detectado: " + match[1];
+          const inp = document.getElementById("pair-input-code");
           if (inp) inp.value = match[1];
-          switchPairTab('code');
+          switchPairTab("code");
           doPairDeviceNew();
         }
       }
@@ -1104,24 +1380,38 @@ function scanQRFrame() {
 }
 
 window.doPairDeviceNew = async () => {
-  const code  = (document.getElementById('pair-input-code')?.value || '').replace(/\D/g, '');
-  const errEl = document.getElementById('pair-error');
-  if (errEl) errEl.style.display = 'none';
+  const code = (
+    document.getElementById("pair-input-code")?.value || ""
+  ).replace(/\D/g, "");
+  const errEl = document.getElementById("pair-error");
+  if (errEl) errEl.style.display = "none";
   if (code.length !== 6) {
-    if (errEl) { errEl.textContent = 'Digite os 6 dígitos do código exibido na TV'; errEl.style.display = 'block'; }
+    if (errEl) {
+      errEl.textContent = "Digite os 6 dígitos do código exibido na TV";
+      errEl.style.display = "block";
+    }
     return;
   }
   if (!_pairDevId) {
-    if (errEl) { errEl.textContent = 'Dispositivo não identificado'; errEl.style.display = 'block'; }
+    if (errEl) {
+      errEl.textContent = "Dispositivo não identificado";
+      errEl.style.display = "block";
+    }
     return;
   }
   try {
-    await post('pairing/index.php?action=pair', { code, device_id: _pairDevId });
+    await post("pairing/index.php?action=pair", {
+      code,
+      device_id: _pairDevId,
+    });
     stopCamera();
-    closeModal('m-pair-device');
-    toast('TV pareada com sucesso!');
+    closeModal("m-pair-device");
+    toast("TV pareada com sucesso!");
     loadDevices();
   } catch (e) {
-    if (errEl) { errEl.textContent = e.message || 'Erro ao parear — verifique o código'; errEl.style.display = 'block'; }
+    if (errEl) {
+      errEl.textContent = e.message || "Erro ao parear — verifique o código";
+      errEl.style.display = "block";
+    }
   }
 };

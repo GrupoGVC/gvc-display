@@ -39,7 +39,25 @@ async function req(method, path, body = null, isFile = false) {
   };
 
   const res = await fetch(`${API}/${path}`, opts);
-  const json = await res.json().catch(() => ({}));
+
+  // Parse robusto — lida com warnings PHP antes do JSON
+  let json = {};
+  try {
+    const text = await res.text();
+    // Remove warnings PHP que aparecem antes do JSON
+    const jsonStart = text.indexOf('{');
+    const jsonText = jsonStart >= 0 ? text.slice(jsonStart) : text;
+    json = JSON.parse(jsonText);
+  } catch { json = {}; }
+
+  // Token expirado — redireciona para login
+  if (res.status === 401 || json.error === 'Token inválido ou expirado' || json.error === 'Autenticação necessária') {
+    if (!window.location.pathname.includes('login.html')) {
+      token.clear();
+      window.location.href = 'login.html';
+      return;
+    }
+  }
 
   if (!res.ok) {
     const err = new Error(json.error || `HTTP ${res.status}`);

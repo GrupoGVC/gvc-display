@@ -147,17 +147,19 @@ CREATE TABLE
 
 SELECT ID, NAME, EMAIL, ROLE, ACTIVE FROM users;
 
+SELECT * FROM db_gvc_display.users;
+
 UPDATE users
-SET active = 1 
+SET password = "$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi"
 WHERE email ='admin@gmail.com';
 
 DELETE FROM users WHERE email = 'admin@gvc.com';
 
-INSERT INTO users (`name`, `email`, `password`, `role`, `active`)
+INSERT INTO users (name, email, password, role, active)
 VALUES (
   'Administrador GVC',
   'admin@gvc.com',
-  '$2y$10$XaNPEPWh3Vposh0av0Fxvesv52p7At.G9G2C9OiO.tGifhHNkQhFe',
+  '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
   'admin',
   1
 );
@@ -168,3 +170,5 @@ WHERE email = 'admin@gvc.com';
 
 SHOW DATABASES;
 SHOW TABLES;
+
+DROP DATABASE IF EXISTS db_gvc_display;

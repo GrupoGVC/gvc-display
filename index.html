@@ -3,31 +3,39 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap" rel="stylesheet">
     <title>GVC Display</title>
     <link rel="icon" href="assets/logos/logo_grupogvc_white.ico" type="image/x-icon"/>
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
     />
+    <link rel="stylesheet" href="https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/css/uicons-regular-rounded.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
     <link rel="stylesheet" href="css/main.css"/>
     <link rel="stylesheet" href="css/admin.css"/>
   </head>
   <body>
 
     <!-- APP -->
-    <div id="app" style="display:none;">
+    <div id="sb-overlay" onclick="toggleSb()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:299;"></div>
+<div id="app" style="display:none;">
       <!-- SIDEBAR -->
       <div id="sb">
         <div class="sb-logo">
-          <span
-            class="msi msi-fill"
-            style="font-size: 22px; color: var(--primary)"
-            >tv</span
-          >
+          <div class="sb-logo-icon" style="background:transparent;padding:0;display:flex;align-items:center;justify-content:center;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" width="28" height="28">
+              <rect x="4" y="8" width="56" height="36" rx="5" ry="5" fill="#4f8cff"/>
+              <rect x="9" y="13" width="46" height="26" rx="3" ry="3" fill="#1a2035"/>
+              <rect x="28" y="44" width="8" height="8" rx="1" fill="#4f8cff"/>
+              <rect x="18" y="52" width="28" height="5" rx="3" fill="#4f8cff"/>
+              <rect x="11" y="15" width="12" height="3" rx="1.5" fill="rgba(255,255,255,0.15)"/>
+            </svg>
+          </div>
           <div>
-            <div class="sb-brand">
-              GVC <span style="color: var(--primary)">Display</span>
-            </div>
+            <div class="sb-brand">GVC Display</div>
             <div class="sb-sub">Sinalização Digital</div>
           </div>
         </div>
@@ -37,33 +45,33 @@
             data-s="dashboard"
             onclick="nav('dashboard')"
           >
-            <span class="msi">dashboard</span> Dashboard
+            <i class="fi fi-rr-apps"></i> Dashboard
           </button>
           <button
             class="ni"
             data-s="dispositivos"
             onclick="nav('dispositivos')"
           >
-            <span class="msi">tv</span> Dispositivos
+            <i class="bi bi-display"></i> Dispositivos
           </button>
           <button class="ni" data-s="grupos" onclick="nav('grupos')">
-            <span class="msi">folder_special</span> Grupos
+            <i class="fi fi-rr-layers"></i> Grupos
           </button>
           <button class="ni" data-s="playlists" onclick="nav('playlists')">
-            <span class="msi">playlist_play</span> Playlists
+            <i class="fi fi-rr-play"></i> Playlists
           </button>
           <button
             class="ni"
             data-s="agendamentos"
             onclick="nav('agendamentos')"
           >
-            <span class="msi">calendar_month</span> Agendamentos
+            <i class="bi bi-calendar3"></i> Agendamentos
           </button>
           <button class="ni" data-s="midia" onclick="nav('midia')">
-            <span class="msi">perm_media</span> Mídia
+            <i class="fi fi-rr-picture"></i> Mídia
           </button>
           <button class="ni" data-s="config" onclick="nav('config')">
-            <span class="msi">settings</span> Config
+            <i class="fi fi-rr-settings"></i> Config
           </button>
         </nav>
         <div class="sb-foot">
@@ -77,109 +85,118 @@
         <div class="topbar">
           <div class="d-flex align-items-center gap-3">
             <button id="btn-sb" onclick="toggleSb()">
-              <span class="msi" style="font-size: 22px">menu</span>
+              <i class="fi fi-rr-menu-burger" style="font-size:22px"></i>
             </button>
-            <h1 id="ptitle">Dashboard</h1>
+            <h1 id="ptitle" style="font-size:18px;font-weight:700;margin:0;letter-spacing:-.3px;">Dashboard</h1>
           </div>
           <div id="pact" class="d-flex gap-2 align-items-center"></div>
         </div>
 
+
         <div class="content">
           <!-- DASHBOARD -->
           <div id="sec-dashboard" class="sec active">
+
+            <!-- Stat cards -->
             <div class="row g-3 mb-3">
-              <div class="col-6 col-xl-3">
+              <div class="col-6 col-lg-3">
                 <div class="stat-card">
-                  <div class="sl">Total de TVs</div>
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div class="sl">Total de TVs</div>
+                    <div class="si" style="background:rgba(91,127,255,.1);">
+                      <i class="bi bi-display" style="font-size:15px;color:var(--primary)"></i>
+                    </div>
+                  </div>
                   <div class="sv" id="st-tvs">—</div>
                 </div>
               </div>
-              <div class="col-6 col-xl-3">
+              <div class="col-6 col-lg-3">
                 <div class="stat-card">
-                  <div class="sl">Online agora</div>
-                  <div class="sv" id="st-on" style="color: var(--green)">—</div>
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div class="sl">Online agora</div>
+                    <div class="si" style="background:rgba(34,197,94,.1);">
+                      <i class="fi fi-rr-signal-alt-2" style="font-size:15px;color:var(--green)"></i>
+                    </div>
+                  </div>
+                  <div class="sv" id="st-on" style="color:var(--green)">—</div>
                 </div>
               </div>
-              <div class="col-6 col-xl-3">
+              <div class="col-6 col-lg-3">
                 <div class="stat-card">
-                  <div class="sl">Playlists</div>
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div class="sl">Playlists</div>
+                    <div class="si" style="background:rgba(234,179,8,.1);">
+                      <i class="fi fi-rr-play" style="font-size:15px;color:var(--yellow)"></i>
+                    </div>
+                  </div>
                   <div class="sv" id="st-pl">—</div>
                 </div>
               </div>
-              <div class="col-6 col-xl-3">
+              <div class="col-6 col-lg-3">
                 <div class="stat-card">
-                  <div class="sl">Mídias</div>
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div class="sl">Mídias</div>
+                    <div class="si" style="background:rgba(249,115,22,.1);">
+                      <i class="fi fi-rr-picture" style="font-size:15px;color:var(--orange)"></i>
+                    </div>
+                  </div>
                   <div class="sv" id="st-md">—</div>
                 </div>
               </div>
             </div>
+
+            <!-- Status TVs + Atividade -->
             <div class="row g-3">
-              <div class="col-12 col-lg-5">
+              <div class="col-12 col-xl-5">
                 <div class="gvc-card h-100">
-                  <div
-                    class="d-flex justify-content-between align-items-center mb-3"
-                  >
-                    <span class="gvc-card-title">Status das TVs</span>
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <div class="gvc-card-title">Status das TVs</div>
+                      <div style="font-size:11px;color:var(--mut);margin-top:2px;">Atualiza a cada 10s</div>
+                    </div>
                     <button class="btn-p btn-sm" onclick="openBroadcast()">
-                      <span class="msi" style="font-size: 15px">cell_tower</span
-                      >Broadcast
+                      <i class="fi fi-rr-signal-alt-2" style="font-size:14px"></i>Broadcast
                     </button>
                   </div>
                   <div id="dash-tv"></div>
                 </div>
               </div>
-              <div class="col-12 col-lg-7">
+              <div class="col-12 col-xl-7">
                 <div class="gvc-card h-100">
-                  <div
-                    class="d-flex justify-content-between align-items-center mb-3"
-                  >
-                    <span class="gvc-card-title">Atividade Recente</span>
-                    <!-- Botão ver tudo abre modal com scroll -->
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                      <div class="gvc-card-title">Atividade Recente</div>
+                      <div style="font-size:11px;color:var(--mut);margin-top:2px;">Últimas ações no sistema</div>
+                    </div>
                     <button class="btn-g btn-sm" onclick="openLogModal()">
-                      <span class="msi" style="font-size: 14px"
-                        >open_in_full</span
-                      >Ver tudo
+                      <i class="fi fi-rr-expand" style="font-size:14px"></i>Ver tudo
                     </button>
                   </div>
-                  <!-- Mostra só os primeiros 5 logs -->
                   <div id="dash-log"></div>
                 </div>
               </div>
             </div>
+
           </div>
 
           <!-- DISPOSITIVOS -->
           <div id="sec-dispositivos" class="sec">
             <div class="gvc-card">
-              <div
-                class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2"
-              >
-                <span class="gvc-card-title">Dispositivos</span>
-                <div class="d-flex gap-2 flex-wrap">
-                  <input
-                    type="text"
-                    id="dev-search"
-                    placeholder="Buscar..."
+              <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <div>
+                  <div class="gvc-card-title">Dispositivos</div>
+                  <div style="font-size:12px;color:var(--mut);margin-top:3px;">Gerencie as TVs conectadas</div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                  <input type="text" id="dev-search" placeholder="Buscar TV..."
                     oninput="filterDevs()"
-                    style="width:160px;padding:6px 10px;background:var(--bg3);border:1px solid var(--bord2);border-radius:7px;color:var(--txt);font-size:13px;"
-                  />
-                  <select
-                    id="dev-filter-grupo"
-                    onchange="filterDevs()"
-                    style="
-                      padding: 6px 10px;
-                      background: var(--bg3);
-                      border: 1px solid var(--bord2);
-                      border-radius: 7px;
-                      color: var(--txt);
-                      font-size: 13px;
-                      width: 140px;
-                    "
-                  >
+                    style="width:180px;padding:7px 12px;background:var(--bg3);border:1px solid var(--bord2);border-radius:8px;color:var(--txt);font-size:13px;"/>
+                  <select id="dev-filter-grupo" onchange="filterDevs()"
+                    style="padding:7px 12px;background:var(--bg3);border:1px solid var(--bord2);border-radius:8px;color:var(--txt);font-size:13px;min-width:150px;">
                     <option value="">Todos os grupos</option>
                   </select>
-                  <button class="btn-p btn-sm" onclick="openAddDev()">
-                    + Adicionar TV
+                  <button class="btn-p" onclick="openAddDev()">
+                    <i class="fi fi-rr-plus-small" style="font-size:16px"></i>Adicionar TV
                   </button>
                 </div>
               </div>
@@ -204,12 +221,13 @@
           <!-- GRUPOS -->
           <div id="sec-grupos" class="sec">
             <div class="gvc-card">
-              <div
-                class="d-flex justify-content-between align-items-center mb-3"
-              >
-                <span class="gvc-card-title">Grupos de TVs</span>
-                <button class="btn-p btn-sm" onclick="openAddGrupo()">
-                  + Novo Grupo
+              <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                  <div class="gvc-card-title">Grupos de TVs</div>
+                  <div style="font-size:12px;color:var(--mut);margin-top:3px;">Organize TVs por local ou setor</div>
+                </div>
+                <button class="btn-p" onclick="openAddGrupo()">
+                  <i class="fi fi-rr-plus-small" style="font-size:16px"></i>Novo Grupo
                 </button>
               </div>
               <div id="gr-list"></div>
@@ -220,18 +238,17 @@
           <div id="sec-playlists" class="sec">
             <div id="pl-list">
               <div class="gvc-card">
-                <div
-                  class="d-flex justify-content-between align-items-center mb-3"
-                >
-                  <span class="gvc-card-title">Playlists</span>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                  <div>
+                    <div class="gvc-card-title">Playlists</div>
+                    <div style="font-size:12px;color:var(--mut);margin-top:3px;">Crie e organize apresentações</div>
+                  </div>
                   <div class="d-flex gap-2">
-                    <button class="btn-g btn-sm" onclick="openDupPl()">
-                      <span class="msi" style="font-size: 14px"
-                        >content_copy</span
-                      >Duplicar
+                    <button class="btn-g" onclick="openDupPl()">
+                      <i class="fi fi-rr-copy-alt" style="font-size:15px"></i>Duplicar
                     </button>
-                    <button class="btn-p btn-sm" onclick="openAddPl()">
-                      + Nova Playlist
+                    <button class="btn-p" onclick="openAddPl()">
+                      <i class="fi fi-rr-plus-small" style="font-size:16px"></i>Nova Playlist
                     </button>
                   </div>
                 </div>
@@ -252,7 +269,7 @@
                   >⭐ Padrão</span
                 >
                 <button class="btn-d btn-sm ms-auto" onclick="deleteCurPl()">
-                  <span class="msi" style="font-size: 14px">delete</span>Excluir
+                  <i class="fi fi-rr-trash" style="font-size: 14px"></i>Excluir
                 </button>
               </div>
               <div class="row g-3">
@@ -338,12 +355,13 @@
           <!-- AGENDAMENTOS -->
           <div id="sec-agendamentos" class="sec">
             <div class="gvc-card">
-              <div
-                class="d-flex justify-content-between align-items-center mb-3"
-              >
-                <span class="gvc-card-title">Agendamentos</span>
-                <button class="btn-p btn-sm" onclick="openAddAgenda()">
-                  + Novo Agendamento
+              <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                  <div class="gvc-card-title">Agendamentos</div>
+                  <div style="font-size:12px;color:var(--mut);margin-top:3px;">Programe apresentações por data</div>
+                </div>
+                <button class="btn-p" onclick="openAddAgenda()">
+                  <i class="fi fi-rr-plus-small" style="font-size:16px"></i>Novo Agendamento
                 </button>
               </div>
               <div id="sch-list"></div>
@@ -352,30 +370,15 @@
 
           <!-- MÍDIA -->
           <div id="sec-midia" class="sec">
-            <div
-              class="uparea mb-3"
-              id="uparea"
-              onclick="document.getElementById('finput').click()"
-            >
-              <span
-                class="msi msi-fill"
-                style="font-size: 38px; color: var(--primary)"
-                >upload_file</span
-              >
-              <p class="fw-semibold mt-2 mb-1">
-                Clique ou arraste arquivos aqui
-              </p>
-              <p style="font-size: 13px; color: var(--mut)">
-                JPG, PNG, GIF, WebP, MP4, WebM — máx. 50 MB
-              </p>
-              <input
-                type="file"
-                id="finput"
-                multiple
-                accept="image/*,video/*"
-                style="display: none"
-                onchange="doUpload(this.files)"
-              />
+            <div class="uparea mb-3" id="uparea" onclick="document.getElementById('finput').click()">
+              <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
+                <i class="fi fi-rr-cloud-upload" style="font-size:28px;color:var(--primary)"></i>
+                <div style="text-align:left;">
+                  <p style="font-weight:600;font-size:14px;margin:0;">Clique ou arraste arquivos aqui</p>
+                  <p style="font-size:12px;color:var(--mut);margin:2px 0 0;">JPG, PNG, GIF, WebP, MP4, WebM — máx. 50 MB</p>
+                </div>
+              </div>
+              <input type="file" id="finput" multiple accept="image/*,video/*" style="display:none" onchange="doUpload(this.files)"/>
             </div>
             <div class="progwrap" id="upgprog">
               <div
@@ -389,42 +392,15 @@
               </div>
             </div>
             <div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
-              <input
-                type="text"
-                id="media-search"
-                placeholder="Buscar..."
-                oninput="renderMedia()"
-                style="
-                  width: 180px;
-                  padding: 6px 10px;
-                  background: var(--bg3);
-                  border: 1px solid var(--bord2);
-                  border-radius: 7px;
-                  color: var(--txt);
-                  font-size: 13px;
-                "
-              />
-              <select
-                id="media-filter"
-                onchange="renderMedia()"
-                style="
-                  width: 120px;
-                  padding: 6px 10px;
-                  background: var(--bg3);
-                  border: 1px solid var(--bord2);
-                  border-radius: 7px;
-                  color: var(--txt);
-                  font-size: 13px;
-                "
-              >
-                <option value="">Tudo</option>
+              <input type="text" id="media-search" placeholder="Buscar mídia..." oninput="renderMedia()"
+                style="width:200px;padding:7px 12px;background:var(--bg3);border:1px solid var(--bord2);border-radius:8px;color:var(--txt);font-size:13px;"/>
+              <select id="media-filter" onchange="renderMedia()"
+                style="padding:7px 12px;background:var(--bg3);border:1px solid var(--bord2);border-radius:8px;color:var(--txt);font-size:13px;">
+                <option value="">Todos os tipos</option>
                 <option value="image">Imagens</option>
                 <option value="video">Vídeos</option>
               </select>
-              <span
-                id="media-count"
-                style="font-size: 13px; color: var(--mut); margin-left: auto"
-              ></span>
+              <span id="media-count" style="font-size:12px;color:var(--mut);margin-left:auto;font-weight:500;"></span>
             </div>
             <div class="mgrid" id="mgrid">
               <div class="empty">Carregando...</div>
@@ -434,57 +410,51 @@
             <div class="row g-3">
               <div class="col-12 col-md-5">
                 <div class="gvc-card">
-                  <div class="gvc-card-title mb-3">Alterar Senha</div>
+                  <div class="gvc-card-title mb-1">Alterar Senha</div>
+                  <p style="font-size:12px;color:var(--mut);margin-bottom:16px;">Atualize suas credenciais de acesso</p>
                   <form onsubmit="doChangePass();return false;" autocomplete="on">
-                  <div class="fg">
-                    <label>Senha atual</label>
-                    <input type="password" id="cfg-cur-pass" autocomplete="current-password"/>
-                  </div>
-                  <div class="fg">
-                    <label>Nova senha</label>
-                    <input type="password" id="cfg-new-pass" autocomplete="new-password"/>
-                  </div>
-                  <button type="submit" class="btn-p btn-sm">Salvar</button>
+                    <div class="fg">
+                      <label>Senha atual</label>
+                      <input type="password" id="cfg-cur-pass" autocomplete="current-password" placeholder="••••••••"/>
+                    </div>
+                    <div class="fg">
+                      <label>Nova senha</label>
+                      <input type="password" id="cfg-new-pass" autocomplete="new-password" placeholder="••••••••"/>
+                    </div>
+                    <button type="submit" class="btn-p">
+                      <i class="fi fi-rr-lock" style="font-size:15px"></i>Salvar senha
+                    </button>
                   </form>
                 </div>
               </div>
               <div class="col-12 col-md-7">
                 <div class="gvc-card">
-                  <div class="gvc-card-title mb-3">Informações do sistema</div>
-                  <div
-                    style="font-size: 13px; color: var(--mut); line-height: 2.4"
-                  >
-                    <div>
-                      Versão: <strong style="color: var(--txt)">3.0.0</strong>
+                  <div class="gvc-card-title mb-1">Informações do sistema</div>
+                  <p style="font-size:12px;color:var(--mut);margin-bottom:16px;">Status atual do GVC Display</p>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                    <div style="background:var(--bg3);border:1px solid var(--bord);border-radius:9px;padding:14px;">
+                      <div style="font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">TVs cadastradas</div>
+                      <div style="font-size:24px;font-weight:800;letter-spacing:-1px;" id="cfg-tv-count">—</div>
                     </div>
-                    <div>
-                      Stack:
-                      <strong style="color: var(--txt)"
-                        >PHP 8 + MySQL + JWT</strong
-                      >
+                    <div style="background:var(--bg3);border:1px solid var(--bord);border-radius:9px;padding:14px;">
+                      <div style="font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Mídias</div>
+                      <div style="font-size:24px;font-weight:800;letter-spacing:-1px;" id="cfg-media-count">—</div>
                     </div>
-                    <div>
-                      TVs:
-                      <strong id="cfg-tv-count" style="color: var(--txt)"
-                        >—</strong
-                      >
+                    <div style="background:var(--bg3);border:1px solid var(--bord);border-radius:9px;padding:14px;">
+                      <div style="font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Playlists</div>
+                      <div style="font-size:24px;font-weight:800;letter-spacing:-1px;" id="cfg-pl-count">—</div>
                     </div>
-                    <div>
-                      Mídias:
-                      <strong id="cfg-media-count" style="color: var(--txt)"
-                        >—</strong
-                      >
-                    </div>
-                    <div>
-                      Playlists:
-                      <strong id="cfg-pl-count" style="color: var(--txt)"
-                        >—</strong
-                      >
+                    <div style="background:var(--bg3);border:1px solid var(--bord);border-radius:9px;padding:14px;">
+                      <div style="font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Versão</div>
+                      <div style="font-size:16px;font-weight:700;">3.0.0</div>
                     </div>
                   </div>
-                  <button class="btn-d btn-sm mt-3" onclick="doLogout()">
-                    Sair
-                  </button>
+                  <div style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--bord);">
+                    <span style="font-size:12px;color:var(--mut);">PHP 8 · MySQL · JWT</span>
+                    <button class="btn-d btn-sm" onclick="doLogout()">
+                      <i class="fi fi-rr-sign-out-alt" style="font-size:14px"></i>Sair
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -504,7 +474,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <div class="modal-title">
-              <span class="msi">history</span>Atividade Recente
+              <i class="fi fi-rr-clock"></i>Atividade Recente
             </div>
             <button
               type="button"
@@ -525,7 +495,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <div class="modal-title" id="m-dev-title">
-              <span class="msi">tv</span>Adicionar TV
+              <i class="bi bi-display"></i>Adicionar TV
             </div>
             <button
               type="button"
@@ -571,7 +541,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <div class="modal-title" id="m-devinfo-title">
-              <span class="msi">settings</span>Configurar TV
+              <i class="fi fi-rr-settings"></i>Configurar TV
             </div>
             <button
               type="button"
@@ -581,35 +551,28 @@
           </div>
           <div class="modal-body">
             <div class="fg">
-              <label>URL do Player</label>
+              <label>Status de Pareamento</label>
+              <div id="dev-pair-status" style="font-size:13px;padding:4px 0;"></div>
+            </div>
+            <div class="fg">
+              <label>URL da TV</label>
               <div class="tokdisp">
-                <code id="dev-purl">—</code
-                ><button
-                  class="copybtn"
-                  onclick="
-                    copyT(document.getElementById('dev-purl').textContent)
-                  "
-                >
-                  Copiar
-                </button>
+                <code id="dev-purl">—</code>
+                <button class="copybtn" onclick="copyT(document.getElementById('dev-purl').textContent, this)">Copiar</button>
               </div>
             </div>
             <div class="fg">
               <label>Token</label>
               <div class="tokdisp">
-                <code id="dev-token">—</code
-                ><button
-                  class="copybtn"
-                  onclick="
-                    copyT(document.getElementById('dev-token').textContent)
-                  "
-                >
-                  Copiar
-                </button>
+                <code id="dev-token">—</code>
+                <button class="copybtn" onclick="copyT(document.getElementById('dev-token').textContent, this)">Copiar</button>
               </div>
             </div>
           </div>
           <div class="modal-footer">
+            <button id="btn-cancel-pair" class="btn-d btn-sm" onclick="cancelDevPairing()" style="display:none;">
+              <i class="fi fi-rr-link" style="font-size:14px"></i>Encerrar Pareamento
+            </button>
             <button class="btn-p" data-bs-dismiss="modal">Fechar</button>
           </div>
         </div>
@@ -622,7 +585,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <div class="modal-title" id="m-grupo-title">
-              <span class="msi">create_new_folder</span>Novo Grupo
+              <i class="fi fi-rr-folder-add"></i>Novo Grupo
             </div>
             <button
               type="button"
@@ -656,7 +619,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <div class="modal-title">
-              <span class="msi">playlist_add</span>Nova Playlist
+              <i class="fi fi-rr-film"></i>Nova Playlist
             </div>
             <button
               type="button"
@@ -700,7 +663,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <div class="modal-title">
-              <span class="msi">content_copy</span>Duplicar Playlist
+              <i class="fi fi-rr-copy-alt"></i>Duplicar Playlist
             </div>
             <button
               type="button"
@@ -732,7 +695,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <div class="modal-title">
-              <span class="msi">add_circle</span>Adicionar Item
+              <i class="fi fi-rr-plus-small"></i>Adicionar Item
             </div>
             <button
               type="button"
@@ -784,7 +747,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <div class="modal-title">
-              <span class="msi">cell_tower</span>Broadcast
+              <i class="fi fi-rr-signal-alt-2"></i>Broadcast
             </div>
             <button
               type="button"
@@ -809,7 +772,7 @@
           <div class="modal-footer">
             <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
             <button class="btn-p" onclick="doBroadcast()">
-              Enviar <span class="msi" style="font-size: 14px">send</span>
+              Enviar <i class="fi fi-rr-paper-plane" style="font-size: 14px"></i>
             </button>
           </div>
         </div>
@@ -822,7 +785,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <div class="modal-title">
-              <span class="msi">event_available</span>Novo Agendamento
+              <i class="bi bi-calendar-check"></i>Novo Agendamento
             </div>
             <button
               type="button"
@@ -915,14 +878,14 @@
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <div class="modal-title"><span class="msi">tv</span>Parear: <span id="pair-dev-name" style="color:var(--primary);margin-left:4px;"></span></div>
+            <div class="modal-title"><i class="bi bi-display"></i>Parear: <span id="pair-dev-name" style="color:var(--primary);margin-left:4px;"></span></div>
             <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopCamera()"></button>
           </div>
           <div class="modal-body">
             <p style="font-size:13px;color:var(--mut);margin-bottom:16px;">Digite o código exibido na TV ou escaneie o QR Code com a câmera.</p>
             <div style="display:flex;gap:8px;margin-bottom:16px;">
-              <button id="tab-code" class="btn-p btn-sm" onclick="switchPairTab('code')" style="flex:1;justify-content:center;"><span class="msi" style="font-size:15px">pin</span>Código</button>
-              <button id="tab-cam" class="btn-g btn-sm" onclick="switchPairTab('cam')" style="flex:1;justify-content:center;"><span class="msi" style="font-size:15px">qr_code_scanner</span>Câmera QR</button>
+              <button id="tab-code" class="btn-p btn-sm" onclick="switchPairTab('code')" style="flex:1;justify-content:center;"><i class="fi fi-rr-thumbtack" style="font-size:15px"></i>Código</button>
+              <button id="tab-cam" class="btn-g btn-sm" onclick="switchPairTab('cam')" style="flex:1;justify-content:center;"><i class="fi fi-rr-qrcode" style="font-size:15px"></i>Câmera QR</button>
             </div>
             <div id="pair-tab-code">
               <div class="fg">
@@ -946,7 +909,7 @@
           </div>
           <div class="modal-footer">
             <button class="btn-g" data-bs-dismiss="modal" onclick="stopCamera()">Cancelar</button>
-            <button class="btn-p" onclick="doPairDeviceNew()">Parear <span class="msi" style="font-size:14px">link</span></button>
+            <button class="btn-p" onclick="doPairDeviceNew()">Parear <i class="fi fi-rr-link" style="font-size:14px"></i></button>
           </div>
         </div>
       </div>
@@ -957,7 +920,7 @@
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <div class="modal-title"><span class="msi">link</span>Vincular TV</div>
+            <div class="modal-title"><i class="fi fi-rr-link"></i>Vincular TV</div>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
@@ -971,7 +934,7 @@
           <div class="modal-footer">
             <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
             <button class="btn-p" onclick="doPairDevice()">
-              Vincular <span class="msi" style="font-size: 14px">link</span>
+              Vincular <i class="fi fi-rr-link" style="font-size: 14px"></i>
             </button>
           </div>
         
@@ -1042,9 +1005,31 @@
       });
 
       // Toggle sidebar
+      // Sidebar começa fechada no mobile
+      (function() {
+        if (window.innerWidth <= 992) {
+          document.getElementById("sb").classList.add("sb-hidden");
+          document.body.classList.add("sb-closed");
+        }
+      })();
+
       function toggleSb() {
-        document.getElementById("sb").classList.toggle("sb-hidden");
-        document.getElementById("main").classList.toggle("full");
+        const sb      = document.getElementById("sb");
+        const overlay = document.getElementById("sb-overlay");
+        const isMobile = window.innerWidth <= 992;
+        const isHidden = sb.classList.toggle("sb-hidden");
+
+        // Desktop: main recua junto com sidebar
+        if (!isMobile) {
+          document.getElementById("main").classList.toggle("full", isHidden);
+        }
+        if (isHidden) {
+          document.body.classList.add("sb-closed");
+          if (overlay) overlay.classList.remove("visible");
+        } else {
+          document.body.classList.remove("sb-closed");
+          if (isMobile && overlay) overlay.classList.add("visible");
+        }
       }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>

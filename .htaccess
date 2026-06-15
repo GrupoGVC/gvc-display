@@ -14,3 +14,8 @@ php_value memory_limit 256M
   Order allow,deny
   Deny from all
 </FilesMatch>
+
+# Servir arquivos estáticos diretamente
+<FilesMatch "\.(html|css|js|png|jpg|ico|svg|mp4|webm)$">
+  Allow from all
+</FilesMatch>

@@ -1,65 +1,213 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>GVC Display — Login</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
-  <link rel="stylesheet" href="css/main.css"/>
-  <style>
-    html,body{height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg);}
-    .card-login{background:var(--bg2);border:1px solid var(--bord2);border-radius:18px;padding:44px 40px 36px;width:min(420px,94vw);box-shadow:0 12px 48px rgba(0,0,0,.55);}
-    .form-label{font-size:12px;font-weight:500;color:var(--txt2);margin-bottom:5px;}
-    .form-control{background:var(--bg3)!important;border:1px solid var(--bord2)!important;border-radius:9px!important;color:var(--txt)!important;padding:10px 13px!important;font-size:14px!important;transition:border-color .15s,box-shadow .15s;}
-    .form-control:focus{border-color:var(--primary)!important;box-shadow:0 0 0 3px rgba(79,140,255,.15)!important;}
-    .form-control::placeholder{color:var(--mut)!important;}
-    .btn-enter{width:100%;background:var(--primary);border:none;border-radius:9px;color:#fff;font-size:15px;font-weight:600;padding:11px;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s,transform .1s;}
-    .btn-enter:hover{background:var(--prim-h);color:#fff;}
-    .btn-enter:active{transform:scale(.98);}
-  </style>
-</head>
-<body>
-  <div class="card-login">
-    <div class="text-center mb-4">
-      <span class="msi msi-fill" style="font-size:54px;color:var(--primary)">tv</span>
-      <h1 class="mt-2 mb-1" style="font-size:24px;font-weight:700;color:var(--txt)">GVC <span style="color:var(--primary)">Display</span></h1>
-      <p style="font-size:13px;color:var(--mut)">Sinalização Digital Corporativa</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>GVC Display — Login</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/css/uicons-regular-rounded.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+    <link rel="stylesheet" href="css/main.css" />
+    <style>
+      html,
+      body {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg);
+      }
+      .card-login {
+        background: var(--bg2);
+        border: 1px solid var(--bord2);
+        border-radius: 18px;
+        padding: 44px 40px 36px;
+        width: min(420px, 94vw);
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+      }
+      .form-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--txt2);
+        margin-bottom: 5px;
+      }
+      .form-control {
+        background: var(--bg3) !important;
+        border: 1px solid var(--bord2) !important;
+        border-radius: 9px !important;
+        color: var(--txt) !important;
+        padding: 10px 13px !important;
+        font-size: 14px !important;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+      }
+      .form-control:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.15) !important;
+      }
+      .form-control::placeholder {
+        color: var(--mut) !important;
+      }
+      .btn-enter {
+        width: 100%;
+        background: var(--primary);
+        border: none;
+        border-radius: 9px;
+        color: #fff;
+        font-size: 15px;
+        font-weight: 600;
+        padding: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition:
+          background 0.15s,
+          transform 0.1s;
+      }
+      .btn-enter:hover {
+        background: var(--prim-h);
+        color: #fff;
+      }
+      .btn-enter:active {
+        transform: scale(0.98);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card-login">
+      <div class="text-center mb-4">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 64 64"
+          fill="none"
+          width="56"
+          height="56"
+        >
+          <rect
+            x="4"
+            y="8"
+            width="56"
+            height="36"
+            rx="5"
+            ry="5"
+            fill="#4f8cff"
+          />
+          <rect
+            x="9"
+            y="13"
+            width="46"
+            height="26"
+            rx="3"
+            ry="3"
+            fill="#1a2035"
+          />
+          <rect x="28" y="44" width="8" height="8" rx="1" fill="#4f8cff" />
+          <rect x="18" y="52" width="28" height="5" rx="3" fill="#4f8cff" />
+          <rect
+            x="11"
+            y="15"
+            width="12"
+            height="3"
+            rx="1.5"
+            fill="rgba(255,255,255,0.15)"
+          />
+        </svg>
+        <h1
+          class="mt-2 mb-1"
+          style="font-size: 24px; font-weight: 700; color: var(--txt)"
+        >
+          GVC <span style="color: var(--primary)">Display</span>
+        </h1>
+        <p style="font-size: 13px; color: var(--mut)">
+          Sinalização Digital Corporativa
+        </p>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">E-mail</label>
+        <input
+          type="email"
+          class="form-control"
+          id="l-email"
+          placeholder="admin@gvc.com"
+          autocomplete="email"
+        />
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Senha</label>
+        <input
+          type="password"
+          class="form-control"
+          id="l-pass"
+          placeholder="••••••••"
+          autocomplete="current-password"
+        />
+      </div>
+      <div
+        id="l-err"
+        class="alert py-2 px-3 mb-3"
+        style="
+          display: none;
+          background: rgba(255, 79, 106, 0.1);
+          border: 1px solid rgba(255, 79, 106, 0.3);
+          border-radius: 8px;
+          color: var(--red);
+          font-size: 13px;
+        "
+      ></div>
+      <button class="btn-enter" onclick="doLogin()">
+        Entrar <i class="fi fi-rr-arrow-right" style="font-size: 16px"></i>
+      </button>
     </div>
-    <div class="mb-3">
-      <label class="form-label">E-mail</label>
-      <input type="email" class="form-control" id="l-email" placeholder="admin@gvc.com" autocomplete="email"/>
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Senha</label>
-      <input type="password" class="form-control" id="l-pass" placeholder="••••••••" autocomplete="current-password"/>
-    </div>
-    <div id="l-err" class="alert py-2 px-3 mb-3" style="display:none;background:rgba(255,79,106,.1);border:1px solid rgba(255,79,106,.3);border-radius:8px;color:var(--red);font-size:13px;"></div>
-    <button class="btn-enter" onclick="doLogin()">
-      Entrar <span class="msi" style="font-size:18px">arrow_forward</span>
-    </button>
-    <p class="text-center mt-3" style="font-size:11px;color:var(--mut)">admin@gvc.com / admin123 — troque após o 1º acesso</p>
-  </div>
-  <script type="module">
-    import { token, API } from './js/api.js';
-    if (token.get()) {
-      fetch(`${API}/dashboard/index.php`,{headers:{Authorization:`Bearer ${token.get()}`}})
-        .then(r=>{if(r.ok)location.href='index.html';}).catch(()=>{});
-    }
-    window.doLogin = async () => {
-      const email = document.getElementById('l-email').value.trim();
-      const pass  = document.getElementById('l-pass').value;
-      const err   = document.getElementById('l-err');
-      err.style.display = 'none';
-      if(!email||!pass){err.textContent='Preencha e-mail e senha';err.style.display='block';return;}
-      try {
-        const res  = await fetch(`${API}/auth/login.php`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})});
-        const json = await res.json();
-        if(!res.ok) throw new Error(json.error||'Credenciais inválidas');
-        token.set(json.data.token);
-        location.href='index.html';
-      } catch(e){err.textContent=e.message;err.style.display='block';}
-    };
-    document.addEventListener('keydown',e=>{if(e.key==='Enter')window.doLogin();});
-  </script>
-</body>
+    <script type="module">
+      import { token, API } from "./js/api.js";
+      if (token.get()) {
+        fetch(`${API}/dashboard/index.php`, {
+          headers: { Authorization: `Bearer ${token.get()}` },
+        })
+          .then((r) => {
+            if (r.ok) location.href = "index.html";
+          })
+          .catch(() => {});
+      }
+      window.doLogin = async () => {
+        const email = document.getElementById("l-email").value.trim();
+        const pass = document.getElementById("l-pass").value;
+        const err = document.getElementById("l-err");
+        err.style.display = "none";
+        if (!email || !pass) {
+          err.textContent = "Preencha e-mail e senha";
+          err.style.display = "block";
+          return;
+        }
+        try {
+          const res = await fetch(`${API}/auth/login.php`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password: pass }),
+          });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error || "Credenciais inválidas");
+          token.set(json.data.token);
+          location.href = "index.html";
+        } catch (e) {
+          err.textContent = e.message;
+          err.style.display = "block";
+        }
+      };
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") window.doLogin();
+      });
+    </script>
+  </body>
 </html>

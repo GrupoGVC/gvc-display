@@ -3,23 +3,21 @@
 *.local.*
 *.local
 
-# Uploads de mídia — ficam no servidor, não no repo
 uploads/*
 !uploads/.gitkeep
 !uploads/videos/.gitkeep
 !uploads/images/.gitkeep
 
-# Banco local
 seed.local.sql
 database.local.sql
 *.sql.bak
 
-# Sistema
 .DS_Store
 Thumbs.db
 .bfg-report/
 *.log
 
-# IDE
 .vscode/settings.json
 .idea/
+
+nginx_config.txt
