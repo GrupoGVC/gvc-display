@@ -1,110 +1,197 @@
 <?php
-declare(strict_types=1);
-date_default_timezone_set('UTC'); // garante que expires_at seja gerado em UTC
-require_once __DIR__ . '/../helpers.php';
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../jwt.php';
 
-$method = $_SERVER['REQUEST_METHOD'];
-$action = s($_GET['action'] ?? '', 20);
+$db  = db();
+$m   = method();
+$act = action();
 
-// ── GET: listar pendentes (admin) ─────────────────────────────
-if ($method === 'GET') {
-    auth();
-    $rows = db()->query(
-        "SELECT * FROM pairing_codes WHERE paired=0 AND expires_at > NOW() ORDER BY created_at DESC"
-    )->fetchAll();
+// ── TV gera código de pareamento ───────────────────────────────
+// GET /api/pairing/index.php?action=generate&token=DEVICE_TOKEN
+if ($m === 'GET' && $act === 'generate') {
+    $devToken = $_GET['token'] ?? '';
+    if (!$devToken) json_err('Token ausente', 401);
+
+    $stmt = $db->prepare("SELECT id, name FROM devices WHERE token=?");
+    $stmt->execute([$devToken]);
+    $dev = $stmt->fetch();
+    if (!$dev) json_err('Dispositivo não reconhecido', 404);
+
+    $db->query("DELETE FROM pairing_codes WHERE expires_at < NOW()");
+
+    // Reutiliza código válido existente
+    $existing = $db->prepare("SELECT code FROM pairing_codes WHERE device_id=? AND expires_at > NOW()");
+    $existing->execute([$dev['id']]);
+    $row = $existing->fetch();
+    if ($row) { json_ok(['code' => $row['code']]); }
+
+    // Gera novo código de 6 dígitos único
+    do {
+        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $ck   = $db->prepare("SELECT 1 FROM pairing_codes WHERE code=?");
+        $ck->execute([$code]);
+    } while ($ck->fetchColumn());
+
+    $db->prepare("INSERT INTO pairing_codes (device_id, code, expires_at) VALUES (?,?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))")
+       ->execute([$dev['id'], $code]);
+
+    json_ok(['code' => $code]);
+}
+
+// ── Admin lista códigos pendentes ──────────────────────────────
+if ($m === 'GET') {
+    auth_required();
+    $db->query("DELETE FROM pairing_codes WHERE expires_at < NOW()");
+    $rows = $db->query("
+        SELECT pc.code, pc.expires_at, d.id AS device_id, d.name AS device_name
+        FROM pairing_codes pc
+        LEFT JOIN devices d ON d.id = pc.device_id
+        ORDER BY pc.created_at DESC
+    ")->fetchAll();
     json_ok($rows);
 }
 
-// ── POST generate: TV gera código ────────────────────────────
-if ($method === 'POST' && $action === 'generate') {
-    db()->exec("DELETE FROM pairing_codes WHERE expires_at < NOW()");
+// ── Admin pareia: só precisa do código ─────────────────────────
+// POST /api/pairing/index.php?action=confirm
+// Body: { code, name, location }
+// O código já identifica a TV — não precisa escolher device_id
+if ($m === 'POST' && $act === 'confirm') {
+    $payload  = auth_required();
+    $code     = req('code');
+    $name     = req('name');      // nome que o admin quer dar à TV
+    $location = req('location');  // local opcional
 
-    do {
-        $code   = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $exists = db()->prepare("SELECT id FROM pairing_codes WHERE code=?");
-        $exists->execute([$code]);
-    } while ($exists->fetch());
+    if (!$code) json_err('Código ausente');
+    if (!$name) json_err('Nome é obrigatório');
 
-    $expires = gmdate('Y-m-d H:i:s', time() + 1800); // +30min em UTC
-    db()->prepare("INSERT INTO pairing_codes (code,expires_at) VALUES (?,?)")->execute([$code, $expires]);
-    json_ok(['code' => $code, 'expires_at' => $expires]);
-}
+    // Busca o código
+    $stmt = $db->prepare("SELECT pc.id, pc.device_id FROM pairing_codes pc WHERE pc.code=? AND pc.expires_at > NOW()");
+    $stmt->execute([$code]);
+    $pair = $stmt->fetch();
+    if (!$pair) json_err('Código inválido ou expirado');
 
-// ── POST check: TV verifica se foi pareada ────────────────────
-if ($method === 'POST' && $action === 'check') {
-    $b    = require_fields(['code']);
-    $code = s($b['code'], 6);
+    $devId = (int)$pair['device_id'];
 
-    $row = db()->prepare("SELECT * FROM pairing_codes WHERE code=? AND expires_at > NOW()");
-    $row->execute([$code]);
-    $row = $row->fetch();
-    if (!$row) json_err('Código inválido ou expirado', 404);
+    // Atualiza nome e localização do device (confirma o pareamento)
+    $db->prepare("UPDATE devices SET name=?, location=? WHERE id=?")
+       ->execute([$name, $location ?: null, $devId]);
 
-    json_ok(['paired' => (bool)$row['paired'], 'token' => $row['token'] ?? null]);
-}
+    $db->prepare("DELETE FROM pairing_codes WHERE id=?")->execute([$pair['id']]);
+    log_activity('pair_device', $payload['sub'], "device=$devId code=$code name=$name");
 
-// ── POST link: admin vincula código a dispositivo ─────────────
-if ($method === 'POST' && $action === 'link') {
-    auth_admin();
-    $b    = require_fields(['code']);
-    $code = s($b['code'], 6);
+    $devStmt = $db->prepare("
+        SELECT d.id, d.name, d.location, d.slug, d.status, d.token,
+               d.playlist_id, d.group_id,
+               g.name AS group_name, p.name AS playlist_name,
+               CONCAT('/tv/', d.slug) AS player_url
+        FROM devices d
+        LEFT JOIN `groups` g ON g.id = d.group_id
+        LEFT JOIN playlists p ON p.id = d.playlist_id
+        WHERE d.id=?");
+    $devStmt->execute([$devId]);
+    $dev = $devStmt->fetch();
 
-    $row = db()->prepare("SELECT * FROM pairing_codes WHERE code=? AND paired=0 AND expires_at > NOW()");
-    $row->execute([$code]);
-    $row = $row->fetch();
-    if (!$row) json_err('Código inválido, expirado ou já utilizado', 404);
-
-    if (!empty($b['device_id'])) {
-        $dev_id = sint($b['device_id']);
-        $token  = db()->prepare("SELECT token FROM devices WHERE id=?");
-        $token->execute([$dev_id]);
-        $token  = $token->fetchColumn();
-        if (!$token) json_err('Dispositivo não encontrado', 404);
-    } else {
-        $token  = rand_token(32);
-        $name   = s($b['name'] ?? 'Nova TV', 120);
-        $loc    = s($b['location'] ?? '', 180);
-        db()->prepare("INSERT INTO devices (name,location,token) VALUES (?,?,?)")->execute([$name, $loc, $token]);
-        $dev_id = (int)db()->lastInsertId();
-    }
-
-    db()->prepare("UPDATE pairing_codes SET paired=1, device_id=?, token=? WHERE code=?")
-        ->execute([$dev_id, $token, $code]);
-
-    log_act(0, 'pair_device', 'device', $dev_id, "code=$code");
     json_ok([
-        'device_id'  => $dev_id,
-        'token'      => $token,
-        'player_url' => APP_URL . '/html/player.html?token=' . $token,
+        'device_id'  => $devId,
+        'player_url' => $dev ? $dev['player_url'] : ('/tv/' . $devId),
+        'device'     => $dev ?: null,
     ]);
 }
 
-// ── POST pair: admin pareia device pelo código (vindo de Dispositivos) ──
-if ($method === 'POST' && $action === 'pair') {
-    auth_admin();
-    $b      = require_fields(['code', 'device_id']);
-    $code   = s($b['code'], 10);
-    $dev_id = sint($b['device_id']);
+// ── Admin pareia vinculando a device existente (modal Dispositivos) ─
+// POST /api/pairing/index.php?action=pair
+// Body: { code, device_id }
+if ($m === 'POST' && $act === 'pair') {
+    $payload = auth_required();
+    $code    = req('code');
+    $devId   = (int)(body()['device_id'] ?? 0);
 
-    // Aceita código com ou sem zeros à esquerda
-    $code = preg_replace('/\D/', '', $code); // só dígitos
-    $code = str_pad($code, 6, '0', STR_PAD_LEFT);
+    if (!$code || !$devId) json_err('code e device_id são obrigatórios');
 
-    $row = db()->prepare("SELECT * FROM pairing_codes WHERE code=? AND paired=0 AND expires_at > NOW()");
-    $row->execute([$code]);
-    $row = $row->fetch();
-    if (!$row) json_err('Código inválido, expirado ou já utilizado', 404);
+    $stmt = $db->prepare("SELECT id, device_id FROM pairing_codes WHERE code=? AND expires_at > NOW()");
+    $stmt->execute([$code]);
+    $pair = $stmt->fetch();
+    if (!$pair) json_err('Código inválido ou expirado');
 
-    $tk = db()->prepare("SELECT token FROM devices WHERE id=?");
-    $tk->execute([$dev_id]);
-    $token = $tk->fetchColumn();
-    if (!$token) json_err('Dispositivo não encontrado', 404);
+    $srcDevId = (int)$pair['device_id'];
 
-    db()->prepare("UPDATE pairing_codes SET paired=1, device_id=?, token=? WHERE code=?")
-        ->execute([$dev_id, $token, $code]);
+    if ($srcDevId !== $devId) {
+        // Transfere token da TV para o device escolhido pelo admin
+        $tokenStmt = $db->prepare("SELECT token FROM devices WHERE id=?");
+        $tokenStmt->execute([$srcDevId]);
+        $srcDev = $tokenStmt->fetch();
 
-    log_act(0, 'pair_device', 'device', $dev_id, "code=$code");
-    json_ok(['device_id' => $dev_id, 'token' => $token]);
+        if ($srcDev) {
+            $db->prepare("UPDATE devices SET token=? WHERE id=?")->execute([$srcDev['token'], $devId]);
+        }
+        // Remove device temporário auto-gerado pelo tv.php
+        $db->prepare("DELETE FROM devices WHERE id=? AND name REGEXP '^TV [A-Fa-f0-9]{6}$'")->execute([$srcDevId]);
+    }
+
+    $db->prepare("DELETE FROM pairing_codes WHERE id=?")->execute([$pair['id']]);
+    log_activity('pair_device', $payload['sub'], "device=$devId code=$code");
+
+    $devStmt = $db->prepare("
+        SELECT d.id, d.name, d.location, d.slug, d.status, d.token,
+               d.playlist_id, d.group_id,
+               g.name AS group_name, p.name AS playlist_name,
+               CONCAT('/tv/', d.slug) AS player_url
+        FROM devices d
+        LEFT JOIN `groups` g ON g.id = d.group_id
+        LEFT JOIN playlists p ON p.id = d.playlist_id
+        WHERE d.id=?");
+    $devStmt->execute([$devId]);
+    $dev = $devStmt->fetch();
+
+    json_ok([
+        'device_id'  => $devId,
+        'player_url' => $dev ? $dev['player_url'] : ('/tv/' . $devId),
+        'device'     => $dev ?: null,
+    ]);
 }
 
-json_err('Ação não suportada', 405);
+// ── Admin vincula via seção Pareamento ─────────────────────────
+// POST /api/pairing/index.php?action=link
+if ($m === 'POST' && $act === 'link') {
+    $payload  = auth_required();
+    $code     = req('code');
+    $devId    = (int)(body()['device_id'] ?? 0);
+    $name     = req('name');
+    $location = req('location');
+
+    if (!$code) json_err('Código ausente');
+
+    $stmt = $db->prepare("SELECT pc.id, pc.device_id FROM pairing_codes pc WHERE pc.code=? AND pc.expires_at > NOW()");
+    $stmt->execute([$code]);
+    $pair = $stmt->fetch();
+    if (!$pair) json_err('Código inválido ou expirado');
+
+    $srcDevId = (int)$pair['device_id'];
+
+    if ($devId && $srcDevId !== $devId) {
+        $codeDevStmt = $db->prepare("SELECT token FROM devices WHERE id=?");
+        $codeDevStmt->execute([$srcDevId]);
+        $codeDev = $codeDevStmt->fetch();
+        if ($codeDev) {
+            $db->prepare("UPDATE devices SET token=? WHERE id=?")->execute([$codeDev['token'], $devId]);
+        }
+        $db->prepare("DELETE FROM devices WHERE id=? AND name REGEXP '^TV [A-Fa-f0-9]{6}$'")->execute([$srcDevId]);
+    } else {
+        $devId = $srcDevId;
+        if ($name) {
+            $db->prepare("UPDATE devices SET name=?, location=? WHERE id=?")
+               ->execute([$name, $location ?: null, $devId]);
+        }
+    }
+
+    $db->prepare("DELETE FROM pairing_codes WHERE id=?")->execute([$pair['id']]);
+    log_activity('pair_device', $payload['sub'], "device=$devId code=$code");
+
+    $devStmt = $db->prepare("SELECT d.*, CONCAT('/tv/', d.slug) AS player_url FROM devices d WHERE d.id=?");
+    $devStmt->execute([$devId]);
+    $dev = $devStmt->fetch();
+
+    json_ok(['device_id' => $devId, 'player_url' => $dev['player_url'] ?? '/tv/'.$devId]);
+}
+
+json_err('Ação inválida', 400);

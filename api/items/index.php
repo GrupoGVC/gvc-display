@@ -1,83 +1,48 @@
 <?php
-declare(strict_types=1);
-require_once __DIR__ . '/../helpers.php';
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../jwt.php';
 
-$method = $_SERVER['REQUEST_METHOD'];
-$id     = sint($_GET['id'] ?? 0);
-$action = s($_GET['action'] ?? '', 20);
+$payload = auth_required();
+$db      = db();
+$m       = method();
+$act     = action();
 
-// ── Reordenar em batch ────────────────────────────────────────
-if ($method === 'POST' && $action === 'reorder') {
-    auth_admin();
+if ($m === 'POST' && $act === 'reorder') {
     $items = body()['items'] ?? [];
-    if (!is_array($items)) json_err('items deve ser um array', 422);
-
-    $st = db()->prepare("UPDATE playlist_items SET sort_order=? WHERE id=?");
-    foreach ($items as $item) {
-        $st->execute([sint($item['sort_order']), sint($item['id'])]);
-    }
-    // Atualizar hash da playlist
-    if (!empty($items)) {
-        $pl = db()->prepare("SELECT playlist_id FROM playlist_items WHERE id=? LIMIT 1");
-        $pl->execute([sint($items[0]['id'])]);
-        if ($pl_id = $pl->fetchColumn()) {
-            db()->prepare("UPDATE playlists SET updated_at=NOW() WHERE id=?")->execute([$pl_id]);
-        }
+    $stmt  = $db->prepare("UPDATE playlist_items SET sort_order=? WHERE id=?");
+    foreach ($items as $it) {
+        $stmt->execute([(int)$it['sort_order'], (int)$it['id']]);
     }
     json_ok(['reordered' => count($items)]);
 }
 
-// ── Criar item ────────────────────────────────────────────────
-if ($method === 'POST') {
-    auth_admin();
-    $b = require_fields(['playlist_id', 'type']);
+if ($m === 'POST') {
+    $plId    = (int)(body()['playlist_id'] ?? 0);
+    $type    = body()['type'] ?? 'image';
+    $url     = req('url');
+    $dur     = (int)(body()['duration'] ?? 10);
+    $mediaId = body()['media_id'] ? (int)body()['media_id'] : null;
 
-    $pl_id    = sint($b['playlist_id']);
-    $type     = in_array($b['type'], ['image', 'video', 'page']) ? $b['type'] : 'image';
-    $media_id = !empty($b['media_id']) ? sint($b['media_id']) : null;
-    $url      = s($b['url'] ?? '', 600);
-    $duration = max(1, sint($b['duration'] ?? 10));
+    if (!$plId || !$url) json_err('playlist_id e url são obrigatórios');
+    if (!in_array($type, ['image','video','page'])) json_err('Tipo inválido');
 
-    $max = db()->prepare("SELECT COALESCE(MAX(sort_order),0)+1 FROM playlist_items WHERE playlist_id=?");
-    $max->execute([$pl_id]);
-    $sort = (int)$max->fetchColumn();
+    // Próxima ordem
+    $stmt = $db->prepare("SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM playlist_items WHERE playlist_id=?");
+    $stmt->execute([$plId]);
+    $next = (int)$stmt->fetchColumn();
 
-    db()->prepare("INSERT INTO playlist_items (playlist_id,media_id,type,url,duration,sort_order) VALUES (?,?,?,?,?,?)")
-        ->execute([$pl_id, $media_id, $type, $url ?: null, $duration, $sort]);
-    $new_id = (int)db()->lastInsertId();
-
-    db()->prepare("UPDATE playlists SET updated_at=NOW() WHERE id=?")->execute([$pl_id]);
-    json_ok(['id' => $new_id], 201);
+    $ins = $db->prepare("INSERT INTO playlist_items (playlist_id, type, url, duration, media_id, sort_order)
+                         VALUES (?,?,?,?,?,?)");
+    $ins->execute([$plId, $type, $url, $dur, $mediaId, $next]);
+    $id = (int)$db->lastInsertId();
+    json_ok(['id' => $id, 'sort_order' => $next]);
 }
 
-// ── Editar item ───────────────────────────────────────────────
-if ($method === 'PUT') {
-    auth_admin();
-    if (!$id) json_err('ID obrigatório', 422);
-    $b = body(); $fields = []; $vals = [];
-
-    if (isset($b['duration']))   { $fields[] = 'duration=?';   $vals[] = max(1, sint($b['duration'])); }
-    if (isset($b['sort_order'])) { $fields[] = 'sort_order=?'; $vals[] = sint($b['sort_order']); }
-    if (isset($b['url']))        { $fields[] = 'url=?';        $vals[] = s($b['url'], 600); }
-    if (empty($fields)) json_err('Nada para atualizar', 422);
-
-    $vals[] = $id;
-    db()->prepare("UPDATE playlist_items SET " . implode(',', $fields) . " WHERE id=?")->execute($vals);
-
-    $pl_id = db()->query("SELECT playlist_id FROM playlist_items WHERE id=$id")->fetchColumn();
-    if ($pl_id) db()->prepare("UPDATE playlists SET updated_at=NOW() WHERE id=?")->execute([$pl_id]);
-
-    json_ok(['id' => $id]);
-}
-
-// ── Deletar item ──────────────────────────────────────────────
-if ($method === 'DELETE') {
-    auth_admin();
-    if (!$id) json_err('ID obrigatório', 422);
-    $pl_id = db()->query("SELECT playlist_id FROM playlist_items WHERE id=$id")->fetchColumn();
-    db()->prepare("DELETE FROM playlist_items WHERE id=?")->execute([$id]);
-    if ($pl_id) db()->prepare("UPDATE playlists SET updated_at=NOW() WHERE id=?")->execute([$pl_id]);
+if ($m === 'DELETE') {
+    $id = (int)($_GET['id'] ?? 0);
+    if (!$id) json_err('ID inválido');
+    $db->prepare("DELETE FROM playlist_items WHERE id=?")->execute([$id]);
     json_ok(['deleted' => $id]);
 }
 
-json_err('Método não suportado', 405);
+json_err('Método não permitido', 405);

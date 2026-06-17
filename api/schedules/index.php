@@ -1,61 +1,66 @@
 <?php
-declare(strict_types=1);
-require_once __DIR__ . '/../helpers.php';
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../jwt.php';
 
-$method = $_SERVER['REQUEST_METHOD'];
-$id     = sint($_GET['id'] ?? 0);
+$payload = auth_required();
+$db      = db();
+$m       = method();
 
-if ($method === 'GET') {
-    auth();
-    $rows = db()->query(
-        "SELECT s.*, p.name AS playlist_name FROM schedules s
-         JOIN playlists p ON p.id = s.playlist_id ORDER BY s.starts_at"
-    )->fetchAll();
+if ($m === 'GET') {
+    $rows = $db->query("
+        SELECT s.*, p.name AS playlist_name
+        FROM schedules s
+        LEFT JOIN playlists p ON p.id = s.playlist_id
+        ORDER BY s.starts_at DESC
+    ")->fetchAll();
     foreach ($rows as &$r) {
-        $r['id']       = (int)$r['id'];
-        $r['weekdays'] = json_decode($r['weekdays'] ?? '[]', true);
+        $r['weekdays'] = $r['weekdays'] ? json_decode($r['weekdays'], true) : [];
+        $r['active']   = (bool)$r['active'];
+        $r['repeat_weekly'] = (bool)$r['repeat_weekly'];
     }
     json_ok($rows);
 }
 
-if ($method === 'POST') {
-    auth_admin();
-    $b = require_fields(['playlist_id', 'target_type', 'starts_at', 'ends_at']);
+if ($m === 'POST') {
+    $plId    = (int)(body()['playlist_id'] ?? 0);
+    $ttype   = body()['target_type'] ?? 'all';
+    $tid     = body()['target_id'] ?: null;
+    $starts  = body()['starts_at'] ?? '';
+    $ends    = body()['ends_at'] ?? '';
+    $repeat  = !empty(body()['repeat_weekly']);
+    $wdays   = json_encode(body()['weekdays'] ?? []);
 
-    if (strtotime($b['ends_at']) <= strtotime($b['starts_at']))
-        json_err('Data fim deve ser posterior à data início', 422);
+    if (!$plId || !$starts || !$ends) json_err('Campos obrigatórios ausentes');
 
-    $weekdays = is_array($b['weekdays'] ?? null) ? array_map('intval', $b['weekdays']) : [];
+    $db->prepare("INSERT INTO schedules (playlist_id, target_type, target_id, starts_at, ends_at, repeat_weekly, weekdays)
+                  VALUES (?,?,?,?,?,?,?)")
+       ->execute([$plId, $ttype, $tid, $starts, $ends, $repeat ? 1 : 0, $wdays]);
 
-    db()->prepare(
-        "INSERT INTO schedules (playlist_id,target_type,target_id,starts_at,ends_at,repeat_weekly,weekdays)
-         VALUES (?,?,?,?,?,?,?)"
-    )->execute([
-        sint($b['playlist_id']),
-        in_array($b['target_type'], ['all','group','device']) ? $b['target_type'] : 'all',
-        !empty($b['target_id']) ? sint($b['target_id']) : null,
-        s($b['starts_at'], 20),
-        s($b['ends_at'],   20),
-        !empty($b['repeat_weekly']) ? 1 : 0,
-        json_encode($weekdays),
-    ]);
-    json_ok(['id' => (int)db()->lastInsertId()], 201);
+    log_activity('create_schedule', $payload['sub'], "playlist=$plId");
+    json_ok(['id' => (int)$db->lastInsertId()]);
 }
 
-if ($method === 'PUT') {
-    auth_admin();
-    if (!$id) json_err('ID obrigatório', 422);
-    $b = body();
-    db()->prepare("UPDATE schedules SET active=? WHERE id=?")
-        ->execute([!empty($b['active']) ? 1 : 0, $id]);
+if ($m === 'PUT') {
+    $id     = (int)($_GET['id'] ?? 0);
+    $b      = body();
+    $active = isset($b['active']) ? ((bool)$b['active'] ? 1 : 0) : null;
+    if (!$id) json_err('ID inválido');
+
+    if ($active !== null) {
+        $db->prepare("UPDATE schedules SET active=? WHERE id=?")->execute([$active, $id]);
+    } else {
+        $db->prepare("UPDATE schedules SET starts_at=?, ends_at=?, repeat_weekly=?, weekdays=? WHERE id=?")
+           ->execute([$b['starts_at'], $b['ends_at'], $b['repeat_weekly'] ? 1 : 0, json_encode($b['weekdays'] ?? []), $id]);
+    }
     json_ok(['id' => $id]);
 }
 
-if ($method === 'DELETE') {
-    auth_admin();
-    if (!$id) json_err('ID obrigatório', 422);
-    db()->prepare("DELETE FROM schedules WHERE id=?")->execute([$id]);
+if ($m === 'DELETE') {
+    $id = (int)($_GET['id'] ?? 0);
+    if (!$id) json_err('ID inválido');
+    $db->prepare("DELETE FROM schedules WHERE id=?")->execute([$id]);
+    log_activity('delete_schedule', $payload['sub'], "id=$id");
     json_ok(['deleted' => $id]);
 }
 
-json_err('Método não suportado', 405);
+json_err('Método não permitido', 405);

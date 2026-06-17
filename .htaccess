@@ -1,21 +1,37 @@
-# GVC Display — Configuração Apache/Nginx
-RewriteEngine On
-RewriteCond %{HTTP:Authorization} ^(.*)
-RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
-SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+# ── GVC Display — Apache / XAMPP ──────────────────────────────
 
-# Limites de upload PHP
-php_value upload_max_filesize 100M
-php_value post_max_size 100M
-php_value memory_limit 256M
-
-# Proteger arquivos sensíveis
-<FilesMatch "(^\.env|\.git|\.sql$)">
+# Bloqueia acesso direto ao player.html
+<Files "player.html">
   Order allow,deny
   Deny from all
-</FilesMatch>
+</Files>
 
-# Servir arquivos estáticos diretamente
-<FilesMatch "\.(html|css|js|png|jpg|ico|svg|mp4|webm)$">
-  Allow from all
-</FilesMatch>
+# Página inicial padrão
+DirectoryIndex index.php index.html
+
+# Força processamento PHP (XAMPP com AllowOverride restritivo)
+<IfModule mod_mime.c>
+  AddHandler application/x-httpd-php .php
+</IfModule>
+
+# Rewrite: /api/v1/* → /api/* (compatibilidade com config do VPS/Nginx)
+# Permite usar a mesma base de código em XAMPP e no VPS sem alterar api.js
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /gvc-display/
+
+  # Rota TVs: /tv/ ou /tv/{slug} → tv.php
+  # /tv/         → sem slug, tv.php gera identidade via cookie
+  # /tv/{slug}   → slug passado como query string
+  RewriteRule ^tv/([a-zA-Z0-9_-]+)/?$ tv.php?slug=$1 [QSA,L]
+  RewriteRule ^tv/?$ tv.php [QSA,L]
+
+  # Compatibilidade /api/v1/ → /api/ (usado pelo VPS com Nginx)
+  RewriteRule ^api/v1/(.*)$ api/$1 [QSA,L]
+</IfModule>
+
+# Passa Authorization header para o PHP (Apache bloqueia por padrão)
+# Necessário para o JWT funcionar corretamente
+<IfModule mod_setenvif.c>
+  SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</IfModule>

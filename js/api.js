@@ -1,75 +1,79 @@
-/* ============================================================
-   GVC Signage — Cliente API compartilhado
-   Uso: import { get, post, put, del, upload } from './api.js'
-   ============================================================ */
+// ── Resolução da BASE URL da API ──────────────────────────────
+// Prioridade:
+//   1. <meta name="gvc-api-url"> injetado pelo PHP (via API_BASE_URL no .env)
+//   2. Auto-detect pelo window.location (comportamento original)
+//
+// Isso permite que, no futuro, a API seja movida para outro domínio
+// bastando setar API_BASE_URL no .env — sem alterar nenhum outro arquivo.
 
-"use strict";
+const _metaApiUrl = document.querySelector('meta[name="gvc-api-url"]')?.content?.trim();
 
-// Base URL detectada automaticamente
-export const BASE = (() => {
-  const p = window.location.pathname;
-  // Remove /html/ ou /index.html do caminho para obter a raiz
-  return (
-    window.location.origin +
-    p.replace(/\/(html\/.*|index\.html|login\.html).*$/, "")
-  );
-})();
+const _basePath = window.location.pathname
+  .replace(/\/(index|login)\.(html|php).*$/, '')
+  .replace(/\/+$/, '');
 
-export const API = BASE + "/api";
+export const BASE = window.location.origin + _basePath;
 
-// ── Token store ───────────────────────────────────────────────
+// Se o meta existe e não está vazio, usa ele; senão auto-detect com /api/v1
+export const API = (_metaApiUrl && _metaApiUrl !== '')
+  ? _metaApiUrl
+  : BASE + '/api';
+
+// ── Token JWT ─────────────────────────────────────────────────
 export const token = {
-  get: () => localStorage.getItem("gvc_token"),
-  set: (v) => localStorage.setItem("gvc_token", v),
-  clear: () => localStorage.removeItem("gvc_token"),
+  get:   ()  => localStorage.getItem('gvc_token') ?? '',
+  set:   (t) => localStorage.setItem('gvc_token', t),
+  clear: ()  => localStorage.removeItem('gvc_token'),
 };
 
-// ── Fetch wrapper ─────────────────────────────────────────────
-async function req(method, path, body = null, isFile = false) {
+// ── Fetch genérico com tratamento de erro ─────────────────────
+async function req(method, endpoint, body = null, isForm = false) {
+  const t   = token.get();
+  const url = endpoint.startsWith('http') ? endpoint : `${API}/${endpoint}`;
+
   const headers = {};
-  const t = token.get();
-  if (t) headers["Authorization"] = `Bearer ${t}`;
+  if (t) headers['Authorization'] = `Bearer ${t}`;
+  if (body && !isForm) headers['Content-Type'] = 'application/json';
 
-  if (body && !isFile) headers["Content-Type"] = "application/json";
+  const opts = { method, headers };
+  if (body) opts.body = isForm ? body : JSON.stringify(body);
 
-  const opts = {
-    method,
-    headers,
-    body: body && !isFile ? JSON.stringify(body) : (body ?? undefined),
-  };
-
-  const res = await fetch(`${API}/${path}`, opts);
-
-  // Parse robusto — lida com warnings PHP antes do JSON
-  let json = {};
+  let res;
   try {
-    const text = await res.text();
-    // Remove warnings PHP que aparecem antes do JSON
-    const jsonStart = text.indexOf('{');
-    const jsonText = jsonStart >= 0 ? text.slice(jsonStart) : text;
-    json = JSON.parse(jsonText);
-  } catch { json = {}; }
+    res = await fetch(url, opts);
+  } catch (e) {
+    throw Object.assign(new Error('Sem conexão com o servidor'), { status: 0 });
+  }
 
-  // Token expirado — redireciona para login
-  if (res.status === 401 || json.error === 'Token inválido ou expirado' || json.error === 'Autenticação necessária') {
-    if (!window.location.pathname.includes('login.html')) {
-      token.clear();
-      window.location.href = 'login.html';
-      return;
-    }
+  // Lê como texto para poder limpar avisos PHP antes do JSON
+  const raw = await res.text();
+  let data;
+  try {
+    const clean = raw.replace(/^[^{[]*/, ''); // remove warnings PHP antes do JSON
+    data = JSON.parse(clean);
+  } catch {
+    throw Object.assign(new Error('Resposta inválida do servidor'), { status: res.status, raw });
   }
 
   if (!res.ok) {
-    const err = new Error(json.error || `HTTP ${res.status}`);
-    err.status = res.status;
+    const err = Object.assign(
+      new Error(data?.error || `Erro ${res.status}`),
+      { status: res.status, data }
+    );
+    if (res.status === 401) {
+      token.clear();
+      if (!window.location.pathname.includes('login')) {
+        window.location.href = _basePath + '/login.php';
+      }
+    }
     throw err;
   }
 
-  return json.data ?? json;
+  return data?.data ?? data;
 }
 
-export const get = (path) => req("GET", path);
-export const post = (path, body) => req("POST", path, body);
-export const put = (path, body) => req("PUT", path, body);
-export const del = (path) => req("DELETE", path);
-export const upload = (path, formData) => req("POST", path, formData, true);
+export const get    = (ep)           => req('GET',    ep);
+export const post   = (ep, body)     => req('POST',   ep, body);
+export const put    = (ep, body)     => req('PUT',    ep, body);
+export const del    = (ep)           => req('DELETE', ep);
+export const upload = (ep, formData) => req('POST',   ep, formData, true);

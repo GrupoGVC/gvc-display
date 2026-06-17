@@ -1,43 +1,24 @@
 <?php
-declare(strict_types=1);
-require_once __DIR__ . '/../helpers.php';
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../jwt.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('Método não permitido', 405);
+if (method() !== 'POST') json_err('Método não permitido', 405);
 
-$b     = require_fields(['email', 'password']);
-$email = s($b['email'], 180);
-$pass  = (string)$b['password'];
+$email = req('email');
+$pass  = req('password');
 
-$st = db()->prepare("SELECT id, name, email, password, role, active FROM users WHERE email = ? LIMIT 1");
-$st->execute([$email]);
-$user = $st->fetch();
+if (!$email || !$pass) json_err('E-mail e senha são obrigatórios');
 
-$hash  = $user['password'] ?? '$2y$12$invalidpaddingthatnevermatch0000000000000';
-$valid = password_verify($pass, $hash);
+$stmt = db()->prepare("SELECT id, name, email, password_hash FROM users WHERE email = ? LIMIT 1");
+$stmt->execute([$email]);
+$user = $stmt->fetch();
 
-if (!$user || !$valid || !$user['active']) {
-    log_act(0, 'login_failed', 'user', 0, $email);
+if (!$user || !password_verify($pass, $user['password_hash'])) {
+    log_activity('login_failed', null, $email);
     json_err('E-mail ou senha inválidos', 401);
 }
 
-$token = JWT::encode([
-    'sub'   => (int)$user['id'],
-    'name'  => $user['name'],
-    'email' => $user['email'],
-    'role'  => $user['role'],
-    'iat'   => time(),
-    'exp'   => time() + JWT_EXPIRY,
-], JWT_SECRET);
+$token = jwt_create(['sub' => $user['id'], 'email' => $user['email'], 'name' => $user['name']]);
+log_activity('login', $user['id'], $user['email']);
 
-log_act((int)$user['id'], 'login', 'user', (int)$user['id']);
-
-json_ok([
-    'token'      => $token,
-    'expires_in' => JWT_EXPIRY,
-    'user'       => [
-        'id'    => (int)$user['id'],
-        'name'  => $user['name'],
-        'email' => $user['email'],
-        'role'  => $user['role'],
-    ],
-]);
+json_ok(['token' => $token, 'user' => ['id' => $user['id'], 'name' => $user['name'], 'email' => $user['email']]]);

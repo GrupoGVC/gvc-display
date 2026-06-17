@@ -1,15 +1,37 @@
 #!/bin/bash
-# GVC Display — Script de deploy no VPS
+# ================================================================
+# GVC Display — Deploy script
 # Uso: bash deploy.sh
+# Execute no VPS após git pull / git reset --hard
+# ================================================================
 
-echo "GVC Display — Iniciando deploy..."
+set -e
 
-# Puxa as atualizações do GitHub
-git pull origin main
+VPS_ROOT="/var/www/gvc-display"
+NGINX_CONF="/etc/nginx/sites-available/gvc-display"
 
-# Garante permissões corretas na pasta de uploads
-chmod -R 755 uploads/
-find uploads/ -type d -exec chmod 755 {} \;
+echo ""
+echo "▶  GVC Display — Deploy"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-echo "✅ Deploy concluído!"
-echo "📺 Sistema disponível em: http://72.61.42.148/display"
+# 1. Permissões
+echo "→ Ajustando permissões..."
+chown -R www-data:www-data "$VPS_ROOT/uploads"
+chmod -R 755 "$VPS_ROOT/uploads"
+
+# 2. Nginx
+echo "→ Copiando config do Nginx..."
+cp "$VPS_ROOT/NGINX_CONFIG.txt" "$NGINX_CONF"
+nginx -t && systemctl reload nginx
+echo "   ✓ Nginx recarregado"
+
+# 3. Valida PHP
+echo "→ Validando arquivos PHP..."
+find "$VPS_ROOT/api" -name "*.php" -exec php -l {} \; | grep -v "No syntax errors" || true
+php -l "$VPS_ROOT/tv.php"
+php -l "$VPS_ROOT/api/meta_injector.php"
+echo "   ✓ PHP OK"
+
+echo ""
+echo "✅  Deploy concluído!"
+echo ""

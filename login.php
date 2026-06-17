@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>GVC Display | Login</title>
+  <title>GVC Display — Login</title>
   <link rel="icon" href="assets/logos/logo_grupogvc_white.ico" type="image/x-icon"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -89,12 +89,12 @@
 
   <script>
     // Detecta base do projeto
-    const _base = window.location.pathname.replace(/\/login\.html.*$/, '').replace(/\/+$/, '');
+    const _base = window.location.pathname.replace(/\/(index|login)\.(html|php).*$/, '').replace(/\/+$/, '');
     const _api  = window.location.origin + _base + '/api';
 
     // Se já tem token válido, redireciona
     if (localStorage.getItem('gvc_token')) {
-      window.location.replace(_base + '/index.html');
+      window.location.replace(_base + '/index.php');
     }
 
     async function doLogin(e) {
@@ -127,7 +127,7 @@
         if (!res.ok) throw new Error(data?.error || 'Credenciais inválidas');
 
         localStorage.setItem('gvc_token', data.data?.token ?? data.token);
-        window.location.replace(_base + '/index.html');
+        window.location.replace(_base + '/index.php');
       } catch (err) {
         errEl.textContent   = err.message || 'E-mail ou senha inválidos';
         errEl.style.display = 'block';

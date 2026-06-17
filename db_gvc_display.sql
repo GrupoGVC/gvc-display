@@ -1,174 +1,108 @@
-CREATE DATABASE IF NOT EXISTS db_gvc_display CHARACTER
-SET
-  utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS db_gvc_display
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
 
 USE db_gvc_display;
 
-SET
-  NAMES utf8mb4;
-
-SET
-  time_zone = '+00:00';
-
--- Administradores
-CREATE TABLE
-  IF NOT EXISTS `users` (
-    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `name` VARCHAR(120) NOT NULL,
-    `email` VARCHAR(180) NOT NULL UNIQUE,
-    `password` VARCHAR(255) NOT NULL,
-    `role` ENUM ('admin', 'viewer') NOT NULL DEFAULT 'admin',
-    `active` TINYINT (1) NOT NULL DEFAULT 1,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`)
-  ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+-- Usuários admin
+CREATE TABLE IF NOT EXISTS users (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name          VARCHAR(100) NOT NULL,
+  email         VARCHAR(150) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
 -- Grupos de TVs
-CREATE TABLE
-  IF NOT EXISTS `groups` (
-    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `name` VARCHAR(120) NOT NULL,
-    `description` VARCHAR(255) DEFAULT NULL,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`)
-  ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
-
--- Playlists
-CREATE TABLE
-  IF NOT EXISTS `playlists` (
-    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `name` VARCHAR(180) NOT NULL,
-    `is_default` TINYINT (1) NOT NULL DEFAULT 0,
-    `loop` TINYINT (1) NOT NULL DEFAULT 1,
-    `created_by` INT UNSIGNED DEFAULT NULL,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`)
-  ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS `groups` (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name        VARCHAR(100) NOT NULL,
+  description TEXT,
+  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
 -- Dispositivos (TVs)
-CREATE TABLE
-  IF NOT EXISTS `devices` (
-    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `name` VARCHAR(120) NOT NULL,
-    `location` VARCHAR(180) DEFAULT NULL,
-    `group_id` INT UNSIGNED DEFAULT NULL,
-    `token` CHAR(64) NOT NULL UNIQUE,
-    `playlist_id` INT UNSIGNED DEFAULT NULL,
-    `status` ENUM ('online', 'offline') NOT NULL DEFAULT 'offline',
-    `last_ping` DATETIME DEFAULT NULL,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    CONSTRAINT `fk_dev_group` FOREIGN KEY (`group_id`) REFERENCES `groups` (`id`) ON DELETE SET NULL,
-    CONSTRAINT `fk_dev_playlist` FOREIGN KEY (`playlist_id`) REFERENCES `playlists` (`id`) ON DELETE SET NULL
-  ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS devices (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name        VARCHAR(150) NOT NULL,
+  location    VARCHAR(200),
+  slug        VARCHAR(100) NOT NULL UNIQUE,
+  token       VARCHAR(64)  NOT NULL UNIQUE,
+  group_id    INT UNSIGNED REFERENCES `groups`(id),
+  playlist_id INT UNSIGNED,
+  status      ENUM('online','offline') DEFAULT 'offline',
+  last_ping   DATETIME,
+  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
--- Mídias
-CREATE TABLE
-  IF NOT EXISTS `media` (
-    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `filename` VARCHAR(255) NOT NULL,
-    `original` VARCHAR(255) NOT NULL,
-    `type` ENUM ('image', 'video') NOT NULL,
-    `mime` VARCHAR(80) NOT NULL,
-    `size` INT UNSIGNED NOT NULL DEFAULT 0,
-    `url` VARCHAR(600) NOT NULL,
-    `thumb_url` VARCHAR(600) DEFAULT NULL,
-    `uploaded_by` INT UNSIGNED DEFAULT NULL,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    INDEX `idx_type` (`type`)
-  ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+-- Playlists
+CREATE TABLE IF NOT EXISTS playlists (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name       VARCHAR(150) NOT NULL,
+  is_default TINYINT(1)   DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
 -- Itens de playlist
-CREATE TABLE
-  IF NOT EXISTS `playlist_items` (
-    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `playlist_id` INT UNSIGNED NOT NULL,
-    `media_id` INT UNSIGNED DEFAULT NULL,
-    `type` ENUM ('image', 'video', 'page') NOT NULL,
-    `url` VARCHAR(600) DEFAULT NULL,
-    `duration` SMALLINT UNSIGNED NOT NULL DEFAULT 10,
-    `sort_order` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    INDEX `idx_pl_sort` (`playlist_id`, `sort_order`),
-    CONSTRAINT `fk_item_pl` FOREIGN KEY (`playlist_id`) REFERENCES `playlists` (`id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_item_media` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE SET NULL
-  ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS playlist_items (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  playlist_id INT UNSIGNED NOT NULL REFERENCES playlists(id),
+  type        ENUM('image','video','page') DEFAULT 'image',
+  url         TEXT NOT NULL,
+  duration    SMALLINT UNSIGNED DEFAULT 10,
+  media_id    INT UNSIGNED,
+  sort_order  SMALLINT UNSIGNED DEFAULT 0,
+  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- Biblioteca de mídia
+CREATE TABLE IF NOT EXISTS media (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  original_name VARCHAR(255) NOT NULL,
+  type          ENUM('image','video') NOT NULL,
+  url           VARCHAR(500) NOT NULL,
+  size          INT UNSIGNED DEFAULT 0,
+  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
 -- Agendamentos
-CREATE TABLE
-  IF NOT EXISTS `schedules` (
-    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `playlist_id` INT UNSIGNED NOT NULL,
-    `target_type` ENUM ('all', 'group', 'device') NOT NULL DEFAULT 'all',
-    `target_id` INT UNSIGNED DEFAULT NULL,
-    `starts_at` DATETIME NOT NULL,
-    `ends_at` DATETIME NOT NULL,
-    `repeat_weekly` TINYINT (1) NOT NULL DEFAULT 0,
-    `weekdays` VARCHAR(20) DEFAULT NULL,
-    `active` TINYINT (1) NOT NULL DEFAULT 1,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    INDEX `idx_sched` (`active`, `starts_at`, `ends_at`),
-    CONSTRAINT `fk_sched_pl` FOREIGN KEY (`playlist_id`) REFERENCES `playlists` (`id`) ON DELETE CASCADE
-  ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS schedules (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  playlist_id   INT UNSIGNED NOT NULL REFERENCES playlists(id),
+  target_type   ENUM('all','group','device') DEFAULT 'all',
+  target_id     INT UNSIGNED,
+  starts_at     DATETIME NOT NULL,
+  ends_at       DATETIME NOT NULL,
+  repeat_weekly TINYINT(1) DEFAULT 0,
+  weekdays      JSON,
+  active        TINYINT(1) DEFAULT 1,
+  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
 -- Códigos de pareamento
-CREATE TABLE
-  IF NOT EXISTS `pairing_codes` (
-    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `code` CHAR(6) NOT NULL UNIQUE,
-    `device_id` INT UNSIGNED DEFAULT NULL,
-    `token` CHAR(64) DEFAULT NULL,
-    `paired` TINYINT (1) NOT NULL DEFAULT 0,
-    `expires_at` DATETIME NOT NULL,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`)
-  ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS pairing_codes (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  device_id  INT UNSIGNED NOT NULL REFERENCES devices(id),
+  code       CHAR(6) NOT NULL UNIQUE,
+  expires_at DATETIME NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
 
--- Log de atividade
-CREATE TABLE
-  IF NOT EXISTS `activity_logs` (
-    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `user_id` INT UNSIGNED DEFAULT NULL,
-    `action` VARCHAR(120) NOT NULL,
-    `entity` VARCHAR(60) DEFAULT NULL,
-    `entity_id` INT UNSIGNED DEFAULT NULL,
-    `detail` TEXT DEFAULT NULL,
-    `ip` VARCHAR(45) DEFAULT NULL,
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    INDEX `idx_log` (`created_at`)
-  ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+-- Log de atividades
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id    INT UNSIGNED,
+  action     VARCHAR(50) NOT NULL,
+  detail     VARCHAR(500),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_created (created_at)
+) ENGINE=InnoDB;
 
-SELECT ID, NAME, EMAIL, ROLE, ACTIVE FROM users;
+-- ── Seed: usuário admin padrão ─────────────────────────────────
+-- Senha: admin123  (troque imediatamente em produção)
+-- Hash gerado com: password_hash('admin123', PASSWORD_BCRYPT)
+INSERT IGNORE INTO users (name, email, password_hash) VALUES
+  ('Administrador', 'admin@gvc.com', '$2y$10$TKh8H1.PfBEaI4RBhJbCOu2MNbDBx8f1RQOOB2kTTLGhiUMVKAJBm');
 
-SELECT * FROM db_gvc_display.users;
-
-UPDATE users
-SET password = "$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi"
-WHERE email ='admin@gmail.com';
-
-DELETE FROM users WHERE email = 'admin@gvc.com';
-
-INSERT INTO users (name, email, password, role, active)
-VALUES (
-  'Administrador GVC',
-  'admin@gvc.com',
-  '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
-  'admin',
-  1
-);
-
-SELECT id, name, email, role, active, LEFT(password, 7) AS hash_ok
-FROM users
-WHERE email = 'admin@gvc.com';
-
-SHOW DATABASES;
-SHOW TABLES;
-
-DROP DATABASE IF EXISTS db_gvc_display;
+-- ── Playlist padrão ────────────────────────────────────────────
+INSERT IGNORE INTO playlists (id, name, is_default) VALUES (1, 'Padrão', 1);

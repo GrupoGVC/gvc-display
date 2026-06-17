@@ -1,23 +1,21 @@
 <?php
-declare(strict_types=1);
-require_once __DIR__ . '/../helpers.php';
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../jwt.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('Método não permitido', 405);
+if (method() !== 'POST') json_err('Método não permitido', 405);
+$payload = auth_required();
 
-$p = auth();
-$b = require_fields(['current_password', 'new_password']);
+$cur = req('current_password');
+$new = req('new_password');
+if (!$cur || !$new) json_err('Preencha todos os campos');
+if (strlen($new) < 6) json_err('Nova senha deve ter pelo menos 6 caracteres');
 
-if (strlen((string)$b['new_password']) < 6)
-    json_err('A nova senha precisa ter ao menos 6 caracteres', 422);
+$stmt = db()->prepare("SELECT password_hash FROM users WHERE id = ?");
+$stmt->execute([$payload['sub']]);
+$user = $stmt->fetch();
+if (!$user || !password_verify($cur, $user['password_hash'])) json_err('Senha atual incorreta');
 
-$row = db()->prepare("SELECT password FROM users WHERE id = ?")->execute([(int)$p['sub']]);
-$row = db()->query("SELECT password FROM users WHERE id=" . (int)$p['sub'])->fetch();
+$hash = password_hash($new, PASSWORD_DEFAULT);
+db()->prepare("UPDATE users SET password_hash = ? WHERE id = ?")->execute([$hash, $payload['sub']]);
 
-if (!$row || !password_verify((string)$b['current_password'], $row['password']))
-    json_err('Senha atual incorreta', 401);
-
-$hash = password_hash((string)$b['new_password'], PASSWORD_BCRYPT, ['cost' => 12]);
-db()->prepare("UPDATE users SET password=? WHERE id=?")->execute([$hash, (int)$p['sub']]);
-
-log_act((int)$p['sub'], 'change_password', 'user', (int)$p['sub']);
 json_ok(['message' => 'Senha alterada com sucesso']);

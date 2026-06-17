@@ -1,33 +1,40 @@
 <?php
-declare(strict_types=1);
-require_once __DIR__ . '/../helpers.php';
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../jwt.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('Método não permitido', 405);
-$a = auth_admin();
-$b = require_fields(['playlist_id', 'target']);
+if (method() !== 'POST') json_err('POST esperado', 405);
+$payload = auth_required();
+$db      = db();
 
-$pl_id  = sint($b['playlist_id']);
-$target = s($b['target'], 60);
+$plId   = (int)(body()['playlist_id'] ?? 0);
+$target = body()['target'] ?? 'all';
 
-$chk = db()->prepare("SELECT id FROM playlists WHERE id=?");
-$chk->execute([$pl_id]);
-if (!$chk->fetch()) json_err('Playlist não encontrada', 404);
+if (!$plId) json_err('playlist_id ausente');
+
+// Verifica que playlist existe
+$pl = $db->prepare("SELECT id, name FROM playlists WHERE id=?");
+$pl->execute([$plId]);
+if (!$pl->fetch()) json_err('Playlist não encontrada', 404);
+
+$affected = 0;
 
 if ($target === 'all') {
-    $st = db()->prepare("UPDATE devices SET playlist_id=?");
-    $st->execute([$pl_id]);
+    $r = $db->prepare("UPDATE devices SET playlist_id = ?");
+    $r->execute([$plId]);
+    $affected = $r->rowCount();
 } elseif (str_starts_with($target, 'group:')) {
-    $gid = sint(substr($target, 6));
-    $st  = db()->prepare("UPDATE devices SET playlist_id=? WHERE group_id=?");
-    $st->execute([$pl_id, $gid]);
+    $gid = (int)substr($target, 6);
+    $r   = $db->prepare("UPDATE devices SET playlist_id = ? WHERE group_id = ?");
+    $r->execute([$plId, $gid]);
+    $affected = $r->rowCount();
 } elseif (str_starts_with($target, 'device:')) {
-    $did = sint(substr($target, 7));
-    $st  = db()->prepare("UPDATE devices SET playlist_id=? WHERE id=?");
-    $st->execute([$pl_id, $did]);
+    $did = (int)substr($target, 7);
+    $r   = $db->prepare("UPDATE devices SET playlist_id = ? WHERE id = ?");
+    $r->execute([$plId, $did]);
+    $affected = $r->rowCount();
 } else {
-    json_err('Target inválido', 422);
+    json_err('Target inválido');
 }
 
-$count = $st->rowCount();
-log_act((int)$a['sub'], 'broadcast', 'playlist', $pl_id, "target=$target affected=$count");
-json_ok(['affected' => $count, 'playlist_id' => $pl_id, 'target' => $target]);
+log_activity('broadcast', $payload['sub'], "playlist=$plId target=$target affected=$affected");
+json_ok(['affected' => $affected]);

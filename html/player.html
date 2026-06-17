@@ -2,76 +2,223 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>GVC Display — TV</title>
   <meta name="robots" content="noindex,nofollow"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="mobile-web-app-capable" content="yes"/>
-  <title>GVC Display | Player</title>
-  <link rel="icon" href="../assets/logos/logo_grupogvc_white.ico" type="image/x-icon"/>
-  <link rel="stylesheet" href="../css/player.css"/>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    html, body {
+      width:100%; height:100%;
+      background:#0d1117;
+      overflow:hidden;
+      font-family:'Inter', 'Lato', system-ui, sans-serif;
+    }
+
+    /* ── Stage (conteúdo) ─────────────────────────────────── */
+    #stage { position:fixed; inset:0; background:#0d1117; }
+
+    /* ── Tela de Pareamento ──────────────────────────────── */
+    #pairing-screen {
+      position:fixed; inset:0; display:none;
+      background:#0d1117; color:#fff;
+      padding:clamp(24px, 4vw, 60px);
+      overflow:auto;
+    }
+
+    /* Logo topo */
+    .p-logo {
+      display:flex; align-items:center; gap:12px;
+      margin-bottom:clamp(24px, 4vh, 52px);
+    }
+    .p-logo svg { flex-shrink:0; width:clamp(24px,3vw,36px); height:auto; }
+    .p-logo-name {
+      font-size:clamp(16px, 2vw, 22px); font-weight:700; letter-spacing:-.3px;
+    }
+    .p-logo-name span { color:#4f8cff; }
+    .p-logo-sub { font-size:clamp(10px,1.2vw,12px); color:#6b7280; margin-top:2px; }
+
+    /* Layout 2 colunas — responsivo */
+    .p-body {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:clamp(32px, 5vw, 80px);
+      align-items:center;
+      max-width:min(960px, 100%);
+    }
+
+    /* Coluna esquerda */
+    .p-left h1 {
+      font-size:clamp(28px, 4.5vw, 56px); font-weight:900;
+      line-height:1.1; margin-bottom:clamp(12px,2vh,24px);
+      color:#f1f5f9;
+    }
+    .p-left p {
+      font-size:clamp(13px, 1.4vw, 16px); color:#94a3b8;
+      line-height:1.6; margin-bottom:clamp(16px,2.5vh,32px);
+    }
+
+    .p-code-label {
+      font-size:clamp(9px,1vw,11px); font-weight:600;
+      letter-spacing:1.2px; text-transform:uppercase;
+      color:#6b7280; margin-bottom:10px;
+    }
+    .p-code-box {
+      background:#161b27; border:1.5px solid #2a3040;
+      border-radius:14px; padding:clamp(12px,2vh,20px) clamp(16px,2.5vw,28px);
+      display:inline-flex; gap:clamp(8px,1.5vw,18px); align-items:center;
+      margin-bottom:12px;
+    }
+    .p-code-box span {
+      font-family:'Courier New', 'Consolas', monospace;
+      font-size:clamp(32px, 5.5vw, 56px); font-weight:900;
+      color:#4f8cff; line-height:1;
+      min-width:clamp(24px,3vw,36px); text-align:center;
+    }
+    .p-code-ttl { font-size:clamp(11px,1.2vw,13px); color:#4b5563; }
+    .p-status {
+      margin-top:clamp(12px,2vh,24px); font-size:clamp(12px,1.3vw,14px);
+      color:#6b7280; display:flex; align-items:center; gap:8px;
+    }
+    .p-dot {
+      width:8px; height:8px; border-radius:50%;
+      background:#22c55e;
+      animation:pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* Coluna direita — QR */
+    .p-right {
+      display:flex; flex-direction:column;
+      align-items:center; gap:clamp(10px,1.5vh,16px);
+    }
+    .p-qr-wrap {
+      width:clamp(140px, 18vw, 220px); height:clamp(140px, 18vw, 220px);
+      background:#fff; border-radius:16px;
+      display:flex; align-items:center;
+      justify-content:center; overflow:hidden;
+      position:relative;
+    }
+    #pair-qr {
+      width:90%; height:90%;
+      object-fit:contain; display:none;
+    }
+    .p-qr-fallback {
+      text-align:center; color:#94a3b8;
+      font-size:12px; line-height:1.6; padding:16px;
+    }
+    .p-qr-hint {
+      font-size:clamp(11px,1.2vw,13px); color:#6b7280;
+      text-align:center; max-width:clamp(160px,18vw,220px);
+      line-height:1.5;
+    }
+    .p-qr-url {
+      font-size:clamp(10px,1.1vw,12px); color:#4f8cff;
+      word-break:break-all; text-align:center;
+      max-width:clamp(160px,18vw,220px);
+    }
+
+    /* ── Tela de Status (sem playlist, reconectando etc) ─── */
+    #status-screen {
+      position:fixed; inset:0; display:none;
+      flex-direction:column; align-items:center;
+      justify-content:center;
+      background:#0d1117; gap:16px; color:#fff;
+    }
+    #status-icon { font-size:56px; }
+    #status-msg  { font-size:20px; font-weight:700; color:#e2e8f0; }
+    #status-sub  { font-size:14px; color:#6b7280; }
+    .spinner {
+      width:28px; height:28px;
+      border:3px solid #2a3040;
+      border-top-color:#4f8cff;
+      border-radius:50%;
+      animation:spin .9s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet"/>
 </head>
 <body>
-  <!-- Previne modo sleep -->
-  <video id="nosleep-vid" autoplay muted loop playsinline
-    style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:.01;pointer-events:none">
-    <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAA" type="video/mp4"/>
-  </video>
 
   <div id="stage"></div>
-  <div id="hud"><div id="hud-bar" style="width:0%"></div></div>
-  <div id="debug"></div>
 
-  <!-- ── TELA DE PAREAMENTO ── -->
-  <div id="pairing">
+  <!-- ── Tela de Pareamento ───────────────────────────────── -->
+  <div id="pairing-screen">
 
-    <!-- Esquerda: instruções + código -->
-    <div class="pair-left">
-      <div class="pair-logo">
-        <!-- ícone TV inline SVG (sem dependência de fonte) -->
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="#4f8cff"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
-        <div class="pair-logo-txt">GVC <span>Display</span></div>
+    <div class="p-logo">
+      <svg width="36" height="36" viewBox="0 0 48 48" fill="none">
+        <rect x="2" y="8" width="44" height="28" rx="4" fill="#1a1f2e" stroke="#4f8cff" stroke-width="2.5"/>
+        <rect x="8" y="14" width="32" height="16" rx="2" fill="#0d1117"/>
+        <rect x="18" y="38" width="12" height="3" rx="1.5" fill="#4f8cff"/>
+        <rect x="14" y="41" width="20" height="2" rx="1" fill="#4f8cff" opacity=".5"/>
+      </svg>
+      <div>
+        <div class="p-logo-name">GVC <span>Display</span></div>
+        <div class="p-logo-sub">Sinalização Digital Corporativa</div>
       </div>
-
-      <div class="pair-headline">Configure<br>esta TV</div>
-
-      <p class="pair-sub">
-        Escaneie o QR Code ao lado com o celular<br>
-        ou digite o código no painel administrativo.
-      </p>
-
-      <div class="pair-code-wrap">
-        <div class="pair-code-label">Código de pareamento</div>
-        <div class="pair-code" id="pair-code">------</div>
-        <div class="pair-timer" id="pair-timer"></div>
-      </div>
-
-      <div class="pair-hint" id="pair-hint">Aguardando vinculação...</div>
     </div>
 
-    <!-- Divisor -->
-    <div class="pair-divider"></div>
+    <div class="p-body">
 
-    <!-- Direita: QR Code -->
-    <div class="pair-right">
-      <div class="pair-qr-box" id="qr-box">
-        <!-- QR gerado via JS -->
-        <svg viewBox="0 0 10 10"><rect width="10" height="10" fill="#eee"/><text x="50%" y="55%" text-anchor="middle" font-size="1.2" fill="#999">aguarde</text></svg>
+      <!-- Esquerda: código -->
+      <div class="p-left">
+        <h1>Configure<br>esta TV</h1>
+        <p>
+          Escaneie o QR Code ao lado com o celular<br>
+          ou digite o código no painel administrativo.
+        </p>
+
+        <div class="p-code-label">Código de Pareamento</div>
+        <div class="p-code-box" id="pair-digits">
+          <span>-</span><span>-</span><span>-</span>
+          <span>-</span><span>-</span><span>-</span>
+        </div>
+        <div class="p-code-ttl" id="pair-ttl">Gerando código...</div>
+
+        <div class="p-status">
+          <span class="p-dot"></span>
+          <span id="pair-status-txt">Aguardando vinculação...</span>
+        </div>
       </div>
-      <div class="pair-qr-label">
-        Escaneie com a câmera do celular para acessar o painel e vincular esta TV
+
+      <!-- Direita: QR -->
+      <div class="p-right">
+        <div class="p-qr-wrap">
+          <img id="pair-qr" src="" alt="QR Code"
+               onload="this.style.display='block';this.nextElementSibling.style.display='none'"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <div class="p-qr-fallback" style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <svg width="32" height="32" fill="none" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="7" height="7" rx="1" stroke="#94a3b8" stroke-width="1.5"/>
+              <rect x="14" y="3" width="7" height="7" rx="1" stroke="#94a3b8" stroke-width="1.5"/>
+              <rect x="3" y="14" width="7" height="7" rx="1" stroke="#94a3b8" stroke-width="1.5"/>
+              <rect x="14" y="14" width="7" height="7" rx="1" stroke="#94a3b8" stroke-width="1.5"/>
+            </svg>
+            <span style="color:#6b7280;font-size:11px;">QR indisponível<br>use o código</span>
+          </div>
+        </div>
+        <div class="p-qr-hint">
+          Escaneie com a câmera do<br>celular para acessar o painel e<br>vincular esta TV
+        </div>
+        <div class="p-qr-url" id="pair-admin-url"></div>
       </div>
-      <div class="pair-qr-url" id="qr-admin-url"></div>
+
     </div>
-
   </div>
 
-  <!-- ── TELA DE ERRO ── -->
-  <div id="error-screen" class="hidden">
-    <svg width="56" height="56" viewBox="0 0 24 24" fill="#f59e0b"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
-    <div style="font-size:20px;font-weight:600;color:#e8eaf0;" id="error-msg">Erro ao carregar conteúdo</div>
-    <small style="color:#6b7394;">Tentando reconectar...</small>
+  <!-- ── Tela de Status ─────────────────────────────────── -->
+  <div id="status-screen">
+    <div id="status-icon">📺</div>
+    <div id="status-msg">Aguardando apresentação</div>
+    <div id="status-sub">Configure no painel administrativo</div>
   </div>
-
+  <script>
+    /* Variáveis injetadas pelo tv.php */
+    window.__DEVICE_TOKEN__ = window.__DEVICE_TOKEN__ || '';
+    window.__DEVICE_SLUG__  = window.__DEVICE_SLUG__  || '';
+    window.__BASE_URL__     = window.__BASE_URL__      || '';
+  </script>
   <script src="../js/player.js"></script>
 </body>
 </html>

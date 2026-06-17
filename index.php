@@ -1,4 +1,7 @@
-<!doctype html>
+<?php
+header('Cache-Control: no-cache, no-store, must-revalidate');
+require_once __DIR__ . '/api/meta_injector.php';
+?><!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8"/>
@@ -31,7 +34,7 @@
       </svg>
       <div>
         <div class="sb-brand">GVC <span style="color:var(--primary)">Display</span></div>
-        <div class="sb-sub">Apresentação Coorporativa Digital</div>
+        <div class="sb-sub">Sinalização Digital</div>
       </div>
     </div>
     <nav class="sb-nav">
@@ -654,43 +657,49 @@
     <div class="modal-content">
       <div class="modal-header">
         <div class="modal-title">
-          <i class="bi bi-qr-code-scan"></i>Parear TV
+          <i class="bi bi-display"></i>Parear:
+          <span id="pair-dev-name" style="color:var(--primary);margin-left:4px;"></span>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopCamera()"></button>
       </div>
       <div class="modal-body">
         <p style="font-size:13px;color:var(--mut);margin-bottom:16px;">
-          Digite o código de 6 dígitos exibido na tela da TV.
+          Digite o código exibido na TV ou escaneie o QR Code com a câmera.
         </p>
-
-        <!-- Código -->
-        <div class="fg" style="margin-bottom:12px;">
-          <label>Código da TV (6 dígitos)</label>
-          <input type="text" id="pair-input-code" placeholder="000000" maxlength="6"
-            style="font-size:32px;letter-spacing:12px;text-align:center;font-family:monospace;padding:14px;"
-            oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"
-            onkeydown="if(event.key==='Enter')doPairDeviceNew()"/>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <button id="tab-code" class="btn-p btn-sm" onclick="switchPairTab('code')" style="flex:1;justify-content:center;">
+            <i class="bi bi-123"></i>Código
+          </button>
+          <button id="tab-cam" class="btn-g btn-sm" onclick="switchPairTab('cam')" style="flex:1;justify-content:center;">
+            <i class="bi bi-qr-code-scan"></i>Câmera QR
+          </button>
         </div>
-
-        <!-- Nome da TV -->
-        <div class="fg" style="margin-bottom:12px;">
-          <label>Nome para esta TV</label>
-          <input type="text" id="pair-tv-name" placeholder="Ex: TV Recepção, TV Sala de Reuniões..."
-            style="font-size:14px;"/>
+        <div id="pair-tab-code">
+          <div class="fg">
+            <label>Código da TV (6 dígitos)</label>
+            <input type="text" id="pair-input-code" placeholder="000000" maxlength="6"
+              style="font-size:28px;letter-spacing:10px;text-align:center;font-family:monospace;padding:12px;"
+              oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"/>
+          </div>
         </div>
-
-        <!-- Local (opcional) -->
-        <div class="fg" style="margin-bottom:4px;">
-          <label>Local / Andar <span style="color:var(--mut);font-size:11px;">(opcional)</span></label>
-          <input type="text" id="pair-tv-location" placeholder="Ex: 2º Andar, Bloco B..."/>
+        <div id="pair-tab-cam" class="hidden">
+          <div style="position:relative;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:4/3;">
+            <video id="qr-video" playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+            <canvas id="qr-canvas" style="display:none;"></canvas>
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+              <div style="width:55%;aspect-ratio:1;border:3px solid #4f8cff;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.45);"></div>
+            </div>
+          </div>
+          <p id="qr-status" style="font-size:12px;color:var(--mut);text-align:center;margin-top:8px;">
+            Aponte a câmera para o QR Code da TV
+          </p>
         </div>
-
-        <div id="pair-error" style="display:none;color:var(--red);font-size:13px;margin-top:12px;text-align:center;border-radius:8px;padding:8px;background:rgba(255,79,106,.1);"></div>
+        <div id="pair-error" style="display:none;color:var(--red);font-size:13px;margin-top:10px;text-align:center;"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn-p" id="btn-do-pair" onclick="doPairDeviceNew()">
-          <i class="bi bi-link-45deg"></i> Parear TV
+        <button class="btn-g" data-bs-dismiss="modal" onclick="stopCamera()">Cancelar</button>
+        <button class="btn-p" onclick="doPairDeviceNew()">
+          Parear <i class="bi bi-link-45deg"></i>
         </button>
       </div>
     </div>

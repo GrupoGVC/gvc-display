@@ -1,121 +1,103 @@
 <?php
-declare(strict_types=1);
-require_once __DIR__ . '/../helpers.php';
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../jwt.php';
 
-$method = $_SERVER['REQUEST_METHOD'];
-$id     = sint($_GET['id'] ?? 0);
+$payload = auth_required();
+$db      = db();
+$m       = method();
 
-// ── GET ───────────────────────────────────────────────────────
-if ($method === 'GET') {
-    auth_admin();
-    $rows = db()->query(
-        "SELECT d.id, d.name, d.location, d.status, d.last_ping, d.token,
-                g.name AS group_name, p.name AS playlist_name
-         FROM devices d
-         LEFT JOIN `groups` g ON g.id = d.group_id
-         LEFT JOIN playlists p ON p.id = d.playlist_id
-         ORDER BY d.name"
-    )->fetchAll();
-
-    foreach ($rows as &$d) {
-        $d['player_url'] = APP_URL . '/html/player.html?token=' . $d['token'];
-        // Slug pode não existir em bancos antigos — usa null com segurança
-        $slug = $d['slug'] ?? null;
-        $d['tv_url'] = $slug ? (APP_URL . '/tv/' . $slug) : null;
+// ── GET — lista ou detalhe ─────────────────────────────────────
+if ($m === 'GET') {
+    if (isset($_GET['id'])) {
+        $stmt = $db->prepare("
+            SELECT d.*, g.name AS group_name, p.name AS playlist_name,
+                   CONCAT('/tv/', d.slug) AS player_url
+            FROM devices d
+            LEFT JOIN `groups` g ON g.id = d.group_id
+            LEFT JOIN playlists p ON p.id = d.playlist_id
+            WHERE d.id = ?");
+        $stmt->execute([$_GET['id']]);
+        $dev = $stmt->fetch();
+        if (!$dev) json_err('Dispositivo não encontrado', 404);
+        json_ok($dev);
     }
+
+    $rows = $db->query("
+        SELECT d.id, d.name, d.location, d.slug, d.status, d.last_ping,
+               d.playlist_id, d.group_id, d.token,
+               g.name AS group_name, p.name AS playlist_name,
+               CONCAT('/tv/', d.slug) AS player_url
+        FROM devices d
+        LEFT JOIN `groups` g ON g.id = d.group_id
+        LEFT JOIN playlists p ON p.id = d.playlist_id
+        ORDER BY d.name
+    ")->fetchAll();
     json_ok($rows);
 }
 
-// ── POST ──────────────────────────────────────────────────────
-if ($method === 'POST') {
-    $a = auth_admin();
-    $b = require_fields(['name']);
+// ── POST — criar ───────────────────────────────────────────────
+if ($m === 'POST') {
+    $name     = req('name');
+    $location = req('location');
+    $groupId  = body()['group_id'] ?: null;
+    $plId     = body()['playlist_id'] ?: null;
 
-    $token = rand_token(32);
+    if (!$name) json_err('Nome é obrigatório');
 
-    // Gera slug único a partir do nome
-    $slugBase = strtolower(preg_replace('/[^a-z0-9]+/i', '-', s($b['name'], 80)));
-    $slugBase = trim($slugBase, '-') ?: 'tv';
-    $slug = $slugBase;
-    $i = 1;
+    $token = bin2hex(random_bytes(16));
+    $slug  = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $name)) . '-' . substr(bin2hex(random_bytes(3)), 0, 6);
 
-    // Verifica se coluna slug existe antes de checar unicidade
-    $hasSlug = false;
-    try {
-        db()->query("SELECT slug FROM devices LIMIT 1");
-        $hasSlug = true;
-    } catch (\Exception $e) {}
+    $stmt = $db->prepare("INSERT INTO devices (name, location, group_id, playlist_id, token, slug)
+                          VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$name, $location ?: null, $groupId, $plId, $token, $slug]);
+    $id = (int)$db->lastInsertId();
 
-    if ($hasSlug) {
-        while (db()->prepare("SELECT id FROM devices WHERE slug=?")->execute([$slug]) &&
-               db()->prepare("SELECT id FROM devices WHERE slug=?")->execute([$slug])->fetchColumn()) {
-            $slug = $slugBase . '-' . $i++;
-        }
-        db()->prepare("INSERT INTO devices (name,slug,location,group_id,playlist_id,token) VALUES (?,?,?,?,?,?)")
-            ->execute([
-                s($b['name'], 120),
-                $slug,
-                s($b['location'] ?? '', 180),
-                $b['group_id']    ? sint($b['group_id'])    : null,
-                $b['playlist_id'] ? sint($b['playlist_id']) : null,
-                $token,
-            ]);
-    } else {
-        // Banco antigo sem coluna slug
-        db()->prepare("INSERT INTO devices (name,location,group_id,playlist_id,token) VALUES (?,?,?,?,?)")
-            ->execute([
-                s($b['name'], 120),
-                s($b['location'] ?? '', 180),
-                $b['group_id']    ? sint($b['group_id'])    : null,
-                $b['playlist_id'] ? sint($b['playlist_id']) : null,
-                $token,
-            ]);
-    }
-
-    $new_id = (int)db()->lastInsertId();
-    log_act((int)$a['sub'], 'create_device', 'device', $new_id, s($b['name']));
-
-    $dev = db()->query("SELECT * FROM devices WHERE id=$new_id")->fetch();
-    $dev['player_url'] = APP_URL . '/html/player.html?token=' . $dev['token'];
-    $dev['tv_url']     = ($dev['slug'] ?? null) ? (APP_URL . '/tv/' . $dev['slug']) : null;
-    json_ok($dev, 201);
+    log_activity('create_device', $payload['sub'], $name);
+    $stmt = $db->prepare("SELECT d.*, CONCAT('/tv/', d.slug) AS player_url FROM devices d WHERE d.id = ?");
+    $stmt->execute([$id]);
+    json_ok($stmt->fetch());
 }
 
-// ── PUT ───────────────────────────────────────────────────────
-if ($method === 'PUT') {
-    auth_admin();
-    if (!$id) json_err('ID obrigatório', 400);
-    $b = body();
+// ── PUT — editar ───────────────────────────────────────────────
+if ($m === 'PUT') {
+    $id       = (int)($_GET['id'] ?? 0);
+    $name     = req('name');
+    $location = req('location');
+    $b        = body();
+    $groupId  = isset($b['group_id']) ? ($b['group_id'] ?: null) : null;
+    $plId     = isset($b['playlist_id']) ? ($b['playlist_id'] ?: null) : null;
 
-    // Reset de pareamento
-    if (!empty($b['reset_token'])) {
-        $newToken = rand_token(32);
-        db()->prepare("UPDATE devices SET token=?, status='offline', last_ping=NULL WHERE id=?")->execute([$newToken, $id]);
-        db()->prepare("DELETE FROM pairing_codes WHERE device_id=?")->execute([$id]);
-        log_act(0, 'unpair_device', 'device', $id, 'token reset');
-        json_ok(['id' => $id, 'token' => $newToken]);
-    }
+    if (!$id) json_err('ID inválido');
 
-    $fields = [];
-    $vals   = [];
-    if (isset($b['name']))     { $fields[] = 'name=?';     $vals[] = s($b['name'], 120); }
-    if (isset($b['location'])) { $fields[] = 'location=?'; $vals[] = s($b['location'], 180); }
-    if (array_key_exists('group_id',    $b)) { $fields[] = 'group_id=?';    $vals[] = $b['group_id']    ? sint($b['group_id'])    : null; }
-    if (array_key_exists('playlist_id', $b)) { $fields[] = 'playlist_id=?'; $vals[] = $b['playlist_id'] ? sint($b['playlist_id']) : null; }
+    $db->prepare("UPDATE devices SET name=?, location=?, group_id=?, playlist_id=? WHERE id=?")
+       ->execute([$name ?: null, $location ?: null, $groupId, $plId, $id]);
 
-    if (!$fields) json_err('Nada para atualizar', 400);
-    $vals[] = $id;
-    db()->prepare("UPDATE devices SET " . implode(',', $fields) . " WHERE id=?")->execute($vals);
-    log_act(0, 'update_device', 'device', $id, '');
-    json_ok(['id' => $id]);
+    log_activity('update_device', $payload['sub'], $name);
+
+    // Retorna o registro completo com JOINs para o frontend atualizar
+    // o S.devices[] diretamente, sem recarregar a lista inteira
+    $stmt = $db->prepare("
+        SELECT d.id, d.name, d.location, d.slug, d.status, d.last_ping,
+               d.playlist_id, d.group_id, d.token,
+               g.name AS group_name, p.name AS playlist_name,
+               CONCAT('/tv/', d.slug) AS player_url
+        FROM devices d
+        LEFT JOIN `groups` g ON g.id = d.group_id
+        LEFT JOIN playlists p ON p.id = d.playlist_id
+        WHERE d.id = ?");
+    $stmt->execute([$id]);
+    json_ok($stmt->fetch());
 }
 
-// ── DELETE ────────────────────────────────────────────────────
-if ($method === 'DELETE') {
-    auth_admin();
-    if (!$id) json_err('ID obrigatório', 400);
-    db()->prepare("DELETE FROM devices WHERE id=?")->execute([$id]);
-    log_act(0, 'delete_device', 'device', $id, '');
+// ── DELETE ─────────────────────────────────────────────────────
+if ($m === 'DELETE') {
+    $id = (int)($_GET['id'] ?? 0);
+    if (!$id) json_err('ID inválido');
+    $stmt = $db->prepare("SELECT name FROM devices WHERE id=?");
+    $stmt->execute([$id]);
+    $dev = $stmt->fetch();
+    $db->prepare("DELETE FROM devices WHERE id=?")->execute([$id]);
+    log_activity('delete_device', $payload['sub'], $dev['name'] ?? '');
     json_ok(['deleted' => $id]);
 }
 

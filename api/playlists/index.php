@@ -1,68 +1,89 @@
 <?php
-declare(strict_types=1);
-require_once __DIR__ . '/../helpers.php';
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../jwt.php';
 
-$method = $_SERVER['REQUEST_METHOD'];
-$id     = sint($_GET['id'] ?? 0);
+$payload = auth_required();
+$db      = db();
+$m       = method();
 
-if ($method === 'GET') {
-    auth();
-    if ($id) {
-        $pl = playlist_full($id);
-        if (!$pl) json_err('Não encontrada', 404);
+if ($m === 'GET') {
+    if (isset($_GET['id'])) {
+        $id = (int)$_GET['id'];
+        $stmt = $db->prepare("SELECT id, name, is_default FROM playlists WHERE id=?");
+        $stmt->execute([$id]);
+        $pl = $stmt->fetch();
+        if (!$pl) json_err('Playlist não encontrada', 404);
+
+        $items = $db->prepare("
+            SELECT i.id, i.type, i.url, i.duration, i.sort_order,
+                   m.url AS media_url
+            FROM playlist_items i
+            LEFT JOIN media m ON m.id = i.media_id
+            WHERE i.playlist_id = ?
+            ORDER BY i.sort_order
+        ");
+        $items->execute([$id]);
+        $pl['items'] = $items->fetchAll();
         json_ok($pl);
     }
-    $rows = db()->query(
-        "SELECT p.*, COUNT(i.id) AS item_count
-         FROM playlists p LEFT JOIN playlist_items i ON i.playlist_id = p.id
-         GROUP BY p.id ORDER BY p.name"
-    )->fetchAll();
-    foreach ($rows as &$r) { $r['id'] = (int)$r['id']; $r['item_count'] = (int)$r['item_count']; }
+
+    $rows = $db->query("
+        SELECT p.id, p.name, p.is_default,
+               COUNT(i.id) AS item_count
+        FROM playlists p
+        LEFT JOIN playlist_items i ON i.playlist_id = p.id
+        GROUP BY p.id
+        ORDER BY p.name
+    ")->fetchAll();
     json_ok($rows);
 }
 
-if ($method === 'POST') {
-    $a    = auth_admin();
-    $b    = require_fields(['name']);
-    $name = s($b['name'], 180);
-    $def  = !empty($b['is_default']) ? 1 : 0;
-    if ($def) db()->exec("UPDATE playlists SET is_default=0");
+if ($m === 'POST') {
+    $name    = req('name');
+    $isDef   = !empty(body()['is_default']);
+    $copyFrom = (int)(body()['copy_from'] ?? 0);
 
-    db()->prepare("INSERT INTO playlists (name,is_default,created_by) VALUES (?,?,?)")
-        ->execute([$name, $def, (int)$a['sub']]);
-    $new_id = (int)db()->lastInsertId();
+    if (!$name) json_err('Nome é obrigatório');
 
-    // Duplicar?
-    if (!empty($b['copy_from'])) {
-        $src   = sint($b['copy_from']);
-        $items = db()->prepare("SELECT * FROM playlist_items WHERE playlist_id=? ORDER BY sort_order");
-        $items->execute([$src]);
-        foreach ($items->fetchAll() as $item) {
-            db()->prepare("INSERT INTO playlist_items (playlist_id,media_id,type,url,duration,sort_order) VALUES (?,?,?,?,?,?)")
-                ->execute([$new_id, $item['media_id'], $item['type'], $item['url'], $item['duration'], $item['sort_order']]);
+    if ($isDef) $db->query("UPDATE playlists SET is_default=0");
+
+    $db->prepare("INSERT INTO playlists (name, is_default) VALUES (?,?)")->execute([$name, $isDef ? 1 : 0]);
+    $newId = (int)$db->lastInsertId();
+
+    if ($copyFrom) {
+        $items = $db->prepare("SELECT type, url, duration, media_id, sort_order FROM playlist_items WHERE playlist_id=?");
+        $items->execute([$copyFrom]);
+        $ins = $db->prepare("INSERT INTO playlist_items (playlist_id, type, url, duration, media_id, sort_order) VALUES (?,?,?,?,?,?)");
+        foreach ($items->fetchAll() as $it) {
+            $ins->execute([$newId, $it['type'], $it['url'], $it['duration'], $it['media_id'], $it['sort_order']]);
         }
     }
 
-    log_act((int)$a['sub'], 'create_playlist', 'playlist', $new_id, $name);
-    json_ok(playlist_full($new_id), 201);
+    log_activity('create_playlist', $payload['sub'], $name);
+    json_ok(['id' => $newId, 'name' => $name, 'is_default' => $isDef, 'item_count' => 0]);
 }
 
-if ($method === 'PUT') {
-    auth_admin();
-    if (!$id) json_err('ID obrigatório', 422);
-    $b   = body();
-    $def = !empty($b['is_default']) ? 1 : 0;
-    if ($def) db()->exec("UPDATE playlists SET is_default=0");
-    db()->prepare("UPDATE playlists SET name=?,is_default=?,updated_at=NOW() WHERE id=?")
-        ->execute([s($b['name'] ?? '', 180), $def, $id]);
-    json_ok(playlist_full($id));
+if ($m === 'PUT') {
+    $id   = (int)($_GET['id'] ?? 0);
+    $name = req('name');
+    $isDef = isset(body()['is_default']) ? (bool)body()['is_default'] : null;
+    if (!$id) json_err('ID inválido');
+    if ($isDef) $db->query("UPDATE playlists SET is_default=0");
+    $fields = $isDef !== null ? "name=?, is_default=?" : "name=?";
+    $params = $isDef !== null ? [$name, $isDef ? 1 : 0, $id] : [$name, $id];
+    $db->prepare("UPDATE playlists SET $fields WHERE id=?")->execute($params);
+    json_ok(['id' => $id]);
 }
 
-if ($method === 'DELETE') {
-    auth_admin();
-    if (!$id) json_err('ID obrigatório', 422);
-    db()->prepare("DELETE FROM playlists WHERE id=?")->execute([$id]);
+if ($m === 'DELETE') {
+    $id = (int)($_GET['id'] ?? 0);
+    if (!$id) json_err('ID inválido');
+    $db->prepare("DELETE FROM playlist_items WHERE playlist_id=?")->execute([$id]);
+    $db->prepare("DELETE FROM playlists WHERE id=?")->execute([$id]);
+    // Desvincula devices que usavam essa playlist
+    $db->prepare("UPDATE devices SET playlist_id=NULL WHERE playlist_id=?")->execute([$id]);
+    log_activity('delete_playlist', $payload['sub'], "id=$id");
     json_ok(['deleted' => $id]);
 }
 
-json_err('Método não suportado', 405);
+json_err('Método não permitido', 405);
