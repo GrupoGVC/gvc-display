@@ -14,14 +14,14 @@ DirectoryIndex index.php index.html
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /gvc-display-mvc/
+  RewriteBase /gvc-display/
 
   # Arquivos físicos — serve direto
   RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]
 
   # Pastas estáticas — serve direto  
-  RewriteCond %{REQUEST_URI} ^/gvc-display-mvc/(uploads|assets|resources)/
+  RewriteCond %{REQUEST_URI} ^/gvc-display/(uploads|assets|resources)/
   RewriteRule ^ - [L]
 
   # Tudo → index.php na raiz (mesmo nível do .htaccess)

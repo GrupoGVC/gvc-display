@@ -245,13 +245,13 @@ function renderDevices() {
     ? rows.map((d) => `
       <tr>
         <td><strong>${esc(d.name)}</strong><div style="font-size:12px;color:var(--mut);">${esc(d.location || "—")}</div></td>
-        <td>${d.group_name ? `<span class="tag tg">${esc(d.group_name)}</span>` : '<span style="color:var(--mut);">—</span>'}</td>
-        <td><span class="sdot ${d.status === "online" ? "sdot-on" : "sdot-off"}"></span> <span class="tag ${d.status === "online" ? "tg-on" : "tg-off"}">${d.status}</span></td>
-        <td>${d.playlist_name ? esc(d.playlist_name) : '<span style="color:var(--mut);">—</span>'}</td>
-        <td style="font-size:12px;color:var(--mut);">${d.last_ping ? fmtDate(d.last_ping) : "nunca"}</td>
-        <td>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="btn-p btn-sm" onclick="openPairForDevice(${d.id},'${esc(d.name)}')" title="Parear TV"><i class="bi bi-qr-code-scan"></i>Parear</button>
+        <td data-col="group">${d.group_name ? `<span class="tag tg">${esc(d.group_name)}</span>` : '<span style="color:var(--mut);">—</span>'}</td>
+        <td data-col="status"><span class="sdot ${d.status === "online" ? "sdot-on" : "sdot-off"}"></span> <span class="tag ${d.status === "online" ? "tg-on" : "tg-off"}">${d.status}</span></td>
+        <td data-col="playlist">${d.playlist_name ? esc(d.playlist_name) : '<span style="color:var(--mut);">—</span>'}</td>
+        <td data-col="ping" style="font-size:12px;color:var(--mut);">${d.last_ping ? fmtDate(d.last_ping) : "nunca"}</td>
+        <td class="col-actions">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+            <button class="btn-p btn-sm" onclick="openPairForDevice(${d.id},'${esc(d.name)}')" title="Parear TV"><i class="bi bi-qr-code-scan"></i><span class="btn-label"> Parear</span></button>
             <button class="btn-g btn-sm" onclick="openEditDev(${d.id})" title="Editar"><i class="bi bi-pencil"></i></button>
             <button class="btn-g btn-sm" onclick="openDevInfo(${d.id})" title="Info"><i class="bi bi-gear"></i></button>
             <button class="btn-d btn-sm" onclick="delDev(${d.id})" title="Excluir"><i class="bi bi-trash3"></i></button>
@@ -384,9 +384,9 @@ function renderGroups() {
        ${S.groups.map((g) => `
         <tr>
           <td><strong>${esc(g.name)}</strong></td>
-          <td style="color:var(--mut);">${esc(g.description || "—")}</td>
-          <td><span class="tag tg">${g.device_count}</span></td>
-          <td><div style="display:flex;gap:6px;">
+          <td data-col="group-desc" style="color:var(--mut);">${esc(g.description || "—")}</td>
+          <td data-col="group-count"><span class="tag tg">${g.device_count}</span></td>
+          <td class="col-actions"><div style="display:flex;gap:6px;flex-wrap:wrap;">
             <button class="btn-g btn-sm" onclick="openEditGrupo(${g.id})"><i class="bi bi-pencil"></i></button>
             <button class="btn-d btn-sm" onclick="delGrupo(${g.id})"><i class="bi bi-trash3"></i></button>
           </div></td>
@@ -486,10 +486,10 @@ function renderPlaylists() {
        ${S.playlists.map((p) => `
         <tr>
           <td><strong>${esc(p.name)}</strong></td>
-          <td><span class="tag tg">${p.item_count} itens</span></td>
-          <td>${p.is_default ? '<span class="tag tg-def">⭐ Padrão</span>' : ""}</td>
-          <td><div style="display:flex;gap:6px;">
-            <button class="btn-p btn-sm" onclick="editPlaylist(${p.id})"><i class="bi bi-pencil"></i> Editar</button>
+          <td data-col="pl-count"><span class="tag tg">${p.item_count} itens</span></td>
+          <td data-col="pl-default">${p.is_default ? '<span class="tag tg-def">⭐ Padrão</span>' : ""}</td>
+          <td class="col-actions"><div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn-p btn-sm" onclick="editPlaylist(${p.id})"><i class="bi bi-pencil"></i><span class="btn-label"> Editar</span></button>
             <button class="btn-d btn-sm" onclick="delPl(${p.id})"><i class="bi bi-trash3"></i></button>
           </div></td>
         </tr>`).join("")}

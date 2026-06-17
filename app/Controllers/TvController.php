@@ -49,6 +49,23 @@ class TvController extends Controller
         header('Cache-Control: no-cache, no-store, must-revalidate');
 
         $html = file_get_contents(ROOT . '/resources/views/player.html');
+
+        // Injeta meta tags PWA para o player (fullscreen, landscape, tema escuro)
+        $pwaMeta = <<<PWAMETA
+    <link rel="manifest" href="{$baseUrl}/assets/manifest.tv.json"/>
+    <meta name="theme-color" content="#0d1117"/>
+    <meta name="mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+    <link rel="apple-touch-icon" href="{$baseUrl}/assets/icons/icon-192.png"/>
+PWAMETA;
+        $html = str_replace('</head>', $pwaMeta . "
+  </head>", $html);
+
+        // Injeta SW após as variáveis JS
+        $swScript = '    <script src="' . $baseUrl . '/resources/js/pwa.js"></script>';
+        $html = str_replace('</body>', $swScript . "
+</body>", $html);
         // Monta o bloco de variáveis com valores reais
         $inject = '<script>'
             . 'window.__DEVICE_TOKEN__=' . json_encode($token)   . ';'

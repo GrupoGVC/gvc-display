@@ -6,15 +6,9 @@
 // ============================================================
 
 use App\Controllers\{
-    AuthController,
-    DeviceController,
-    GroupController,
-    PlaylistController,
-    ItemController,
-    MediaController,
-    ScheduleController,
-    PairingController,
-    DashboardController
+    AuthController, DeviceController, GroupController,
+    PlaylistController, ItemController, MediaController,
+    ScheduleController, PairingController, DashboardController
 };
 
 // ── Auth ──────────────────────────────────────────────────────
