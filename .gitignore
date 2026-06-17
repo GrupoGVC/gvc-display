@@ -1,0 +1,9 @@
+.env
+uploads/images/*
+uploads/videos/*
+!uploads/images/.gitkeep
+!uploads/videos/.gitkeep
+*.sql
+!db_gvc_display.sql
+*.dmp
+*.log

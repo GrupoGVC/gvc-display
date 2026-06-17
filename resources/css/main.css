@@ -1,0 +1,371 @@
+/* ============================================================
+   GVC Display — Main CSS  (variáveis + reset global)
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap");
+
+:root {
+  --font: "Lato", system-ui, sans-serif;
+  --bg1: #0d1117;
+  --bg2: #161b27;
+  --bg3: #1e2535;
+  --bord: #252d3f;
+  --bord2: #2e3a50;
+  --txt: #e2e8f0;
+  --txt2: #94a3b8;
+  --mut: #64748b;
+  --primary: #4f8cff;
+  --green: #22c55e;
+  --red: #ff4f6a;
+  --yellow: #eab308;
+  --orange: #f97316;
+  --radius: 10px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 14px;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg1);
+  color: var(--txt);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bord2);
+  border-radius: 3px;
+}
+
+/* ── Bootstrap modal override ──────────────────────────────── */
+.modal-content {
+  background: var(--bg2);
+  border: 1px solid var(--bord);
+  border-radius: 14px;
+  color: var(--txt);
+}
+.modal-header {
+  border-bottom: 1px solid var(--bord);
+  padding: 16px 20px;
+}
+.modal-footer {
+  border-top: 1px solid var(--bord);
+  padding: 14px 20px;
+  gap: 8px;
+}
+.modal-body {
+  padding: 20px;
+}
+.modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-close {
+  filter: invert(1) brightness(0.6);
+}
+.btn-close:hover {
+  filter: invert(1) brightness(1);
+}
+
+/* ── Form groups ───────────────────────────────────────────── */
+.fg {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+.fg label {
+  font-size: 12px;
+  color: var(--txt2);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.fg input,
+.fg select,
+.fg textarea {
+  padding: 9px 13px;
+  background: var(--bg3);
+  border: 1px solid var(--bord2);
+  border-radius: 8px;
+  color: var(--txt);
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+  width: 100%;
+}
+.fg input:focus,
+.fg select:focus,
+.fg textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.15);
+}
+.fg select option {
+  background: var(--bg3);
+}
+.hint {
+  font-size: 11px;
+  color: var(--mut);
+  margin-top: 3px;
+}
+
+/* ── Botões ────────────────────────────────────────────────── */
+button {
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+.btn-p,
+.btn-g,
+.btn-d {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid transparent;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-p {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.btn-p:hover {
+  background: #3a7ae8;
+  border-color: #3a7ae8;
+}
+
+.btn-g {
+  background: var(--bg3);
+  color: var(--txt);
+  border-color: var(--bord2);
+}
+.btn-g:hover {
+  border-color: var(--txt2);
+}
+
+.btn-d {
+  background: rgba(255, 79, 106, 0.1);
+  color: var(--red);
+  border-color: rgba(255, 79, 106, 0.35);
+}
+.btn-d:hover {
+  background: rgba(255, 79, 106, 0.18);
+  border-color: var(--red);
+}
+
+/* Cancelar em modal-footer também tem borda vermelha */
+.modal-footer .btn-g {
+  border-color: rgba(255, 79, 106, 0.35);
+  color: var(--red);
+}
+.modal-footer .btn-g:hover {
+  border-color: var(--red);
+  background: rgba(255, 79, 106, 0.08);
+}
+
+.btn-sm {
+  padding: 5px 11px;
+  font-size: 12px;
+  border-radius: 7px;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ── Tags / badges ─────────────────────────────────────────── */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.tg {
+  background: var(--bg3);
+  color: var(--txt2);
+  border: 1px solid var(--bord2);
+}
+.tg-on {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--green);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+.tg-off {
+  background: rgba(100, 116, 139, 0.12);
+  color: var(--mut);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+}
+.tg-def {
+  background: rgba(234, 179, 8, 0.12);
+  color: var(--yellow);
+  border: 1px solid rgba(234, 179, 8, 0.25);
+}
+
+/* ── Status dots ───────────────────────────────────────────── */
+.sdot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sdot-on {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+.sdot-off {
+  background: var(--mut);
+}
+.dot-on {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+
+/* ── Toast ─────────────────────────────────────────────────── */
+.toast-wrap {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+}
+.gvc-toast {
+  padding: 11px 18px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  max-width: 320px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 0.22s,
+    transform 0.22s;
+  pointer-events: none;
+}
+.gvc-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.toast-ok {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--green);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+.toast-err {
+  background: rgba(255, 79, 106, 0.15);
+  color: var(--red);
+  border: 1px solid rgba(255, 79, 106, 0.3);
+}
+
+/* ── Misc ──────────────────────────────────────────────────── */
+.hidden {
+  display: none !important;
+}
+.empty {
+  color: var(--mut);
+  font-size: 13px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.pair-code-box {
+  font-family: monospace;
+  font-size: 18px;
+  letter-spacing: 4px;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.tokdisp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--bord2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  overflow: hidden;
+}
+.tokdisp code {
+  flex: 1;
+  font-size: 11px;
+  color: var(--txt2);
+  word-break: break-all;
+  background: transparent;
+}
+.copybtn {
+  background: var(--bg2);
+  border: 1px solid var(--bord2);
+  border-radius: 6px;
+  color: var(--txt2);
+  font-size: 11px;
+  padding: 3px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: 0.15s;
+}
+.copybtn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.day-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--bord2);
+  background: var(--bg3);
+  transition: 0.12s;
+}
+.day-check input {
+  width: auto;
+  accent-color: var(--primary);
+}
+.day-check:has(input:checked) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(79, 140, 255, 0.1);
+}

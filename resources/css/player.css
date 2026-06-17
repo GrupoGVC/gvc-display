@@ -1,0 +1,332 @@
+/* ============================================================
+   GVC Display — Player CSS
+   Tela da TV: pareamento, status, stage (apresentação)
+   ============================================================ */
+
+/* ── Reset ───────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: #0d1117;
+  overflow: hidden;
+  font-family: "Inter", "Lato", system-ui, sans-serif;
+  color: #fff;
+}
+
+/* ── Stage — exibe o conteúdo (imagem/vídeo/iframe) ──────── */
+#stage {
+  position: fixed;
+  inset: 0;
+  background: #0d1117;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TELA DE PAREAMENTO
+   ═══════════════════════════════════════════════════════════ */
+#pairing-screen {
+  position: fixed;
+  inset: 0;
+  display: none;
+  background: #170d15;
+  padding: clamp(24px, 4vw, 60px);
+  overflow: auto;
+}
+
+/* ── Logo ─────────────────────────────────────────────────── */
+.p-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: clamp(24px, 4vh, 52px);
+}
+
+.p-logo svg {
+  flex-shrink: 0;
+  width: clamp(24px, 3vw, 36px);
+  height: auto;
+}
+
+.p-logo-name {
+  font-size: clamp(16px, 2vw, 22px);
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: #f1f5f9;
+}
+
+.p-logo-name span {
+  color: #4f8cff;
+}
+
+.p-logo-sub {
+  font-size: clamp(10px, 1.2vw, 12px);
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+/* ── Layout 2 colunas ────────────────────────────────────── */
+.p-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(32px, 5vw, 80px);
+  align-items: center;
+  max-width: min(960px, 100%);
+}
+
+/* ── Coluna esquerda ─────────────────────────────────────── */
+.p-left h1 {
+  font-size: clamp(28px, 4.5vw, 56px);
+  font-weight: 900;
+  line-height: 1.1;
+  margin-bottom: clamp(12px, 2vh, 24px);
+  color: #f1f5f9;
+  letter-spacing: -1px;
+}
+
+.p-left p {
+  font-size: clamp(13px, 1.4vw, 16px);
+  color: #94a3b8;
+  line-height: 1.6;
+  margin-bottom: clamp(16px, 2.5vh, 32px);
+}
+
+/* ── Label do código ─────────────────────────────────────── */
+.p-code-label {
+  font-size: clamp(9px, 1vw, 11px);
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 10px;
+}
+
+/* ── Caixa do código ─────────────────────────────────────── */
+.p-code-box {
+  background: #161b27;
+  border: 1.5px solid #2a3040;
+  border-radius: 14px;
+  padding: clamp(12px, 2vh, 20px) clamp(16px, 2.5vw, 28px);
+  display: inline-flex;
+  gap: clamp(8px, 1.5vw, 18px);
+  align-items: center;
+  margin-bottom: 12px;
+  box-shadow:
+    0 0 0 1px rgba(79, 140, 255, 0.08),
+    0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.p-code-box span {
+  font-family: "Courier New", "Consolas", monospace;
+  font-size: clamp(32px, 5.5vw, 56px);
+  font-weight: 900;
+  color: #4f8cff;
+  line-height: 1;
+  min-width: clamp(24px, 3vw, 36px);
+  text-align: center;
+  text-shadow: 0 0 20px rgba(79, 140, 255, 0.4);
+}
+
+/* ── Loading: dígitos como traços ────────────────────────── */
+.p-code-box span.loading {
+  color: #2a3040;
+  text-shadow: none;
+}
+
+/* ── TTL do código ───────────────────────────────────────── */
+.p-code-ttl {
+  font-size: clamp(11px, 1.2vw, 13px);
+  color: #4b5563;
+  margin-bottom: 4px;
+}
+
+/* ── Status (aguardando vinculação) ──────────────────────── */
+.p-status {
+  margin-top: clamp(12px, 2vh, 24px);
+  font-size: clamp(12px, 1.3vw, 14px);
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.p-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+}
+
+/* ── Coluna direita — QR Code ────────────────────────────── */
+.p-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(10px, 1.5vh, 16px);
+}
+
+.p-qr-wrap {
+  width: clamp(140px, 18vw, 220px);
+  height: clamp(140px, 18vw, 220px);
+  background: #fff;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+#pair-qr {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
+  display: none;
+}
+
+.p-qr-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 16px;
+}
+
+.p-qr-hint {
+  font-size: clamp(11px, 1.2vw, 13px);
+  color: #6b7280;
+  text-align: center;
+  max-width: clamp(160px, 18vw, 220px);
+  line-height: 1.5;
+}
+
+.p-qr-url {
+  font-size: clamp(10px, 1.1vw, 12px);
+  color: #4f8cff;
+  word-break: break-all;
+  text-align: center;
+  max-width: clamp(160px, 18vw, 220px);
+  text-decoration: none;
+}
+
+.p-qr-url:hover {
+  text-decoration: underline;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TELA DE STATUS
+   (sem playlist, reconectando, erro etc.)
+   ═══════════════════════════════════════════════════════════ */
+#status-screen {
+  position: fixed;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #0d1117;
+  gap: 16px;
+}
+
+#status-icon {
+  font-size: clamp(40px, 6vw, 64px);
+  line-height: 1;
+}
+
+#status-msg {
+  font-size: clamp(16px, 2.5vw, 22px);
+  font-weight: 700;
+  color: #e2e8f0;
+  text-align: center;
+}
+
+#status-sub {
+  font-size: clamp(12px, 1.4vw, 15px);
+  color: #6b7280;
+  text-align: center;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+/* ── Spinner (reconectando) ──────────────────────────────── */
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #2a3040;
+  border-top-color: #4f8cff;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVIDADE — TVs pequenas (< 900px)
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .p-body {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .p-right {
+    /* No mobile, QR fica abaixo do código mas menor */
+    flex-direction: row;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .p-qr-wrap {
+    width: 120px;
+    height: 120px;
+  }
+}
+
+@media (max-width: 600px) {
+  #pairing-screen {
+    padding: 20px;
+  }
+
+  .p-left h1 {
+    font-size: 28px;
+  }
+
+  .p-code-box span {
+    font-size: 32px;
+  }
+
+  .p-qr-wrap {
+    width: 100px;
+    height: 100px;
+  }
+}

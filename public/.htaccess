@@ -1,0 +1,5 @@
+# Acesso direto à pasta public/ não é necessário
+# mas o Apache precisa conseguir executar o index.php aqui
+<IfModule mod_rewrite.c>
+  RewriteEngine Off
+</IfModule>
