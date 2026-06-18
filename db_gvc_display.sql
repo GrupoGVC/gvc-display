@@ -106,3 +106,7 @@ INSERT IGNORE INTO users (name, email, password_hash) VALUES
 
 -- ── Playlist padrão ────────────────────────────────────────────
 INSERT IGNORE INTO playlists (id, name, is_default) VALUES (1, 'Padrão', 1);
+
+UPDATE users 
+SET password_hash = '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'
+WHERE email = 'admin@gvc.com';

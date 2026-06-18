@@ -16,27 +16,60 @@ import {
   populateSelect,
 } from "./utils.js";
 
+// ── Confirmação customizada (substitui alert/confirm nativos) ─
+function confirmDlg(msg) {
+  return new Promise((resolve) => {
+    const id  = 'dlg-' + Date.now();
+    const el  = document.createElement('div');
+    el.id     = id;
+    el.style.cssText = `
+      position:fixed;inset:0;z-index:10000;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.6);backdrop-filter:blur(3px);
+      animation:fadeIn .15s ease;
+    `;
+    el.innerHTML = `
+      <div style="
+        background:var(--bg2);border:1px solid var(--bord);
+        border-radius:14px;padding:24px 28px;max-width:340px;width:90%;
+        box-shadow:0 20px 60px rgba(0,0,0,.5);animation:slideUp .15s ease;
+      ">
+        <p style="font-size:14px;color:var(--txt);margin:0 0 20px;line-height:1.5;">${msg}</p>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button id="${id}-no" class="btn-g" style="min-width:80px;">Cancelar</button>
+          <button id="${id}-yes" class="btn-d" style="min-width:80px;">Confirmar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(el);
+    const cleanup = (v) => { el.remove(); resolve(v); };
+    document.getElementById(id + '-yes').onclick = () => cleanup(true);
+    document.getElementById(id + '-no').onclick  = () => cleanup(false);
+    el.onclick = (e) => { if (e.target === el) cleanup(false); };
+  });
+}
+
+
+
 // ── Helper: resolve URL de mídia (relativa ou absoluta) ─────────
 function mediaUrl(url) {
   if (!url) return '';
-  // Remove o nome do arquivo HTML/PHP da pathname para obter a raiz do projeto
-  // Funciona em: /gvc-display/index.php, /gvc-display/index.html, /gvc-display/
-  const base = window.location.origin +
-    window.location.pathname
-      .replace(/\/(index|login)\.(html|php)(\?.*)?$/, '')
-      .replace(/\/+$/, '');
-
-  if (url.startsWith('/uploads/')) return base + url;
-  if (url.startsWith('/')) return window.location.origin + url;
+  // Usa o BASE exportado pelo api.js — já calculado corretamente
+  // para qualquer subpasta (/gvc-display, /gvc-display-mvc, etc.)
+  if (url.startsWith('/uploads/')) {
+    const resolved = BASE + url;
+    return resolved;
+  }
   if (url.startsWith('http://') || url.startsWith('https://')) {
     try {
       const u = new URL(url);
       const i = u.pathname.indexOf('/uploads/');
-      if (i >= 0) return base + u.pathname.slice(i);
+      if (i >= 0) return BASE + u.pathname.slice(i);
       return url;
     } catch { return url; }
   }
-  return base + '/' + url;
+  if (url.startsWith('/')) return window.location.origin + url;
+  return BASE + '/' + url;
 }
 
 // ── Estado global ─────────────────────────────────────────────
@@ -355,7 +388,7 @@ window.openDevInfo = (id) => {
 // DEPOIS: remove o item de S.devices[] e re-renderiza imediatamente após sucesso,
 //         sem nova requisição GET; erro exibe toast.
 window.delDev = async (id) => {
-  if (!confirm("Remover este dispositivo?")) return;
+  if (!await confirmDlg("Remover este dispositivo?")) return;
   try {
     await del(`devices/${id}`);
     S.devices = S.devices.filter((d) => d.id !== id);
@@ -456,7 +489,7 @@ window.doSaveGrupo = async () => {
 // ANTES: sem try/catch — erro silencioso, linha não era removida da tabela.
 // DEPOIS: remove do array e re-renderiza imediatamente; erro exibe toast.
 window.delGrupo = async (id) => {
-  if (!confirm("Remover este grupo?")) return;
+  if (!await confirmDlg("Remover este grupo?")) return;
   try {
     await del(`groups/${id}`);
     S.groups = S.groups.filter((g) => g.id !== id);
@@ -534,12 +567,17 @@ function renderPlItems() {
   el.innerHTML = S.curPlItems.map((item, i) => {
     const _rawSrc = item.media_url || item.url || "";
     const src = mediaUrl(_rawSrc);
+    // DEBUG: remova após confirmar
+    if (i === 0) console.log('[GVC Debug] item:', JSON.stringify(item), '→ src:', src);
+    const isVideo = item.type === "video" || /\.(mp4|webm|ogg)$/i.test(src);
     const thumb =
-      item.type === "video"
-        ? `<video src="${src}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>`
+      isVideo
+        ? `<video src="${src}" muted preload="metadata" playsinline
+             style="width:100%;height:100%;object-fit:cover;display:block;"
+             onloadeddata="this.currentTime=1"></video>`
         : item.type === "page"
           ? `<i class="bi bi-globe" style="font-size:24px;color:var(--primary)"></i>`
-          : `<img src="${src}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;" />`;
+          : `<img src="${src}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" />`;
     return `
       <div class="pl-item" draggable="true" data-i="${i}"
            ondragstart="onDragStart(event,${i})" ondragover="onDragOver(event)" ondrop="onDrop(event,${i})">
@@ -578,20 +616,25 @@ window.previewItem = (i) => {
   const src    = mediaUrl(rawUrl);
   const pv     = q("#preview");
 
-  if (item.type === "video") {
+  // Detecta tipo pela extensão (mais confiável que o campo salvo)
+  const isVideo = item.type === "video" || /\.(mp4|webm|ogg|mov)$/i.test(src);
+  const isPage  = item.type === "page";
+
+  if (isVideo) {
     pv.innerHTML = `<video controls autoplay muted playsinline preload="metadata"
       style="width:100%;height:100%;object-fit:contain;background:#000;">
       <source src="${src}" type="video/mp4">
       <source src="${src}" type="video/webm">
     </video>`;
-  } else if (item.type === "page") {
+  } else if (isPage) {
     pv.innerHTML = `<iframe src="${src}" style="width:100%;height:100%;border:none;"
       sandbox="allow-scripts allow-same-origin"></iframe>`;
   } else {
     pv.innerHTML = `<img src="${src}" alt=""
-      style="width:100%;height:100%;object-fit:contain;display:block;" />`;
+      style="width:100%;height:100%;object-fit:contain;display:block;"
+      onerror="this.style.opacity='.3'" />`;
   }
-  q("#prev-hint").textContent = `${item.type} · ${item.duration}s`;
+  q("#prev-hint").textContent = `${isVideo ? 'video' : item.type} · ${item.duration}s`;
 };
 
 window.openAddPl = () => {
@@ -682,7 +725,7 @@ window.deleteCurPl = async () => {
 // ANTES: sem try/catch — erro silencioso, linha não era removida.
 // DEPOIS: remove do array e re-renderiza; erro exibe toast.
 window.delPl = async (id) => {
-  if (!confirm("Excluir esta playlist?")) return;
+  if (!await confirmDlg("Excluir esta playlist?")) return;
   try {
     await del(`playlists/${id}`);
     S.playlists = S.playlists.filter((p) => p.id !== id);
@@ -719,15 +762,25 @@ window.togDur = () => {
 
 function renderMpicker() {
   const type = q("#it-tipo").value;
-  let list = type === "page" ? [] : S.media.filter((m) => m.type === type);
-  if (!list.length && type !== "page") list = S.media;
+  // Mostra toda a mídia disponível — o tipo do item é definido pelo select acima
+  // Vídeos e imagens ficam todos visíveis para o usuário escolher
+  let list = type === "page" ? [] : S.media;
 
   q("#mpicker").innerHTML = list.length
     ? list.map((m) => `
-      <div class="mp-item" title="${esc(m.original)}" onclick="pickMedia('${m.url}',this)">
+      <div class="mp-item" title="${esc(m.original)}" onclick="pickMedia('${m.url}',this)"
+           style="position:relative;">
         ${m.type === "video"
-          ? `<video src="${mediaUrl(m.url)}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>`
-          : `<img src="${mediaUrl(m.url)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;" />`
+          ? `<video src="${mediaUrl(m.url)}" muted preload="metadata" playsinline
+               style="width:100%;height:100%;object-fit:cover;display:block;"
+               onloadeddata="this.currentTime=1"></video>
+             <div style="position:absolute;inset:0;display:flex;align-items:center;
+               justify-content:center;pointer-events:none;">
+               <i class="bi bi-play-circle-fill" style="font-size:22px;color:#fff;
+                 text-shadow:0 1px 4px rgba(0,0,0,.8);"></i>
+             </div>`
+          : `<img src="${mediaUrl(m.url)}" alt="" loading="lazy"
+               style="width:100%;height:100%;object-fit:cover;display:block;" />`
         }
       </div>`).join("")
     : '<p style="font-size:12px;color:var(--mut);grid-column:1/-1;padding:8px;">Nenhuma mídia na biblioteca. Faça upload em <strong>Mídia</strong> primeiro.</p>';
@@ -737,6 +790,14 @@ window.pickMedia = (url, el) => {
   qa("#mpicker .mp-item").forEach((c) => c.classList.remove("selected"));
   el.classList.add("selected");
   q("#it-url").value = url;
+
+  // Detecta o tipo pelo arquivo selecionado e atualiza o select
+  const isVideo = /\.(mp4|webm|ogg|mov|avi)$/i.test(url);
+  const tipoSel = q("#it-tipo");
+  if (tipoSel) {
+    tipoSel.value = isVideo ? "video" : "image";
+    togDur(); // atualiza campo de duração
+  }
 };
 
 // FIX: doAddItem
@@ -794,7 +855,7 @@ window.doAddItem = async () => {
 // ANTES: sem try/catch; fazia GET extra na playlist após deletar.
 // DEPOIS: remove o item de S.curPlItems[] diretamente e re-renderiza; erro exibe toast.
 window.delItem = async (id) => {
-  if (!confirm("Remover este item?")) return;
+  if (!await confirmDlg("Remover este item?")) return;
   try {
     await del(`items/${id}`);
     S.curPlItems = S.curPlItems.filter((it) => it.id !== id);
@@ -1019,7 +1080,7 @@ window.doUpload = async (files) => {
 // DEPOIS: try/catch com toast; remove de S.media[] e re-renderiza imediatamente.
 window.delMedia = async (id, e) => {
   e.stopPropagation();
-  if (!confirm("Remover esta mídia?")) return;
+  if (!await confirmDlg("Remover esta mídia?")) return;
   try {
     await del(`media/${id}`);
     S.media = S.media.filter((m) => m.id !== id);
@@ -1054,19 +1115,30 @@ function renderSchedules() {
   if (!el) return;
   const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
   el.innerHTML = S.schedules.length
-    ? `<table class="gvc-table"><thead><tr><th>Playlist</th><th>Destino</th><th>Início</th><th>Fim</th><th>Repetição</th><th>Status</th><th>Ações</th></tr></thead><tbody>
+    ? `<table class="gvc-table"><thead><tr>
+          <th>Playlist</th>
+          <th data-col="sch-dest">Destino</th>
+          <th data-col="sch-inicio">Início</th>
+          <th data-col="sch-fim">Fim</th>
+          <th data-col="sch-rep">Repetição</th>
+          <th data-col="status">Status</th>
+          <th>Ações</th>
+        </tr></thead><tbody>
        ${S.schedules.map((s) => `
         <tr>
           <td>${esc(s.playlist_name)}</td>
-          <td>${esc(s.target_type)}${s.target_id ? " #" + s.target_id : ""}</td>
-          <td style="font-size:12px;">${fmtDate(s.starts_at)}</td>
-          <td style="font-size:12px;">${fmtDate(s.ends_at)}</td>
-          <td style="font-size:12px;">${s.repeat_weekly ? (s.weekdays || []).map((d) => days[d]).join(", ") : "Único"}</td>
-          <td><span class="tag ${s.active ? "tg-on" : "tg-off"}">${s.active ? "Ativo" : "Inativo"}</span></td>
-          <td><div style="display:flex;gap:6px;">
-            <button class="btn-g btn-sm" onclick="toggleSched(${s.id},${s.active})">${s.active ? '<i class="bi bi-pause-circle"></i>' : '<i class="bi bi-play-circle"></i>'}</button>
-            <button class="btn-d btn-sm" onclick="delSched(${s.id})"><i class="bi bi-trash3"></i></button>
-          </div></td>
+          <td data-col="sch-dest">${esc(s.target_type)}${s.target_id ? " #" + s.target_id : ""}</td>
+          <td data-col="sch-inicio" style="font-size:12px;">${fmtDate(s.starts_at)}</td>
+          <td data-col="sch-fim" style="font-size:12px;">${fmtDate(s.ends_at)}</td>
+          <td data-col="sch-rep" style="font-size:12px;">${s.repeat_weekly ? (s.weekdays || []).map((d) => days[d]).join(", ") : "Único"}</td>
+          <td data-col="status"><span class="tag ${s.active ? "tg-on" : "tg-off"}">${s.active ? "Ativo" : "Inativo"}</span></td>
+          <td class="col-actions" style="white-space:nowrap;">
+            <div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;">
+              <button class="btn-g btn-sm" onclick="openEditSched(${s.id})" title="Editar"><i class="bi bi-pencil"></i></button>
+              <button class="btn-g btn-sm" onclick="toggleSched(${s.id},${s.active})" title="${s.active ? 'Pausar' : 'Ativar'}">${s.active ? '<i class="bi bi-pause-circle"></i>' : '<i class="bi bi-play-circle"></i>'}</button>
+              <button class="btn-d btn-sm" onclick="delSched(${s.id})" title="Excluir"><i class="bi bi-trash3"></i></button>
+            </div>
+          </td>
         </tr>`).join("")}
        </tbody></table>`
     : '<p class="empty">Nenhum agendamento criado</p>';
@@ -1098,8 +1170,13 @@ window.togRepeat = () => {
 window.doSaveAgenda = async () => {
   const pl     = q("#ag-pl").value;
   const target = q("#ag-target").value;
-  const starts = q("#ag-inicio").value;
-  const ends   = q("#ag-fim").value;
+  // Combina date + time dos campos separados
+  const inicioData = q("#ag-inicio-data")?.value || "";
+  const inicioHora = q("#ag-inicio-hora")?.value || "08:00";
+  const fimData    = q("#ag-fim-data")?.value    || "";
+  const fimHora    = q("#ag-fim-hora")?.value    || "18:00";
+  const starts = inicioData ? `${inicioData} ${inicioHora}:00` : "";
+  const ends   = fimData    ? `${fimData} ${fimHora}:00`       : "";
   const repeat = q("#ag-repeat").checked;
   if (!pl || !starts || !ends) return toast("Preencha todos os campos", "err");
 
@@ -1110,19 +1187,28 @@ window.doSaveAgenda = async () => {
   if (target.startsWith("group:"))  { ttype = "group";  tid = parseInt(target.split(":")[1]); }
   if (target.startsWith("device:")) { ttype = "device"; tid = parseInt(target.split(":")[1]); }
 
-  const btn = q("#btn-save-agenda");
+  const btn    = q("#btn-save-agenda");
   if (btn) btn.disabled = true;
 
+  // Verifica se é edição ou criação
+  const editId = parseInt(q("#m-agenda")?.dataset?.editId || "0");
+
   try {
-    const saved = await post("schedules", {
+    const payload = {
       playlist_id:   pl,
       target_type:   ttype,
       target_id:     tid,
-      starts_at:     starts.replace("T", " "),
-      ends_at:       ends.replace("T", " "),
+      starts_at:     starts,
+      ends_at:       ends,
       repeat_weekly: repeat,
       weekdays,
-    });
+    };
+    // Suporta edição (PUT) e criação (POST)
+    const saved = editId
+      ? await put("schedules/" + editId, payload)
+      : await post("schedules", payload);
+    if (q("#m-agenda")) delete q("#m-agenda").dataset.editId;
+    if (q("#btn-save-agenda")) q("#btn-save-agenda").textContent = "Criar";
 
     // Monta o objeto para o array local com os campos que renderSchedules() precisa
     const plObj = S.playlists.find((p) => String(p.id) === String(pl));
@@ -1166,11 +1252,8 @@ window.toggleSched = async (id, active) => {
   }
 };
 
-// FIX: delSched
-// ANTES: sem try/catch.
-// DEPOIS: remove do array e re-renderiza; erro exibe toast.
 window.delSched = async (id) => {
-  if (!confirm("Remover agendamento?")) return;
+  if (!await confirmDlg("Remover agendamento?")) return;
   try {
     await del(`schedules/${id}`);
     S.schedules = S.schedules.filter((s) => s.id !== id);
@@ -1179,6 +1262,50 @@ window.delSched = async (id) => {
   } catch (e) {
     toast(e.message, "err");
   }
+};
+
+// Abre modal de agendamento para edição
+window.openEditSched = (id) => {
+  const s = S.schedules.find(x => x.id === id);
+  if (!s) return;
+
+  populateSelect("ag-pl", S.playlists, "name", { emptyLabel: "selecione", selectedVal: s.playlist_id });
+  const sel = q("#ag-target");
+  sel.innerHTML = '<option value="all">Todas as TVs</option>';
+  S.groups.forEach(g => sel.insertAdjacentHTML("beforeend", `<option value="group:${g.id}">${esc(g.name)}</option>`));
+  S.devices.forEach(d => sel.insertAdjacentHTML("beforeend", `<option value="device:${d.id}">${esc(d.name)}</option>`));
+
+  // Seta o destino
+  if (s.target_type === 'group')  sel.value = `group:${s.target_id}`;
+  else if (s.target_type === 'device') sel.value = `device:${s.target_id}`;
+  else sel.value = 'all';
+
+  // Preenche data/hora separados
+  if (s.starts_at) {
+    const [d, t] = (s.starts_at.replace('T', ' ')).split(' ');
+    if (q("#ag-inicio-data")) q("#ag-inicio-data").value = d || '';
+    if (q("#ag-inicio-hora")) q("#ag-inicio-hora").value = (t || '08:00').slice(0, 5);
+  }
+  if (s.ends_at) {
+    const [d, t] = (s.ends_at.replace('T', ' ')).split(' ');
+    if (q("#ag-fim-data")) q("#ag-fim-data").value = d || '';
+    if (q("#ag-fim-hora")) q("#ag-fim-hora").value = (t || '18:00').slice(0, 5);
+  }
+
+  const repeat = s.repeat_weekly;
+  q("#ag-repeat").checked = repeat;
+  q("#ag-days-wrap").classList.toggle("hidden", !repeat);
+  if (repeat && s.weekdays) {
+    const days = Array.isArray(s.weekdays) ? s.weekdays : JSON.parse(s.weekdays || '[]');
+    qa("#ag-days-wrap input[type=checkbox]").forEach(cb => {
+      cb.checked = days.includes(parseInt(cb.value));
+    });
+  }
+
+  // Guarda ID para o save saber que é edição
+  q("#m-agenda").dataset.editId = id;
+  q("#btn-save-agenda").textContent = "Salvar alterações";
+  openModal("m-agenda");
 };
 
 // ═══════════════════════════════════════════════════════════════

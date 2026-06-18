@@ -55,7 +55,14 @@ self.addEventListener('fetch', (e) => {
   // 1. API — nunca cacheia (sempre Network)
   if (url.pathname.includes('/api/')) return;
 
-  // 2. Assets estáticos (CSS, JS, imagens, fontes) — Cache First
+  // 2. Uploads — passa direto para a rede sem cache
+  // Vídeos MP4 causam ERR_CACHE_OPERATION_NOT_SUPPORTED no Cache API
+  if (url.pathname.includes('/uploads/')) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // 3. Assets estáticos (CSS, JS, fontes, ícones) — Cache First
   if (isStaticAsset(url)) {
     e.respondWith(cacheFirst(e.request));
     return;

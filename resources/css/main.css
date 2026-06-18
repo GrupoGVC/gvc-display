@@ -284,6 +284,16 @@ button:disabled { opacity: 0.55; cursor: default; pointer-events: none; }
   .modal-content { border-radius: 16px 16px 0 0; }
 
   /* Toast no topo, não tampa botões */
-  .toast-wrap { top: 64px; bottom: auto; left: 12px; right: 12px; }
-  .gvc-toast  { max-width: 100%; }
+  /* Toast: parte inferior da tela, acima do conteúdo */
+  .toast-wrap {
+    bottom: 16px;
+    top: auto;
+    left: 12px;
+    right: 12px;
+    align-items: center;
+  }
+  .gvc-toast {
+    max-width: 100%;
+    text-align: center;
+  }
 }

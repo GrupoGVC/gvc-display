@@ -616,7 +616,7 @@
 
 <!-- Modal: Agendamento -->
 <div class="modal fade" id="m-agenda" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:540px;">
     <div class="modal-content">
       <div class="modal-header">
         <div class="modal-title"><i class="bi bi-calendar-check"></i>Novo Agendamento</div>
@@ -626,8 +626,26 @@
         <div class="fg"><label>Playlist</label><select id="ag-pl"><option value="">— selecione —</option></select></div>
         <div class="fg"><label>Destino</label><select id="ag-target"><option value="all">Todas as TVs</option></select></div>
         <div class="row g-2">
-          <div class="col-6"><div class="fg"><label>Início</label><input type="datetime-local" id="ag-inicio"/></div></div>
-          <div class="col-6"><div class="fg"><label>Fim</label><input type="datetime-local" id="ag-fim"/></div></div>
+          <div class="col-6">
+            <div class="fg">
+              <label>Data Início</label>
+              <input type="date" id="ag-inicio-data" style="width:100%;"/>
+            </div>
+            <div class="fg">
+              <label>Hora Início</label>
+              <input type="time" id="ag-inicio-hora" value="08:00" style="width:100%;"/>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="fg">
+              <label>Data Fim</label>
+              <input type="date" id="ag-fim-data" style="width:100%;"/>
+            </div>
+            <div class="fg">
+              <label>Hora Fim</label>
+              <input type="time" id="ag-fim-hora" value="18:00" style="width:100%;"/>
+            </div>
+          </div>
         </div>
         <div class="d-flex align-items-center gap-2 mb-2">
           <input type="checkbox" id="ag-repeat" style="width:auto;accent-color:var(--primary)" onchange="togRepeat()"/>

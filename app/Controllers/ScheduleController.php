@@ -49,9 +49,35 @@ class ScheduleController extends Controller
     public function update(array $params): void
     {
         $this->auth();
-        $active = $this->request->body('active');
-        $this->model->update((int)$params['id'], ['active' => $active ? 1 : 0]);
-        Response::json($this->model->find((int)$params['id']));
+        $id = (int)$params['id'];
+
+        // Se vier só 'active' — é toggle de ativo/inativo
+        $body = $this->request->body();
+        if (array_key_exists('active', $body) && count($body) === 1) {
+            $this->model->update($id, ['active' => $body['active'] ? 1 : 0]);
+            Response::json($this->model->find($id));
+        }
+
+        // Edição completa do agendamento
+        $plId   = $this->request->int('playlist_id');
+        $starts = $this->request->input('starts_at');
+        $ends   = $this->request->input('ends_at');
+        if (!$plId || !$starts || !$ends) Response::error('Campos obrigatórios ausentes');
+
+        $target = $this->request->input('target_type', 'all');
+        $repeat = (bool)$this->request->body('repeat_weekly');
+        $days   = $repeat ? json_encode($this->request->body('weekdays') ?? []) : null;
+
+        $this->model->update($id, [
+            'playlist_id'   => $plId,
+            'target_type'   => $target,
+            'target_id'     => $this->request->int('target_id') ?: null,
+            'starts_at'     => $starts,
+            'ends_at'       => $ends,
+            'repeat_weekly' => $repeat ? 1 : 0,
+            'weekdays'      => $days,
+        ]);
+        Response::json($this->model->find($id));
     }
 
     public function destroy(array $params): void

@@ -42,9 +42,16 @@ class PlaylistController extends Controller
             $newId = $this->model->create(['name' => $name, 'is_default' => 0]);
             $itemModel = new PlaylistItem();
             foreach ($src['items'] as $item) {
-                unset($item['id']);
-                $item['playlist_id'] = $newId;
-                $itemModel->create($item);
+                // Remove colunas que não existem na tabela playlist_items
+                // (media_url vem do JOIN com media, não é coluna da tabela)
+                $itemModel->create([
+                    'playlist_id' => $newId,
+                    'type'        => $item['type']       ?? 'image',
+                    'url'         => $item['url']         ?? '',
+                    'duration'    => $item['duration']    ?? 10,
+                    'media_id'    => $item['media_id']    ?? null,
+                    'sort_order'  => $item['sort_order']  ?? 0,
+                ]);
             }
             $this->log('create_playlist', $payload['sub'], "$name (cópia de {$src['name']})");
             Response::json($this->model->findWithItems($newId), 201);

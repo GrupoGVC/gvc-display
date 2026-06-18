@@ -19,9 +19,17 @@ class AuthController extends Controller
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
-        if (!$user || !password_verify($pass, $user['password_hash'])) {
+        // Diagnóstico detalhado — retorna mensagem específica para debug
+        if (!$user) {
             $this->log('login_failed', 0, $email);
-            Response::unauthorized('E-mail ou senha inválidos');
+            Response::unauthorized('Usuário não encontrado: ' . $email);
+        }
+
+        if (!password_verify($pass, $user['password_hash'])) {
+            $this->log('login_failed', 0, $email);
+            // Dica: remove após resolver o problema
+            $hint = strlen($pass) . ' chars, hash len=' . strlen($user['password_hash']);
+            Response::unauthorized('Senha incorreta (' . $hint . ')');
         }
 
         $jwt   = new JWT();

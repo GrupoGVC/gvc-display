@@ -9,16 +9,46 @@ class Request
 
     public function __construct()
     {
-        $raw        = file_get_contents('php://input');
-        $this->body = json_decode($raw ?: '{}', true) ?? [];
-        if (empty($this->body) && !empty($_POST)) $this->body = $_POST;
+        // Lê o body — php://input pode estar vazio em alguns configs do Apache
+        $raw = file_get_contents('php://input');
+
+        // Tenta JSON primeiro
+        if ($raw && str_contains($raw, '{')) {
+            $decoded = json_decode($raw, true);
+            $this->body = is_array($decoded) ? $decoded : [];
+        }
+
+        // Fallback 1: $_POST (form-urlencoded)
+        if (empty($this->body) && !empty($_POST)) {
+            $this->body = $_POST;
+        }
+
+        // Fallback 2: parse_str quando Content-Type é application/x-www-form-urlencoded
+        if (empty($this->body) && $raw) {
+            $ct = $_SERVER['CONTENT_TYPE'] ?? '';
+            if (str_contains($ct, 'application/x-www-form-urlencoded')) {
+                parse_str($raw, $parsed);
+                $this->body = $parsed ?: [];
+            }
+        }
+
         $this->query = $_GET;
         $this->files = $_FILES;
     }
 
     public function method(): string
     {
-        return strtoupper($_SERVER['REQUEST_METHOD']);
+        // Em alguns configs do Apache com mod_rewrite, REQUEST_METHOD
+        // pode ser sobrescrito. Verifica múltiplas fontes.
+        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+        // Suporte a method override via header (usado por alguns proxies/firewalls)
+        $override = $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']
+            ?? $_SERVER['HTTP_X_METHOD_OVERRIDE']
+            ?? '';
+        if ($override) $method = $override;
+
+        return strtoupper($method);
     }
 
     public function body(string $key = null, mixed $default = null): mixed
@@ -36,6 +66,10 @@ class Request
     public function input(string $key, mixed $default = ''): string
     {
         $v = $this->body[$key] ?? $this->query[$key] ?? $default;
+        // Não faz trim em campos de senha para preservar espaços intencionais
+        if ($key === 'password' || $key === 'current_password' || $key === 'new_password') {
+            return (string)$v;
+        }
         return trim((string)$v);
     }
 

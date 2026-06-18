@@ -1,6 +1,4 @@
 # GVC Display MVC — Apache / XAMPP
-# Usa index.php na raiz como entry point
-# Isso evita o problema do XAMPP que converte POST→GET no RewriteRule
 
 DirectoryIndex index.php index.html
 
@@ -16,15 +14,21 @@ DirectoryIndex index.php index.html
   RewriteEngine On
   RewriteBase /gvc-display/
 
-  # Arquivos físicos — serve direto
+  # Arquivos físicos existentes — serve direto
   RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]
 
-  # Pastas estáticas — serve direto  
+  # Pastas estáticas — serve direto
   RewriteCond %{REQUEST_URI} ^/gvc-display/(uploads|assets|resources)/
   RewriteRule ^ - [L]
 
-  # Tudo → index.php na raiz (mesmo nível do .htaccess)
-  # Não há salto de pasta, então o método HTTP é preservado
+  # Preserva o método HTTP explicitamente antes do rewrite
   RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# FallbackResource como backup caso o mod_rewrite não funcione corretamente
+# Isso garante que QUALQUER request não resolvido vai para o index.php
+# preservando o método HTTP original
+<IfModule !mod_rewrite.c>
+  FallbackResource /gvc-display/index.php
 </IfModule>
