@@ -1,8 +1,4 @@
 <?php
-/*
-Cole este método dentro de app/Controllers/DeviceController.php.
-Ele substitui o heartbeat atual.
-*/
 
 public function heartbeat()
 {

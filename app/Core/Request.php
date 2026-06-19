@@ -9,40 +9,40 @@ class Request
 
     public function __construct()
     {
-        // Lê o body — php://input pode estar vazio em alguns configs do Apache
-        $raw = file_get_contents('php://input');
+        // Inicializa sempre — evita "uninitialized property" no PHP 8.2
+        $this->body  = [];
+        $this->query = $_GET  ?? [];
+        $this->files = $_FILES ?? [];
 
-        // Tenta JSON primeiro
-        if ($raw && str_contains($raw, '{')) {
+        $raw = (string) file_get_contents('php://input');
+
+        // JSON body
+        if ($raw !== '' && str_contains($raw, '{')) {
             $decoded = json_decode($raw, true);
-            $this->body = is_array($decoded) ? $decoded : [];
+            if (is_array($decoded)) {
+                $this->body = $decoded;
+            }
         }
 
-        // Fallback 1: $_POST (form-urlencoded)
+        // Fallback: $_POST (form-urlencoded)
         if (empty($this->body) && !empty($_POST)) {
             $this->body = $_POST;
         }
 
-        // Fallback 2: parse_str quando Content-Type é application/x-www-form-urlencoded
-        if (empty($this->body) && $raw) {
+        // Fallback: parse_str
+        if (empty($this->body) && $raw !== '') {
             $ct = $_SERVER['CONTENT_TYPE'] ?? '';
             if (str_contains($ct, 'application/x-www-form-urlencoded')) {
                 parse_str($raw, $parsed);
-                $this->body = $parsed ?: [];
+                $this->body = is_array($parsed) ? $parsed : [];
             }
         }
-
-        $this->query = $_GET;
-        $this->files = $_FILES;
     }
 
     public function method(): string
     {
-        // Em alguns configs do Apache com mod_rewrite, REQUEST_METHOD
-        // pode ser sobrescrito. Verifica múltiplas fontes.
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-        // Suporte a method override via header (usado por alguns proxies/firewalls)
         $override = $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']
             ?? $_SERVER['HTTP_X_METHOD_OVERRIDE']
             ?? '';
@@ -66,16 +66,15 @@ class Request
     public function input(string $key, mixed $default = ''): string
     {
         $v = $this->body[$key] ?? $this->query[$key] ?? $default;
-        // Não faz trim em campos de senha para preservar espaços intencionais
-        if ($key === 'password' || $key === 'current_password' || $key === 'new_password') {
-            return (string)$v;
+        if (in_array($key, ['password', 'current_password', 'new_password'], true)) {
+            return (string) $v;
         }
-        return trim((string)$v);
+        return trim((string) $v);
     }
 
     public function int(string $key, int $default = 0): int
     {
-        return (int)($this->body[$key] ?? $this->query[$key] ?? $default);
+        return (int) ($this->body[$key] ?? $this->query[$key] ?? $default);
     }
 
     public function file(string $key): ?array

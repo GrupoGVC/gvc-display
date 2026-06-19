@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>GVC Display | Painel Adm</title>
+  <meta name="description" content="Painel administrativo GVC Display — gerencie TVs, playlists e apresentações de sinalização digital corporativa."/>
   <link rel="icon" href="assets/logos/logo_gvc_display.ico" type="image/x-icon"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -67,10 +68,10 @@
   <div id="sb-overlay" onclick="toggleSb()"></div>
 
   <!-- MAIN -->
-  <div id="main">
+  <main id="main" aria-label="Painel administrativo">
     <div class="topbar">
       <div class="d-flex align-items-center gap-3">
-        <button id="btn-sb" onclick="toggleSb()">
+        <button id="btn-sb" onclick="toggleSb()" aria-label="Abrir menu lateral" aria-expanded="false" aria-controls="sb">
           <i class="bi bi-list" style="font-size:22px"></i>
         </button>
         <h1 id="ptitle">Dashboard</h1>
@@ -135,7 +136,7 @@
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <div>
                   <div class="gvc-card-title">Status das TVs</div>
-                  <div style="font-size:11px;color:var(--mut);margin-top:2px;">Atualiza a cada 10s</div>
+                  <div style="font-size:11px;color:var(--txt2);margin-top:2px;">Atualiza a cada 10s</div>
                 </div>
                 <button class="btn-p btn-sm" onclick="openBroadcast()">
                   <i class="bi bi-broadcast" style="font-size:14px"></i>Broadcast
@@ -149,7 +150,7 @@
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <div>
                   <div class="gvc-card-title">Atividade Recente</div>
-                  <div style="font-size:11px;color:var(--mut);margin-top:2px;">Últimas ações no sistema</div>
+                  <div style="font-size:11px;color:var(--txt2);margin-top:2px;">Últimas ações no sistema</div>
                 </div>
                 <button class="btn-g btn-sm" onclick="openLogModal()">
                   <i class="bi bi-arrows-fullscreen" style="font-size:13px"></i>Ver tudo
@@ -167,7 +168,7 @@
           <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
             <div>
               <div class="gvc-card-title">Dispositivos</div>
-              <div style="font-size:12px;color:var(--mut);margin-top:3px;">Gerencie as TVs conectadas</div>
+              <div style="font-size:12px;color:var(--txt2);margin-top:3px;">Gerencie as TVs conectadas</div>
             </div>
             <div class="d-flex gap-2 flex-wrap align-items-center">
               <input type="text" id="dev-search" placeholder="Buscar TV..."
@@ -206,7 +207,7 @@
           <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
               <div class="gvc-card-title">Grupos de TVs</div>
-              <div style="font-size:12px;color:var(--mut);margin-top:3px;">Organize TVs por local ou setor</div>
+              <div style="font-size:12px;color:var(--txt2);margin-top:3px;">Organize TVs por local ou setor</div>
             </div>
             <button class="btn-p" onclick="openAddGrupo()">
               <i class="bi bi-plus-lg"></i>Novo Grupo
@@ -224,7 +225,7 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
               <div>
                 <div class="gvc-card-title">Playlists</div>
-                <div style="font-size:12px;color:var(--mut);margin-top:3px;">Crie e organize apresentações</div>
+                <div style="font-size:12px;color:var(--txt2);margin-top:3px;">Crie e organize apresentações</div>
               </div>
               <div class="d-flex gap-2">
                 <button class="btn-g" onclick="openDupPl()">
@@ -261,7 +262,7 @@
                   </button>
                 </div>
                 <div id="pl-items" class="sortable-list"></div>
-                <p id="pl-hint" style="font-size:12px;color:var(--mut);text-align:center;margin-top:8px;display:none;">
+                <p id="pl-hint" style="font-size:12px;color:var(--txt2);text-align:center;margin-top:8px;display:none;">
                   Arraste para reordenar
                 </p>
               </div>
@@ -272,7 +273,7 @@
                 <div id="preview" style="background:#000;aspect-ratio:16/9;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;">
                   <span style="color:rgba(255,255,255,.2);font-size:12px;">Clique em um item</span>
                 </div>
-                <div id="prev-hint" style="font-size:11px;color:var(--mut);text-align:center;margin-top:6px;"></div>
+                <div id="prev-hint" style="font-size:11px;color:var(--txt2);text-align:center;margin-top:6px;"></div>
               </div>
               <div class="gvc-card">
                 <div class="gvc-card-title mb-3">Distribuição rápida</div>
@@ -298,7 +299,7 @@
           <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
               <div class="gvc-card-title">Agendamentos</div>
-              <div style="font-size:12px;color:var(--mut);margin-top:3px;">Programe apresentações por data e horário</div>
+              <div style="font-size:12px;color:var(--txt2);margin-top:3px;">Programe apresentações por data e horário</div>
             </div>
             <button class="btn-p" onclick="openAddAgenda()">
               <i class="bi bi-plus-lg"></i>Novo Agendamento
@@ -315,7 +316,7 @@
             <i class="bi bi-cloud-upload" style="font-size:30px;color:var(--primary)"></i>
             <div>
               <p style="font-weight:700;font-size:14px;margin:0;">Clique ou arraste arquivos aqui</p>
-              <p style="font-size:12px;color:var(--mut);margin:3px 0 0;">JPG, PNG, GIF, WebP, MP4, WebM — máx. 100 MB</p>
+              <p style="font-size:12px;color:var(--txt2);margin:3px 0 0;">JPG, PNG, GIF, WebP, MP4, WebM — máx. 100 MB</p>
             </div>
           </div>
           <input type="file" id="finput" multiple accept="image/*,video/*" style="display:none" onchange="doUpload(this.files)"/>
@@ -335,7 +336,7 @@
             <option value="image">Imagens</option>
             <option value="video">Vídeos</option>
           </select>
-          <span id="media-count" style="font-size:12px;color:var(--mut);margin-left:auto;font-weight:500;"></span>
+          <span id="media-count" style="font-size:12px;color:var(--txt2);margin-left:auto;font-weight:500;"></span>
         </div>
         <div class="mgrid" id="mgrid">
           <div class="empty">Carregando...</div>
@@ -348,7 +349,7 @@
           <div class="col-12 col-md-5">
             <div class="gvc-card">
               <div class="gvc-card-title mb-1">Alterar Senha</div>
-              <p style="font-size:12px;color:var(--mut);margin-bottom:16px;">Atualize suas credenciais</p>
+              <p style="font-size:12px;color:var(--txt2);margin-bottom:16px;">Atualize suas credenciais</p>
               <form onsubmit="doChangePass();return false;" autocomplete="on">
                 <div class="fg">
                   <label>Senha atual</label>
@@ -367,7 +368,7 @@
           <div class="col-12 col-md-7">
             <div class="gvc-card">
               <div class="gvc-card-title mb-1">Informações do sistema</div>
-              <p style="font-size:12px;color:var(--mut);margin-bottom:16px;">Status atual do GVC Display</p>
+              <p style="font-size:12px;color:var(--txt2);margin-bottom:16px;">Status atual do GVC Display</p>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
                 <div class="cfg-stat-box">
                   <div class="cfg-stat-label">TVs cadastradas</div>
@@ -387,7 +388,7 @@
                 </div>
               </div>
               <div style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--bord);">
-                <span style="font-size:12px;color:var(--mut);">PHP 8 · MySQL · JWT</span>
+                <span style="font-size:12px;color:var(--txt2);">PHP 8 · MySQL · JWT</span>
                 <button class="btn-d btn-sm" onclick="doLogout()">
                   <i class="bi bi-box-arrow-right"></i>Sair
                 </button>
@@ -398,7 +399,7 @@
       </div>
 
     </div><!-- /content -->
-  </div><!-- /main -->
+  </main><!-- /main -->
 </div><!-- /app -->
 
 <!-- ══════════════ MODAIS ══════════════════════════════════════ -->
@@ -591,7 +592,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p style="font-size:13px;color:var(--mut);margin-bottom:16px;">
+        <p style="font-size:13px;color:var(--txt2);margin-bottom:16px;">
           Envia uma playlist imediatamente para TVs selecionadas.
         </p>
         <div class="fg"><label>Playlist</label><select id="bc-pl"><option value="">— selecione —</option></select></div>
@@ -705,7 +706,7 @@
               <div style="width:55%;aspect-ratio:1;border:3px solid #00AA8E;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.45);"></div>
             </div>
           </div>
-          <p id="qr-status" style="font-size:12px;color:var(--mut);text-align:center;margin-bottom:12px;">
+          <p id="qr-status" style="font-size:12px;color:var(--txt2);text-align:center;margin-bottom:12px;">
             Aponte a câmera para o QR Code da TV
           </p>
         </div>
@@ -719,7 +720,7 @@
 
         <!-- Local (opcional) -->
         <div class="fg" style="margin-bottom:4px;">
-          <label>Local / Andar <span style="color:var(--mut);font-size:11px;">(opcional)</span></label>
+          <label>Local / Andar <span style="color:var(--txt2);font-size:11px;">(opcional)</span></label>
           <input type="text" id="pair-tv-location" placeholder="Ex: 2º Andar, Bloco B..."/>
         </div>
 
@@ -744,7 +745,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p style="font-size:13px;color:var(--mut);margin-bottom:14px;">
+        <p style="font-size:13px;color:var(--txt2);margin-bottom:14px;">
           Código: <span class="pair-code-box" id="pair-code"></span>
         </p>
         <div class="fg"><label>Dispositivo</label><select id="pair-dev-select" onchange="togPairNew()"></select></div>
@@ -788,6 +789,7 @@
   const SB   = document.getElementById('sb');
   const OV   = document.getElementById('sb-overlay');
   const MAIN = document.getElementById('main');
+  const BTN_SB = document.getElementById('btn-sb');
 
   // Fecha sidebar: remove sb-hidden no desktop, adiciona no mobile
   function isMobileView() { return window.innerWidth <= 992; }
@@ -795,11 +797,13 @@
   function openSb() {
     SB.classList.remove('sb-hidden');
     if (isMobileView()) OV.classList.add('visible');
+    if (BTN_SB) BTN_SB.setAttribute('aria-expanded', 'true');
   }
 
   function closeSb() {
     SB.classList.add('sb-hidden');
     OV.classList.remove('visible');
+    if (BTN_SB) BTN_SB.setAttribute('aria-expanded', 'false');
   }
 
   function toggleSb() {

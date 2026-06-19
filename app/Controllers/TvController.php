@@ -15,7 +15,7 @@ class TvController extends Controller
         $this->noCacheHeaders();
 
         try {
-            $slug = $this->resolveSlug($params);
+            $slug   = $this->resolveSlug($params);
             $device = $this->findDeviceBySlug($slug);
 
             if (!$device) {
@@ -29,6 +29,7 @@ class TvController extends Controller
             }
 
             $this->renderPlayer($device);
+
         } catch (Throwable $e) {
             http_response_code(500);
             header('Content-Type: text/html; charset=utf-8');
@@ -69,10 +70,10 @@ class TvController extends Controller
         }
 
         setcookie('gvc_tv_slug', $slug, [
-            'expires' => time() + (10 * 365 * 24 * 60 * 60),
-            'path' => '/',
+            'expires'  => time() + (10 * 365 * 24 * 60 * 60),
+            'path'     => '/',
             'httponly' => false,
-            'samesite' => 'Lax'
+            'samesite' => 'Lax',
         ]);
 
         return $slug;
@@ -83,40 +84,39 @@ class TvController extends Controller
         $stmt = $this->db()->prepare('SELECT * FROM devices WHERE slug = :slug LIMIT 1');
         $stmt->execute(['slug' => $slug]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
         return $row ?: null;
     }
 
     private function createDevice(string $slug): array
     {
-        $token = bin2hex(random_bytes(32));
+        $token  = bin2hex(random_bytes(32));
         $suffix = strtoupper(substr(preg_replace('/^tv\-/', '', $slug), -6));
-        $name = 'TV ' . ($suffix ?: strtoupper(substr(bin2hex(random_bytes(3)), 0, 6)));
+        $name   = 'TV ' . ($suffix ?: strtoupper(substr(bin2hex(random_bytes(3)), 0, 6)));
 
         $stmt = $this->db()->prepare(
             'INSERT INTO devices (name, location, slug, token, group_id, playlist_id, status, last_ping, created_at)
              VALUES (:name, NULL, :slug, :token, NULL, NULL, "offline", NULL, NOW())'
         );
-
         $stmt->execute([
-            'name' => $name,
-            'slug' => $slug,
+            'name'  => $name,
+            'slug'  => $slug,
             'token' => $token,
         ]);
 
         return $this->findDeviceBySlug($slug) ?: [
-            'id' => (int) $this->db()->lastInsertId(),
-            'name' => $name,
-            'slug' => $slug,
-            'token' => $token,
+            'id'          => (int) $this->db()->lastInsertId(),
+            'name'        => $name,
+            'slug'        => $slug,
+            'token'       => $token,
             'playlist_id' => null,
         ];
     }
 
     private function updateDeviceToken(int $id, string $token): void
     {
-        $stmt = $this->db()->prepare('UPDATE devices SET token = :token WHERE id = :id');
-        $stmt->execute(['token' => $token, 'id' => $id]);
+        $this->db()
+             ->prepare('UPDATE devices SET token = :token WHERE id = :id')
+             ->execute(['token' => $token, 'id' => $id]);
     }
 
     private function renderPlayer(array $device): void
@@ -125,43 +125,58 @@ class TvController extends Controller
         $view = $root . '/resources/views/player.html';
 
         if (!is_file($view)) {
-            $view = $root . '/html/player.html';
+            throw new \RuntimeException('Arquivo player.html não encontrado em resources/views/.');
         }
 
-        if (!is_file($view)) {
-            throw new \RuntimeException('Arquivo player.html não encontrado em resources/views ou html.');
-        }
-
-        $html = file_get_contents($view);
+        $html    = file_get_contents($view);
         $baseUrl = $this->baseUrl();
+        $v       = (string) filemtime($root . '/resources/js/player.js') ?: time();
 
-        $vars = '<script>' . PHP_EOL .
-            'window.__DEVICE_TOKEN__ = ' . json_encode($device['token'] ?? '') . ';' . PHP_EOL .
-            'window.__DEVICE_SLUG__ = ' . json_encode($device['slug'] ?? '') . ';' . PHP_EOL .
-            'window.__BASE_URL__ = ' . json_encode($baseUrl) . ';' . PHP_EOL .
-            '</script>';
+        // ── 1. Injeta variáveis JS da TV ──────────────────────
+        $vars = '<script>' . PHP_EOL
+            . 'window.__DEVICE_TOKEN__ = ' . json_encode($device['token'] ?? '') . ';' . PHP_EOL
+            . 'window.__DEVICE_SLUG__  = ' . json_encode($device['slug']  ?? '') . ';' . PHP_EOL
+            . 'window.__BASE_URL__     = ' . json_encode($baseUrl) . ';' . PHP_EOL
+            . '</script>';
 
-        $pattern = '#<script>\s*/\*\s*GVC_TV_VARS\s*\*/.*?</script>#s';
-        $newHtml = preg_replace($pattern, $vars, $html, 1, $count);
-        $html = $newHtml ?? $html;
+        // Substitui o bloco placeholder /* GVC_TV_VARS */ (tolerante a espaços extras)
+        $new = preg_replace(
+            '#<script[^>]*>\s*/\*\s*GVC_TV_VARS\s*\*/[^<]*</script>#s',
+            $vars,
+            $html,
+            1,
+            $replaced
+        );
 
-        if ($count === 0) {
+        $html = ($new !== null) ? $new : $html;
+
+        // Se placeholder não encontrado, injeta antes de </head>
+        if (!$replaced) {
             $html = str_replace('</head>', $vars . PHP_EOL . '</head>', $html);
         }
 
-        $assetVersion = (string) time();
+        // ── 2. Resolve caminhos relativos com cache-busting ───
+        $html = str_replace(
+            ['href="../css/player.css"', "href='../css/player.css'"],
+            'href="' . $baseUrl . '/resources/css/player.css?v=' . $v . '"',
+            $html
+        );
+        $html = str_replace(
+            ['src="../js/player.js"', "src='../js/player.js'"],
+            'src="' . $baseUrl . '/resources/js/player.js?v=' . $v . '"',
+            $html
+        );
 
-        $replacements = [
-            'src="../js/player.js"' => 'src="' . $baseUrl . '/resources/js/player.js?v=' . $assetVersion . '"',
-            "src='../js/player.js'" => "src='" . $baseUrl . "/resources/js/player.js?v=" . $assetVersion . "'",
-            'src="/resources/js/player.js"' => 'src="' . $baseUrl . '/resources/js/player.js?v=' . $assetVersion . '"',
-            'href="../css/player.css"' => 'href="' . $baseUrl . '/resources/css/player.css?v=' . $assetVersion . '"',
-            "href='../css/player.css'" => "href='" . $baseUrl . "/resources/css/player.css?v=" . $assetVersion . "'",
-            'href="/resources/css/player.css"' => 'href="' . $baseUrl . '/resources/css/player.css?v=' . $assetVersion . '"',
-            'src="" id="player-logo"' => 'src="' . $baseUrl . '/assets/logos/logo_gvc_display_192.png" id="player-logo"',
-        ];
+        // Logo vazia → absoluta
+        $html = str_replace(
+            'src="" id="player-logo"',
+            'src="' . $baseUrl . '/assets/logos/logo_gvc_display_192.png" id="player-logo"',
+            $html
+        );
 
-        $html = strtr($html, $replacements);
+        // Demais refs a assets/
+        $html = str_replace('href="assets/', 'href="' . $baseUrl . '/assets/', $html);
+        $html = str_replace('src="assets/',  'src="'  . $baseUrl . '/assets/', $html);
 
         header('Content-Type: text/html; charset=utf-8');
         echo $html;
@@ -173,7 +188,7 @@ class TvController extends Controller
             return $this->pdo;
         }
 
-        $env = $this->env();
+        $env  = $this->env();
         $host = $env['DB_HOST'] ?? '127.0.0.1';
         $port = $env['DB_PORT'] ?? '3307';
         $name = $env['DB_NAME'] ?? 'db_gvc_display';
@@ -183,9 +198,9 @@ class TvController extends Controller
         $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
 
         $this->pdo = new PDO($dsn, $user, $pass, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
 
         return $this->pdo;
@@ -193,7 +208,7 @@ class TvController extends Controller
 
     private function env(): array
     {
-        $env = $_ENV;
+        $env  = $_ENV;
         $file = $this->rootPath() . '/.env';
 
         if (!is_file($file)) {
@@ -219,7 +234,7 @@ class TvController extends Controller
 
     private function baseUrl(): string
     {
-        $env = $this->env();
+        $env      = $this->env();
         $basePath = $env['APP_BASE_PATH'] ?? null;
 
         if (!$basePath) {
@@ -242,7 +257,7 @@ class TvController extends Controller
             || (($_SERVER['SERVER_PORT'] ?? null) == 443);
 
         $scheme = $https ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
 
         return rtrim($scheme . '://' . $host . $basePath, '/');
     }

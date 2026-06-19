@@ -14,7 +14,7 @@
   --bord2: #2e3a50;
   --txt: #e2e8f0;
   --txt2: #94a3b8;
-  --mut: #64748b;
+  --mut: #8899aa;   /* aumentado de #64748b → ratio 4.6:1 em bg2 (WCAG AA) */
   --primary: #00AA8E;
   --green: #22c55e;
   --red: #ff4f6a;
@@ -195,7 +195,7 @@ button:disabled { opacity: 0.55; cursor: default; pointer-events: none; }
 }
 .tg     { background: var(--bg3);                    color: var(--txt2); border: 1px solid var(--bord2); }
 .tg-on  { background: rgba(34,197,94,.12);           color: var(--green);  border: 1px solid rgba(34,197,94,.25); }
-.tg-off { background: rgba(100,116,139,.12);         color: var(--mut);    border: 1px solid rgba(100,116,139,.2); }
+.tg-off { background: rgba(100,116,139,.15);         color: var(--txt2);   border: 1px solid rgba(100,116,139,.25); }
 .tg-def { background: rgba(234,179,8,.12);           color: var(--yellow); border: 1px solid rgba(234,179,8,.25); }
 
 /* ── Status dots ─────────────────────────────────────────── */
