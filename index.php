@@ -66,10 +66,19 @@ require ROOT . '/routes/api.php';
 // ── Helper: serve view HTML com assets resolvidos + PWA meta ───
 function serveView(string $file, string $base, bool $isAdmin = true): void {
     $html = file_get_contents(ROOT . '/resources/views/' . $file);
+    $v = filemtime(ROOT . '/resources/css/main.css') ?: time();
 
-    // Resolve paths relativos para absolutos
-    $html = str_replace('href="css/',    "href=\"{$base}/resources/css/",  $html);
-    $html = str_replace('src="js/',      "src=\"{$base}/resources/js/",    $html);
+    // Resolve paths relativos para absolutos com cache-busting
+    $html = preg_replace(
+        '/href="css\/([^"]+)"/',
+        'href="' . $base . '/resources/css/$1?v=' . $v . '"',
+        $html
+    );
+    $html = preg_replace(
+        '/src="js\/([^"]+)"/',
+        'src="' . $base . '/resources/js/$1?v=' . $v . '"',
+        $html
+    );
     $html = str_replace('href="assets/', "href=\"{$base}/assets/",         $html);
     $html = str_replace('src="assets/',  "src=\"{$base}/assets/",          $html);
 
@@ -78,7 +87,7 @@ function serveView(string $file, string $base, bool $isAdmin = true): void {
     $pwaMeta  = <<<HTML
     <!-- PWA -->
     <link rel="manifest" href="{$base}/assets/{$manifest}"/>
-    <meta name="theme-color" content="#4f8cff"/>
+    <meta name="theme-color" content="#00AA8E"/>
     <meta name="mobile-web-app-capable" content="yes"/>
     <meta name="apple-mobile-web-app-capable" content="yes"/>
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>

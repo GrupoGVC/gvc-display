@@ -4,14 +4,14 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>GVC Display | Painel Adm</title>
-  <link rel="icon" href="assets/logos/logo_grupogvc_white.ico" type="image/x-icon"/>
+  <link rel="icon" href="assets/logos/logo_gvc_display.ico" type="image/x-icon"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
-  <link rel="stylesheet" href="css/main.css?v=1781709886"/>
-  <link rel="stylesheet" href="css/admin.css?v=1781709886"/>
+  <link rel="stylesheet" href="css/main.css"/>
+  <link rel="stylesheet" href="css/admin.css"/>
 </head>
 <body>
 
@@ -21,17 +21,10 @@
   <!-- SIDEBAR -->
   <div id="sb">
     <div class="sb-logo">
-      <svg width="32" height="32" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="8" width="44" height="28" rx="4" fill="#1a1f2e" stroke="#4f8cff" stroke-width="2.5"/>
-        <rect x="8" y="14" width="32" height="16" rx="2" fill="#0d1117"/>
-        <rect x="18" y="38" width="12" height="3" rx="1.5" fill="#4f8cff"/>
-        <rect x="14" y="41" width="20" height="2" rx="1" fill="#4f8cff" opacity=".5"/>
-        <circle cx="24" cy="22" r="4" fill="#4f8cff" opacity=".8"/>
-        <path d="M21 22l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
+      <img src="assets/logos/logo_gvc_display_192.png" alt="GVC Display" width="36" height="36" style="border-radius:8px;"/>
       <div style="flex:1;min-width:0;">
         <div class="sb-brand">GVC <span style="color:var(--primary)">Display</span></div>
-        <div class="sb-sub">Apresentação Coorporativa Digital</div>
+        <div class="sb-sub">Sinalização Digital Corporativa</div>
       </div>
       <!-- Botão fechar sidebar — visível só no mobile -->
       <button id="btn-sb-close" onclick="closeSb()" title="Fechar menu"
@@ -94,7 +87,7 @@
             <div class="stat-card">
               <div class="d-flex justify-content-between align-items-start">
                 <div class="sl">Total de TVs</div>
-                <div class="si" style="background:rgba(91,127,255,.12);">
+                <div class="si" style="background:rgba(0,170,142,.12);">
                   <i class="bi bi-display" style="color:var(--primary)"></i>
                 </div>
               </div>
@@ -390,7 +383,7 @@
                 </div>
                 <div class="cfg-stat-box">
                   <div class="cfg-stat-label">Versão</div>
-                  <div style="font-size:16px;font-weight:700;">3.0.0</div>
+                  <div style="font-size:16px;font-weight:700;">3.1.0</div>
                 </div>
               </div>
               <div style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--bord);">
@@ -709,7 +702,7 @@
             <video id="qr-video" playsinline style="width:100%;height:100%;object-fit:cover;"></video>
             <canvas id="qr-canvas" style="display:none;"></canvas>
             <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
-              <div style="width:55%;aspect-ratio:1;border:3px solid #4f8cff;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.45);"></div>
+              <div style="width:55%;aspect-ratio:1;border:3px solid #00AA8E;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.45);"></div>
             </div>
           </div>
           <p id="qr-status" style="font-size:12px;color:var(--mut);text-align:center;margin-bottom:12px;">
@@ -857,6 +850,6 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script type="module" src="js/admin.js?v=1781709886"></script>
+<script type="module" src="js/admin.js"></script>
 </body>
 </html>

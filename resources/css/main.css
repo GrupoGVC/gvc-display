@@ -15,7 +15,7 @@
   --txt: #e2e8f0;
   --txt2: #94a3b8;
   --mut: #64748b;
-  --primary: #4f8cff;
+  --primary: #00AA8E;
   --green: #22c55e;
   --red: #ff4f6a;
   --yellow: #eab308;
@@ -121,7 +121,7 @@ body {
 .fg select:focus,
 .fg textarea:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(0, 170, 142, 0.15);
 }
 .fg select option { background: var(--bg3); }
 .hint { font-size: var(--text-xs); color: var(--mut); margin-top: 3px; }
@@ -152,7 +152,7 @@ button { font-family: var(--font); cursor: pointer; }
 }
 
 .btn-p { background: var(--primary); color: #fff; border-color: var(--primary); }
-.btn-p:hover { background: #3a7ae8; border-color: #3a7ae8; }
+.btn-p:hover { background: #009A7E; border-color: #009A7E; }
 
 .btn-g { background: var(--bg3); color: var(--txt); border-color: var(--bord2); }
 .btn-g:hover { border-color: var(--txt2); }
@@ -267,7 +267,7 @@ button:disabled { opacity: 0.55; cursor: default; pointer-events: none; }
 .day-check input { width: auto; accent-color: var(--primary); }
 .day-check:has(input:checked) {
   border-color: var(--primary); color: var(--primary);
-  background: rgba(79,140,255,.1);
+  background: rgba(0,170,142,.1);
 }
 
 /* ── Responsividade global ───────────────────────────────── */

@@ -82,10 +82,10 @@
       btn.style.cssText = `
         position:fixed; bottom:20px; right:20px; z-index:9999;
         display:flex; align-items:center; gap:8px;
-        background:#4f8cff; color:#fff;
+        background:#00AA8E; color:#fff;
         border:none; border-radius:12px;
         padding:12px 18px; font-size:14px; font-weight:600;
-        cursor:pointer; box-shadow:0 4px 20px rgba(79,140,255,.4);
+        cursor:pointer; box-shadow:0 4px 20px rgba(0,170,142,.4);
         font-family:inherit;
         animation: slideUp .3s ease;
       `;

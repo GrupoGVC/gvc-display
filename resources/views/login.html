@@ -4,180 +4,13 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>GVC Display | Login</title>
-  <link rel="icon" href="assets/logos/logo_grupogvc_white.ico" type="image/x-icon"/>
+  <link rel="icon" href="assets/logos/logo_gvc_display.ico" type="image/x-icon"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
   <link rel="stylesheet" href="css/main.css"/>
-  <style>
-    /* ── Layout base ──────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      height: 100%;
-      background: var(--bg1);
-      font-family: var(--font);
-      color: var(--txt);
-    }
-
-    /* ── Desktop: centralizado com card ───────────────────── */
-    .login-page {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 16px;
-    }
-
-    .card-login {
-      width: 100%;
-      max-width: 400px;
-      background: var(--bg2);
-      border: 1px solid var(--bord);
-      border-radius: 18px;
-      padding: 40px 36px;
-      box-shadow: 0 24px 64px rgba(0,0,0,.4);
-      transition: box-shadow .2s;
-    }
-
-    /* ── Mobile: sem card, ocupa tela toda ────────────────── */
-    @media (max-width: 480px) {
-      .login-page {
-        align-items: stretch;
-        padding: 0;
-      }
-      .card-login {
-        border: none;
-        border-radius: 0;
-        padding: 48px 24px 32px;
-        box-shadow: none;
-        min-height: 100dvh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-      }
-    }
-
-    /* ── Logo ─────────────────────────────────────────────── */
-    .logo {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 32px;
-      text-align: center;
-    }
-    .logo svg {
-      width: clamp(44px, 12vw, 56px);
-      height: auto;
-    }
-    .brand {
-      font-size: clamp(20px, 5vw, 24px);
-      font-weight: 800;
-      letter-spacing: -0.4px;
-    }
-    .brand span { color: var(--primary); }
-    .sub {
-      font-size: clamp(11px, 3vw, 13px);
-      color: var(--mut);
-      margin-top: 2px;
-    }
-
-    /* ── Formulário ───────────────────────────────────────── */
-    .fg {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-bottom: 16px;
-    }
-    .fg label {
-      font-size: clamp(11px, 2.5vw, 12px);
-      color: var(--txt2);
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .fg input {
-      padding: 13px 16px;
-      background: var(--bg3);
-      border: 1.5px solid var(--bord2);
-      border-radius: 10px;
-      color: var(--txt);
-      font-size: clamp(14px, 4vw, 15px);
-      font-family: var(--font);
-      outline: none;
-      transition: border-color .15s, box-shadow .15s;
-      width: 100%;
-      min-height: 50px; /* área de toque confortável */
-    }
-    .fg input:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(79,140,255,.18);
-    }
-    .fg input::placeholder { color: var(--mut); }
-
-    /* ── Erro ─────────────────────────────────────────────── */
-    #l-err {
-      background: rgba(255,79,106,.1);
-      border: 1px solid rgba(255,79,106,.3);
-      border-radius: 10px;
-      padding: 11px 14px;
-      color: var(--red);
-      font-size: clamp(12px, 3vw, 13px);
-      margin-bottom: 16px;
-      display: none;
-      align-items: center;
-      gap: 8px;
-    }
-    #l-err i { flex-shrink: 0; font-size: 15px; }
-
-    /* ── Botão entrar ─────────────────────────────────────── */
-    .btn-enter {
-      width: 100%;
-      padding: 13px;
-      background: var(--primary);
-      border: none;
-      border-radius: 10px;
-      color: #fff;
-      font-size: clamp(14px, 4vw, 15px);
-      font-weight: 700;
-      font-family: var(--font);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: background .15s, transform .1s, box-shadow .15s;
-      margin-top: 8px;
-      min-height: 50px;
-      letter-spacing: 0.2px;
-    }
-    .btn-enter:hover {
-      background: #3a7ae8;
-      box-shadow: 0 4px 16px rgba(79,140,255,.35);
-    }
-    .btn-enter:active { transform: scale(.98); }
-    .btn-enter:disabled { opacity: .6; cursor: default; pointer-events: none; }
-
-    /* ── Spinner inline ───────────────────────────────────── */
-    .spin {
-      width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin .75s linear infinite;
-      flex-shrink: 0;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── Safe area iOS ────────────────────────────────────── */
-    @supports (padding-bottom: env(safe-area-inset-bottom)) {
-      @media (max-width: 480px) {
-        .card-login { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="css/login.css"/>
 </head>
 <body>
 
@@ -185,17 +18,10 @@
     <div class="card-login">
 
       <div class="logo">
-        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="2" y="8" width="44" height="28" rx="4" fill="#1a1f2e" stroke="#4f8cff" stroke-width="2.5"/>
-          <rect x="8" y="14" width="32" height="16" rx="2" fill="#0d1117"/>
-          <rect x="18" y="38" width="12" height="3" rx="1.5" fill="#4f8cff"/>
-          <rect x="14" y="41" width="20" height="2" rx="1" fill="#4f8cff" opacity=".5"/>
-          <circle cx="24" cy="22" r="4" fill="#4f8cff" opacity=".8"/>
-          <path d="M21 22l2 2 4-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
+        <img class="logo-img" src="assets/logos/logo_gvc_display_192.png" alt="GVC Display"/>
         <div>
           <div class="brand">GVC <span>Display</span></div>
-          <div class="sub">Apresentação Coorporativa Digital</div>
+          <div class="sub">Sinalização Digital Corporativa</div>
         </div>
       </div>
 
@@ -225,56 +51,6 @@
     </div>
   </div>
 
-  <script>
-    const _base = window.location.pathname
-      .replace(/\/(login)(\/.*)?$/, '')
-      .replace(/\/+$/, '');
-    const _api = window.location.origin + _base + '/api';
-
-    if (localStorage.getItem('gvc_token')) {
-      window.location.replace(_base + '/');
-    }
-
-    function showErr(msg) {
-      const el  = document.getElementById('l-err');
-      const txt = document.getElementById('l-err-txt');
-      txt.textContent   = msg;
-      el.style.display  = 'flex';
-    }
-
-    async function doLogin(e) {
-      if (e) e.preventDefault();
-
-      const email = document.getElementById('l-email').value.trim();
-      const pass  = document.getElementById('l-pass').value;
-      const btn   = document.getElementById('btn-login');
-
-      document.getElementById('l-err').style.display = 'none';
-
-      if (!email || !pass) { showErr('Preencha e-mail e senha'); return; }
-
-      btn.disabled  = true;
-      btn.innerHTML = '<span class="spin"></span> Entrando...';
-
-      try {
-        const res  = await fetch(_api + '/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password: pass }),
-        });
-        const raw   = await res.text();
-        const data  = JSON.parse(raw.replace(/^[^{[]*/, ''));
-
-        if (!res.ok) throw new Error(data?.error || 'Credenciais inválidas');
-
-        localStorage.setItem('gvc_token', data.data?.token ?? data.token);
-        window.location.replace(_base + '/');
-      } catch (err) {
-        showErr(err.message || 'E-mail ou senha inválidos');
-        btn.disabled  = false;
-        btn.innerHTML = 'Entrar <i class="bi bi-arrow-right"></i>';
-      }
-    }
-  </script>
+  <script src="js/login.js"></script>
 </body>
 </html>

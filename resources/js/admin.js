@@ -180,10 +180,10 @@ function renderDash(d) {
     : '<p class="empty">Nenhuma TV cadastrada</p>';
 
   const logIcons = {
-    login:           '<i class="bi bi-key log-i" style="color:#4f8cff"></i>',
+    login:           '<i class="bi bi-key log-i" style="color:#00AA8E"></i>',
     logout:          '<i class="bi bi-box-arrow-right log-i" style="color:#64748b"></i>',
-    create_device:   '<i class="bi bi-display log-i" style="color:#4f8cff"></i>',
-    update_device:   '<i class="bi bi-pencil log-i" style="color:#4f8cff"></i>',
+    create_device:   '<i class="bi bi-display log-i" style="color:#00AA8E"></i>',
+    update_device:   '<i class="bi bi-pencil log-i" style="color:#00AA8E"></i>',
     delete_device:   '<i class="bi bi-trash3 log-i" style="color:#ff4f6a"></i>',
     pair_device:     '<i class="bi bi-link-45deg log-i" style="color:#22c55e"></i>',
     unpair_device:   '<i class="bi bi-link-45deg log-i" style="color:#f97316"></i>',
@@ -194,7 +194,7 @@ function renderDash(d) {
     delete_playlist: '<i class="bi bi-trash3 log-i" style="color:#ff4f6a"></i>',
     create_group:    '<i class="bi bi-collection log-i" style="color:#f97316"></i>',
     delete_group:    '<i class="bi bi-trash3 log-i" style="color:#ff4f6a"></i>',
-    create_schedule: '<i class="bi bi-calendar3 log-i" style="color:#4f8cff"></i>',
+    create_schedule: '<i class="bi bi-calendar3 log-i" style="color:#00AA8E"></i>',
     delete_schedule: '<i class="bi bi-trash3 log-i" style="color:#ff4f6a"></i>',
     login_failed:    '<i class="bi bi-exclamation-triangle log-i" style="color:#f59e0b"></i>',
   };
@@ -220,10 +220,10 @@ function renderDash(d) {
 window.openLogModal = () => {
   const logs = window._allLogs || [];
   const logIcons = {
-    login:           '<i class="bi bi-key log-i" style="color:#4f8cff"></i>',
+    login:           '<i class="bi bi-key log-i" style="color:#00AA8E"></i>',
     logout:          '<i class="bi bi-box-arrow-right log-i" style="color:#64748b"></i>',
-    create_device:   '<i class="bi bi-display log-i" style="color:#4f8cff"></i>',
-    update_device:   '<i class="bi bi-pencil log-i" style="color:#4f8cff"></i>',
+    create_device:   '<i class="bi bi-display log-i" style="color:#00AA8E"></i>',
+    update_device:   '<i class="bi bi-pencil log-i" style="color:#00AA8E"></i>',
     delete_device:   '<i class="bi bi-trash3 log-i" style="color:#ff4f6a"></i>',
     pair_device:     '<i class="bi bi-link-45deg log-i" style="color:#22c55e"></i>',
     broadcast:       '<i class="bi bi-broadcast log-i" style="color:#eab308"></i>',
@@ -233,7 +233,7 @@ window.openLogModal = () => {
     delete_playlist: '<i class="bi bi-trash3 log-i" style="color:#ff4f6a"></i>',
     create_group:    '<i class="bi bi-collection log-i" style="color:#f97316"></i>',
     delete_group:    '<i class="bi bi-trash3 log-i" style="color:#ff4f6a"></i>',
-    create_schedule: '<i class="bi bi-calendar3 log-i" style="color:#4f8cff"></i>',
+    create_schedule: '<i class="bi bi-calendar3 log-i" style="color:#00AA8E"></i>',
     delete_schedule: '<i class="bi bi-trash3 log-i" style="color:#ff4f6a"></i>',
     login_failed:    '<i class="bi bi-exclamation-triangle log-i" style="color:#f59e0b"></i>',
   };
@@ -1506,8 +1506,9 @@ window.doPairDeviceNew = async () => {
     closeModal('m-pair-device');
     toast(`✅ TV "${tvName}" pareada com sucesso!`);
 
-    // Atualiza a lista de devices
+    // Recarrega lista e navega para dispositivos
     await loadDevices();
+    nav('dispositivos');
 
   } catch (e) {
     const msg = e.message || 'Erro ao parear — verifique o código';

@@ -1,0 +1,169 @@
+/* ============================================================
+   GVC Display — Login CSS
+   ============================================================ */
+
+/* ── Layout base ──────────────────────────────────────── */
+html, body {
+  height: 100%;
+  background: var(--bg1);
+  font-family: var(--font);
+  color: var(--txt);
+}
+
+/* ── Desktop: centralizado com card ───────────────────── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.card-login {
+  width: 100%;
+  max-width: 400px;
+  background: var(--bg2);
+  border: 1px solid var(--bord);
+  border-radius: 18px;
+  padding: 40px 36px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.4);
+  transition: box-shadow .2s;
+}
+
+/* ── Mobile: sem card, ocupa tela toda ────────────────── */
+@media (max-width: 480px) {
+  .login-page {
+    align-items: stretch;
+    padding: 0;
+  }
+  .card-login {
+    border: none;
+    border-radius: 0;
+    padding: 48px 24px 32px;
+    box-shadow: none;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
+/* ── Logo ─────────────────────────────────────────────── */
+.logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+  text-align: center;
+}
+.logo-img {
+  width: clamp(44px, 12vw, 56px);
+  height: auto;
+  border-radius: 10px;
+}
+.brand {
+  font-size: clamp(20px, 5vw, 24px);
+  font-weight: 800;
+  letter-spacing: -0.4px;
+}
+.brand span { color: var(--primary); }
+.sub {
+  font-size: clamp(11px, 3vw, 13px);
+  color: var(--mut);
+  margin-top: 2px;
+}
+
+/* ── Formulário ───────────────────────────────────────── */
+.login-page .fg {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.login-page .fg label {
+  font-size: clamp(11px, 2.5vw, 12px);
+  color: var(--txt2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.login-page .fg input {
+  padding: 13px 16px;
+  background: var(--bg3);
+  border: 1.5px solid var(--bord2);
+  border-radius: 10px;
+  color: var(--txt);
+  font-size: clamp(14px, 4vw, 15px);
+  font-family: var(--font);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  width: 100%;
+  min-height: 50px;
+}
+.login-page .fg input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0,170,142,.18);
+}
+.login-page .fg input::placeholder { color: var(--mut); }
+
+/* ── Erro ─────────────────────────────────────────────── */
+#l-err {
+  background: rgba(255,79,106,.1);
+  border: 1px solid rgba(255,79,106,.3);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: var(--red);
+  font-size: clamp(12px, 3vw, 13px);
+  margin-bottom: 16px;
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+#l-err i { flex-shrink: 0; font-size: 15px; }
+
+/* ── Botão entrar ─────────────────────────────────────── */
+.btn-enter {
+  width: 100%;
+  padding: 13px;
+  background: var(--primary);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: clamp(14px, 4vw, 15px);
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background .15s, transform .1s, box-shadow .15s;
+  margin-top: 8px;
+  min-height: 50px;
+  letter-spacing: 0.2px;
+}
+.btn-enter:hover {
+  background: #009A7E;
+  box-shadow: 0 4px 16px rgba(0,170,142,.35);
+}
+.btn-enter:active { transform: scale(.98); }
+.btn-enter:disabled { opacity: .6; cursor: default; pointer-events: none; }
+
+/* ── Spinner inline ───────────────────────────────────── */
+.spin {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .75s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Safe area iOS ────────────────────────────────────── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  @media (max-width: 480px) {
+    .card-login { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+  }
+}

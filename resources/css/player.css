@@ -54,7 +54,7 @@ html, body {
   color: #f1f5f9;
 }
 
-.p-logo-name span { color: #4f8cff; }
+.p-logo-name span { color: #00AA8E; }
 
 .p-logo-sub {
   font-size: clamp(10px, 1.2vw, 12px);
@@ -108,7 +108,7 @@ html, body {
   gap: clamp(8px, 1.5vw, 18px);
   align-items: center;
   margin-bottom: 12px;
-  box-shadow: 0 0 0 1px rgba(79, 140, 255, 0.08),
+  box-shadow: 0 0 0 1px rgba(0, 170, 142, 0.08),
               0 4px 24px rgba(0, 0, 0, 0.4);
 }
 
@@ -116,11 +116,11 @@ html, body {
   font-family: 'Courier New', 'Consolas', monospace;
   font-size: clamp(32px, 5.5vw, 56px);
   font-weight: 900;
-  color: #4f8cff;
+  color: #00AA8E;
   line-height: 1;
   min-width: clamp(24px, 3vw, 36px);
   text-align: center;
-  text-shadow: 0 0 20px rgba(79, 140, 255, 0.4);
+  text-shadow: 0 0 20px rgba(0, 170, 142, 0.4);
 }
 
 /* ── Loading: dígitos como traços ────────────────────────── */
@@ -210,7 +210,7 @@ html, body {
 
 .p-qr-url {
   font-size: clamp(10px, 1.1vw, 12px);
-  color: #4f8cff;
+  color: #00AA8E;
   word-break: break-all;
   text-align: center;
   max-width: clamp(160px, 18vw, 220px);
@@ -259,7 +259,7 @@ html, body {
   width: 28px;
   height: 28px;
   border: 3px solid #2a3040;
-  border-top-color: #4f8cff;
+  border-top-color: #00AA8E;
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
 }

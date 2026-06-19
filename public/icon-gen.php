@@ -24,7 +24,7 @@ if (function_exists('imagecreatetruecolor')) {
 
     // Fundo arredondado simulado (GD não suporta border-radius nativamente)
     $bg   = imagecolorallocate($img, 13, 17, 23);     // #0d1117
-    $blue = imagecolorallocate($img, 79, 140, 255);   // #4f8cff
+    $blue = imagecolorallocate($img, 0, 170, 142);   // #00AA8E
     $dark = imagecolorallocate($img, 26, 31, 46);     // #1a1f2e
 
     imagefill($img, 0, 0, $bg);

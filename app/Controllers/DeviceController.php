@@ -98,7 +98,11 @@ class DeviceController extends Controller
 
         $hash = null;
         if ($plId) {
-            $st = \App\Core\Database::connection()->prepare("SELECT GROUP_CONCAT(id ORDER BY sort_order) FROM playlist_items WHERE playlist_id=?");
+            // Hash inclui id, sort_order e duration — detecta qualquer mudança de conteúdo
+            $st = \App\Core\Database::connection()->prepare(
+                "SELECT GROUP_CONCAT(CONCAT(id,':',sort_order,':',duration) ORDER BY sort_order SEPARATOR ',')
+                  FROM playlist_items WHERE playlist_id=?"
+            );
             $st->execute([$plId]);
             $hash = md5($st->fetchColumn() ?? '');
         }

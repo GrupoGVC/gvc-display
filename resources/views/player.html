@@ -10,19 +10,11 @@
   <link rel="stylesheet" href="../css/player.css"/>
 </head>
 <body>
-
   <div id="stage"></div>
 
-  <!-- ── Tela de Pareamento ───────────────────────────────── -->
   <div id="pairing-screen">
-
     <div class="p-logo">
-      <svg width="36" height="36" viewBox="0 0 48 48" fill="none">
-        <rect x="2" y="8" width="44" height="28" rx="4" fill="#1a1f2e" stroke="#4f8cff" stroke-width="2.5"/>
-        <rect x="8" y="14" width="32" height="16" rx="2" fill="#0d1117"/>
-        <rect x="18" y="38" width="12" height="3" rx="1.5" fill="#4f8cff"/>
-        <rect x="14" y="41" width="20" height="2" rx="1" fill="#4f8cff" opacity=".5"/>
-      </svg>
+      <img src="" id="player-logo" alt="GVC Display" style="width:clamp(24px,3vw,36px);height:auto;border-radius:6px;flex-shrink:0;"/>
       <div>
         <div class="p-logo-name">GVC <span>Display</span></div>
         <div class="p-logo-sub">Sinalização Digital Corporativa</div>
@@ -30,14 +22,9 @@
     </div>
 
     <div class="p-body">
-
-      <!-- Esquerda: código -->
       <div class="p-left">
         <h1>Configure<br>esta TV</h1>
-        <p>
-          Escaneie o QR Code ao lado com o celular<br>
-          ou digite o código no painel administrativo.
-        </p>
+        <p>Escaneie o QR Code ao lado com o celular ou digite o código no painel administrativo.</p>
 
         <div class="p-code-label">Código de Pareamento</div>
         <div class="p-code-box" id="pair-digits">
@@ -52,42 +39,36 @@
         </div>
       </div>
 
-      <!-- Direita: QR -->
       <div class="p-right">
         <div class="p-qr-wrap">
-          <img id="pair-qr" src="" alt="QR Code"
-               onload="this.style.display='block';this.nextElementSibling.style.display='none'"
-               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
-          <div class="p-qr-fallback" style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-            <svg width="32" height="32" fill="none" viewBox="0 0 24 24">
+          <img id="pair-qr" src="" alt="QR Code"/>
+          <div class="p-qr-fallback" id="pair-qr-fallback">
+            <svg width="32" height="32" fill="none" viewBox="0 0 24 24" aria-hidden="true">
               <rect x="3" y="3" width="7" height="7" rx="1" stroke="#94a3b8" stroke-width="1.5"/>
               <rect x="14" y="3" width="7" height="7" rx="1" stroke="#94a3b8" stroke-width="1.5"/>
               <rect x="3" y="14" width="7" height="7" rx="1" stroke="#94a3b8" stroke-width="1.5"/>
               <rect x="14" y="14" width="7" height="7" rx="1" stroke="#94a3b8" stroke-width="1.5"/>
             </svg>
-            <span style="color:#6b7280;font-size:11px;">QR indisponível<br>use o código</span>
+            <span>QR indisponível<br>use o código</span>
           </div>
         </div>
-        <div class="p-qr-hint">
-          Escaneie com a câmera do<br>celular para acessar o painel e<br>vincular esta TV
-        </div>
+        <div class="p-qr-hint">Escaneie com a câmera do celular para acessar o painel e vincular esta TV</div>
         <div class="p-qr-url" id="pair-admin-url"></div>
       </div>
-
     </div>
   </div>
 
-  <!-- ── Tela de Status ─────────────────────────────────── -->
   <div id="status-screen">
     <div id="status-icon">📺</div>
     <div id="status-msg">Aguardando apresentação</div>
     <div id="status-sub">Configure no painel administrativo</div>
   </div>
+
   <script>
     /* GVC_TV_VARS */
     window.__DEVICE_TOKEN__ = window.__DEVICE_TOKEN__ || '';
-    window.__DEVICE_SLUG__  = window.__DEVICE_SLUG__  || '';
-    window.__BASE_URL__     = window.__BASE_URL__      || '';
+    window.__DEVICE_SLUG__ = window.__DEVICE_SLUG__ || '';
+    window.__BASE_URL__ = window.__BASE_URL__ || '';
   </script>
   <script src="../js/player.js"></script>
 </body>

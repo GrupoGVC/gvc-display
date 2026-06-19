@@ -1,163 +1,286 @@
 /* ============================================================
-   GVC Display — Player da TV
+   GVC Display — Player da TV  (reescrito)
+
+   Lógica de estados:
+   1. PAIRING   → TV nunca foi configurada → mostra código + QR
+   2. WAITING   → TV configurada mas sem playlist → "Aguardando..."
+   3. PLAYING   → Exibe slides em loop
+
+   Transições automáticas via heartbeat a cada 5s.
+   Detecta mudanças de hash e recarrega playlist sem refresh.
    ============================================================ */
 
-// Token e slug injetados pelo tv.php via json_encode (valores reais, sem placeholder)
-const DEVICE_TOKEN = window.__DEVICE_TOKEN__ || '';
-const DEVICE_SLUG  = window.__DEVICE_SLUG__  || '';
-
-// BASE dinâmico — injetado pelo tv.php via window.__BASE_URL__
-// Fallback: detecta pelo pathname (acesso direto ao HTML)
-const BASE = window.__BASE_URL__ ||
-  (window.location.origin +
-    window.location.pathname
-      .replace(/\/tv\/[^/]*\/?$/, '')
-      .replace(/\/tv\/?$/, '')
-      .replace(/\/html\/player\.html.*$/, '')
-      .replace(/\/+$/, ''));
+const TOKEN = window.__DEVICE_TOKEN__ || '';
+const BASE  = window.__BASE_URL__      || (() => {
+  const p = window.location.pathname
+    .replace(/\/tv(\/[^/]*)?$/, '')
+    .replace(/\/+$/, '');
+  return window.location.origin + p;
+})();
 const API = BASE + '/api';
 
-// ── Estado ────────────────────────────────────────────────────
-const state = {
-  playlist:     null,
-  currentIndex: 0,
-  timer:        null,
-  heartbeatInt: null,
+// ── Estados ───────────────────────────────────────────────────
+const S = {
+  phase:        'init',   // 'pairing' | 'waiting' | 'playing'
+  playlist:     [],
+  idx:          0,
+  slideTimer:   null,
+  hbTimer:      null,
+  pairTimer:    null,
+  pairCountdown:null,
   lastHash:     null,
-  pairingInt:   null,
-  isPairing:    false,
-  pairingCode:  null,
+  lastPlId:     null,
 };
 
-// ── Init ──────────────────────────────────────────────────────
-async function init() {
-  if (!DEVICE_TOKEN) {
-    // Sem token injetado — tv.php não foi usado (acesso direto ao HTML)
-    showStatus('📺', 'Configure esta TV', 'Acesse pelo endereço /tv/ no seu navegador');
+// ── Bootstrap ─────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  if (!TOKEN) {
+    setPhase('error', '⚙️', 'Acesse pelo endereço /tv/ no navegador');
     return;
   }
+  heartbeat();                         // primeiro heartbeat imediato
+  S.hbTimer = setInterval(heartbeat, 5000); // depois a cada 5s
+});
 
-  // Injeta a URL do painel no QR (ex: https://display.drc-gvc.tech/index.php)
-  const adminUrl = BASE + '/';
-  const adminUrlEl = document.getElementById('pair-admin-url');
-  if (adminUrlEl) adminUrlEl.textContent = adminUrl;
-
-  // Inicia heartbeat imediatamente
-  await heartbeat();
-  state.heartbeatInt = setInterval(heartbeat, 8000);
-}
-
-// ── Heartbeat ─────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+//  HEARTBEAT — cérebro de toda a lógica de estado
+// ════════════════════════════════════════════════════════════════
 async function heartbeat() {
   try {
-    const res = await fetch(`${API}/devices/heartbeat`, {
-      method:  'POST',
+    const r = await fetch(`${API}/devices/heartbeat`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ token: DEVICE_TOKEN }),
+      body: JSON.stringify({ token: TOKEN }),
     });
 
-    if (!res.ok) {
-      // 401 = token inválido (device deletado/resetado) → mostra pareamento novamente
-      if (res.status === 401) {
-        if (!state.isPairing) showPairing();
-      } else {
-        showStatus('📡', 'Sem conexão', 'Tentando reconectar...');
-      }
+    // Token inválido → TV deletada do painel
+    if (r.status === 401) {
+      if (S.phase !== 'pairing') enterPairing();
+      return;
+    }
+    if (!r.ok) {
+      if (S.phase === 'init') setPhase('error', '📡', 'Sem conexão com o servidor');
       return;
     }
 
-    const raw  = await res.text();
-    const data = JSON.parse(raw.replace(/^[^{[]*/, ''));
-    const d    = data.data ?? data;
+    const d = (await r.json()).data ?? {};
 
-    // ── Verifica se a TV já foi confirmada pelo admin ────────
-    // configured=false → TV criada automaticamente, nunca pareada
-    // configured=true  → admin já deu nome, mas pode não ter playlist ainda
+    // ── Não configurada → pareamento ──────────────────────────
     if (!d.configured) {
-      if (!state.isPairing) showPairing();
+      if (S.phase !== 'pairing') enterPairing();
       return;
     }
 
-    // TV configurada mas sem playlist → aguardando atribuição
+    // ── Configurada mas sem playlist → aguardando ─────────────
     if (!d.playlist_id) {
-      showStatus('📋', 'Aguardando playlist',
-        'Acesse o painel e atribua uma playlist a esta TV');
+      if (S.phase !== 'waiting') setPhase('waiting', '📋', 'Aguardando playlist', 'Atribua uma playlist a esta TV no painel');
       return;
     }
 
-    // ── Com playlist → esconde pareamento e mostra conteúdo ───
-    if (state.isPairing) stopPairing();
+    // ── Com playlist ──────────────────────────────────────────
+    // Saiu do pareamento? Limpa tudo
+    if (S.phase === 'pairing') exitPairing();
 
-    document.getElementById('status-screen').style.display  = 'none';
-
-    // Recarrega playlist só se o conteúdo mudou (hash diferente)
-    if (d.playlist_hash !== state.lastHash) {
-      state.lastHash = d.playlist_hash;
-      await loadPlaylist(d.playlist_id);
+    // Playlist mudou (hash diferente ou id diferente)?
+    if (d.playlist_id !== S.lastPlId || d.playlist_hash !== S.lastHash) {
+      S.lastHash = d.playlist_hash;
+      S.lastPlId = d.playlist_id;
+      await loadAndPlay(d.playlist_id);
     }
 
   } catch {
-    // Sem conexão com o servidor — não sai do que está exibindo
-    if (!state.playlist) {
-      showStatus('📡', 'Sem conexão', 'Tentando reconectar...');
-    }
-    // Se já está exibindo conteúdo, continua normalmente até reconectar
+    // Sem internet — continua exibindo o que tem
+    if (S.phase === 'init') setPhase('error', '📡', 'Sem conexão', 'Tentando reconectar...');
   }
 }
 
-// ── Para o estado de pareamento ───────────────────────────────
-function stopPairing() {
-  state.isPairing  = false;
-  state.pairingCode = null;
-  if (state.pairingInt) { clearInterval(state.pairingInt); state.pairingInt = null; }
-  document.getElementById('pairing-screen').style.display = 'none';
+// ════════════════════════════════════════════════════════════════
+//  PAREAMENTO
+// ════════════════════════════════════════════════════════════════
+function enterPairing() {
+  S.phase = 'pairing';
+  clearSlideTimer();
+
+  el('stage').innerHTML              = '';
+  el('status-screen').style.display  = 'none';
+  el('pairing-screen').style.display = 'flex';
+
+  generatePairingCode();
 }
 
-// ── Playlist ──────────────────────────────────────────────────
-async function loadPlaylist(id) {
-  try {
-    const res  = await fetch(`${API}/playlists/${id}`, {
-      headers: { Authorization: `Bearer ${DEVICE_TOKEN}` },
-    });
-    if (!res.ok) return;
-    const raw  = await res.text();
-    const data = JSON.parse(raw.replace(/^[^{[]*/, ''));
-    const pl   = data.data ?? data;
+function exitPairing() {
+  clearInterval(S.pairTimer);
+  clearInterval(S.pairCountdown);
+  S.pairTimer = S.pairCountdown = null;
+  el('pairing-screen').style.display = 'none';
+}
 
-    if (!pl?.items?.length) {
-      showStatus('📺', 'Playlist vazia', 'Adicione itens no painel administrativo');
+async function generatePairingCode() {
+  // Limpa timers anteriores
+  clearInterval(S.pairTimer);
+  clearInterval(S.pairCountdown);
+
+  // Mostra traços enquanto gera
+  setDigits('------');
+  setText('pair-ttl', 'Gerando código...');
+
+  try {
+    const r    = await fetch(`${API}/pairing/generate?token=${enc(TOKEN)}`);
+    const data = (await r.json()).data ?? {};
+    const code = data.code;
+    if (!code) throw new Error('sem código');
+
+    setDigits(code);
+
+    // QR Code aponta para o painel admin
+    const qr = el('pair-qr');
+    if (qr) {
+      qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=ffffff&color=000000&qzone=1&data=${enc(BASE + '/')}`;
+      qr.style.display = 'block';
+      if (qr.nextElementSibling) qr.nextElementSibling.style.display = 'none';
+    }
+
+    const urlEl = el('pair-admin-url');
+    if (urlEl) urlEl.textContent = BASE + '/';
+
+    // Contador 30 minutos
+    let secs = 30 * 60;
+    S.pairCountdown = setInterval(() => {
+      secs--;
+      const m = String(Math.floor(secs / 60)).padStart(2, '0');
+      const s = String(secs % 60).padStart(2, '0');
+      setText('pair-ttl', `Código válido por ${m}:${s}`);
+      if (secs <= 0) {
+        clearInterval(S.pairCountdown);
+        generatePairingCode(); // renova automaticamente
+      }
+    }, 1000);
+
+    setText('pair-status-txt', 'Aguardando vinculação...');
+
+  } catch {
+    setDigits('------');
+    setText('pair-ttl', 'Erro ao gerar código. Tentando em 15s...');
+    S.pairTimer = setTimeout(generatePairingCode, 15000);
+  }
+}
+
+function setDigits(code) {
+  const el = document.getElementById('pair-digits');
+  if (!el) return;
+  const chars = String(code).padEnd(6, '-').slice(0, 6);
+  el.innerHTML = chars.split('').map(d => `<span>${d}</span>`).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PLAYLIST & SLIDES
+// ════════════════════════════════════════════════════════════════
+async function loadAndPlay(plId) {
+  try {
+    const r  = await fetch(`${API}/playlists/${plId}`, {
+      headers: { Authorization: `Bearer ${TOKEN}` },
+    });
+    if (!r.ok) return;
+    const pl = (await r.json()).data ?? {};
+
+    if (!pl.items?.length) {
+      setPhase('waiting', '📺', 'Playlist vazia', 'Adicione itens no painel');
       return;
     }
 
-    state.playlist     = pl.items;
-    state.currentIndex = 0;
-    clearTimeout(state.timer);
+    S.playlist = pl.items;
+    S.phase    = 'playing';
+    S.idx      = 0;
 
-    document.getElementById('status-screen').style.display  = 'none';
-    document.getElementById('pairing-screen').style.display = 'none';
+    el('status-screen').style.display  = 'none';
+    el('pairing-screen').style.display = 'none';
 
     showSlide(0);
   } catch {
-    showStatus('⚠️', 'Erro ao carregar playlist', 'Tentando novamente em breve...');
+    // Mantém o que está exibindo — tenta no próximo heartbeat
   }
 }
 
-// ── Player ────────────────────────────────────────────────────
-function showSlide(index) {
-  const items = state.playlist;
-  if (!items?.length) return;
-  const item = items[index % items.length];
-  state.currentIndex = index % items.length;
-  clearTimeout(state.timer);
+function showSlide(i) {
+  clearSlideTimer();
+  if (!S.playlist?.length) return;
+
+  const item = S.playlist[i % S.playlist.length];
+  S.idx = i % S.playlist.length;
 
   const url = resolveUrl(item.media_url || item.url || '');
-  if      (item.type === 'video') showVideo(url, item);
-  else if (item.type === 'page')  showPage(url, item);
-  else                            showImage(url, item);
+  const isVideo = item.type === 'video' || /\.(mp4|webm|ogg|mov)$/i.test(url);
+  const isPage  = item.type === 'page';
+
+  if (isVideo) renderVideo(url, item);
+  else if (isPage) renderPage(url, item);
+  else renderImage(url, item);
 }
 
-function next() { showSlide(state.currentIndex + 1); }
+function nextSlide() { showSlide(S.idx + 1); }
 
+function renderImage(src, item) {
+  const dur   = (item.duration || 10) * 1000;
+  const stage = el('stage');
+  stage.innerHTML = '';
+
+  const img    = new Image();
+  img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
+  img.onload  = () => { stage.appendChild(img); S.slideTimer = setTimeout(nextSlide, dur); };
+  img.onerror = () => { S.slideTimer = setTimeout(nextSlide, 2000); };
+  img.src     = src;
+
+  // Se já está em cache e carregada
+  if (img.complete && img.naturalWidth) {
+    stage.appendChild(img);
+    S.slideTimer = setTimeout(nextSlide, dur);
+  }
+}
+
+function renderVideo(src, item) {
+  const stage = el('stage');
+  stage.innerHTML = `<video autoplay muted playsinline
+    style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
+    <source src="${esc(src)}" type="${src.endsWith('.webm') ? 'video/webm' : 'video/mp4'}">
+  </video>`;
+
+  const vid = stage.querySelector('video');
+  vid.onended = nextSlide;
+  vid.onerror = () => { S.slideTimer = setTimeout(nextSlide, 2000); };
+  // Safety timeout: duração + 10s para vídeos sem metadata
+  S.slideTimer = setTimeout(nextSlide, ((item.duration || 30) + 10) * 1000);
+  vid.play().catch(() => { S.slideTimer = setTimeout(nextSlide, 3000); });
+}
+
+function renderPage(src, item) {
+  el('stage').innerHTML = `<iframe src="${esc(src)}"
+    style="position:absolute;inset:0;width:100%;height:100%;border:none;"
+    sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`;
+  S.slideTimer = setTimeout(nextSlide, (item.duration || 30) * 1000);
+}
+
+function clearSlideTimer() {
+  clearTimeout(S.slideTimer);
+  S.slideTimer = null;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  TELA DE STATUS GENÉRICA
+// ════════════════════════════════════════════════════════════════
+function setPhase(phase, icon, msg, sub) {
+  S.phase = phase;
+  clearSlideTimer();
+  el('stage').innerHTML               = '';
+  el('pairing-screen').style.display  = 'none';
+  el('status-screen').style.display   = 'flex';
+  el('status-icon').textContent       = icon || '📺';
+  el('status-msg').textContent        = msg  || '';
+  el('status-sub').textContent        = sub  || '';
+}
+
+// ════════════════════════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════════════════════════
 function resolveUrl(url) {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -172,129 +295,10 @@ function resolveUrl(url) {
   return url;
 }
 
-function showImage(src, item) {
-  const dur   = (item.duration || 10) * 1000;
-  const stage = document.getElementById('stage');
-  stage.innerHTML = '';
-
-  const img = new Image();
-  img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
-  img.onload  = () => { stage.appendChild(img); state.timer = setTimeout(next, dur); };
-  img.onerror = () => { state.timer = setTimeout(next, 2000); };
-  img.src = src;
-  if (img.complete && img.naturalWidth) {
-    stage.appendChild(img);
-    state.timer = setTimeout(next, dur);
-  }
-}
-
-function showVideo(src, item) {
-  const stage = document.getElementById('stage');
-  stage.innerHTML = `
-    <video src="${esc(src)}" autoplay muted playsinline
-      style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
-    </video>`;
-  const vid = stage.querySelector('video');
-  vid.onended = next;
-  vid.onerror = () => { state.timer = setTimeout(next, 2000); };
-  state.timer = setTimeout(next, ((item.duration || 60) + 10) * 1000);
-  vid.play().catch(() => { state.timer = setTimeout(next, 3000); });
-}
-
-function showPage(src, item) {
-  const stage = document.getElementById('stage');
-  stage.innerHTML = `<iframe src="${esc(src)}"
-    style="position:absolute;inset:0;width:100%;height:100%;border:none;"
-    sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`;
-  state.timer = setTimeout(next, (item.duration || 30) * 1000);
-}
-
-// ── Tela de Status ────────────────────────────────────────────
-function showStatus(icon, msg, sub) {
-  clearTimeout(state.timer);
-  document.getElementById('stage').innerHTML               = '';
-  document.getElementById('pairing-screen').style.display = 'none';
-  document.getElementById('status-screen').style.display  = 'flex';
-  document.getElementById('status-icon').textContent      = icon;
-  document.getElementById('status-msg').textContent       = msg;
-  document.getElementById('status-sub').textContent       = sub || '';
-}
-
-// ── Tela de Pareamento ────────────────────────────────────────
-async function showPairing() {
-  state.isPairing = true;
-  clearTimeout(state.timer);
-  document.getElementById('stage').innerHTML               = '';
-  document.getElementById('status-screen').style.display  = 'none';
-  document.getElementById('pairing-screen').style.display = 'flex';
-  await generateCode();
-}
-
-async function generateCode() {
-  const digitsEl = document.getElementById('pair-digits');
-  const qrEl     = document.getElementById('pair-qr');
-  const ttlEl    = document.getElementById('pair-ttl');
-  const statusEl = document.getElementById('pair-status-txt');
-
-  // Mostra traços enquanto carrega
-  if (digitsEl) {
-    digitsEl.innerHTML = '<span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>';
-  }
-  if (ttlEl) ttlEl.textContent = 'Gerando código...';
-
-  try {
-    const res  = await fetch(`${API}/pairing/generate?token=${encodeURIComponent(DEVICE_TOKEN)}`);
-    const raw  = await res.text();
-    const data = JSON.parse(raw.replace(/^[^{[]*/, ''));
-    const code = data.data?.code ?? data.code;
-    if (!code) throw new Error('sem código');
-
-    state.pairingCode = code;
-
-    // Exibe os 6 dígitos separados
-    if (digitsEl) {
-      digitsEl.innerHTML = code.split('').map(d => `<span>${d}</span>`).join('');
-    }
-
-    // QR Code aponta para o painel admin
-    const adminUrl = BASE + '/';
-    const qrData   = encodeURIComponent(adminUrl);
-    const qrUrl    = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrData}&bgcolor=ffffff&color=000000&qzone=1`;
-    if (qrEl) {
-      qrEl.src = qrUrl;
-    }
-
-    // Atualiza URL do painel no rodapé do QR
-    const adminUrlEl = document.getElementById('pair-admin-url');
-    if (adminUrlEl) adminUrlEl.textContent = adminUrl;
-
-    // Contador regressivo 30 minutos
-    let secs = 30 * 60;
-    if (state.pairingInt) clearInterval(state.pairingInt);
-    state.pairingInt = setInterval(() => {
-      secs--;
-      const m = String(Math.floor(secs / 60)).padStart(2, '0');
-      const s = String(secs % 60).padStart(2, '0');
-      if (ttlEl) ttlEl.textContent = `Código válido por ${m}:${s}`;
-      if (secs <= 0) {
-        clearInterval(state.pairingInt);
-        generateCode(); // renova automaticamente
-      }
-    }, 1000);
-
-    if (statusEl) statusEl.textContent = 'Aguardando vinculação...';
-
-  } catch {
-    if (digitsEl) digitsEl.innerHTML = '<span>-</span><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span>';
-    if (ttlEl) ttlEl.textContent = 'Erro ao gerar código. Tentando novamente...';
-    setTimeout(generateCode, 10000);
-  }
-}
-
+function el(id)       { return document.getElementById(id); }
+function setText(id, t) { const e = el(id); if (e) e.textContent = t; }
+function enc(s)       { return encodeURIComponent(s); }
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
-    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
-
-// ── Start ─────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', init);
