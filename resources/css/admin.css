@@ -95,7 +95,8 @@ html, body { height: 100%; overflow: hidden; }
 #btn-sb {
   background: transparent; border: none; color: var(--txt2);
   padding: 6px; border-radius: 7px;
-  display: flex; align-items: center; justify-content: center;
+  display: none; /* escondido no desktop — só aparece via media query abaixo */
+  align-items: center; justify-content: center;
   transition: .12s; cursor: pointer; flex-shrink: 0;
   font-size: var(--icon-lg);
   min-width: 40px; min-height: 40px;
@@ -317,10 +318,17 @@ input[type="datetime-local"] { width: 100%; }
    RESPONSIVIDADE
    ════════════════════════════════════════════════════════════ */
 
-/* ── Tablet (992px) ──────────────────────────────────────── */
+/* No desktop, alinha o título com a sidebar */
+@media (min-width: 993px) {
+  .topbar .d-flex:first-child { gap: 0 !important; }
+  #ptitle { margin-left: 0; }
+}
 @media (max-width: 992px) {
   html, body { overflow: auto; }
   #app { overflow: auto; height: auto; min-height: 100vh; }
+
+  /* Mostrar botão hambúrguer só no mobile/tablet */
+  #btn-sb { display: flex !important; }
 
   /* Sidebar: drawer sobreposto */
   #sb {
@@ -409,3 +417,41 @@ input[type="datetime-local"] { width: 100%; }
   .gvc-table [data-col="sch-fim"],
   .gvc-table th[data-col="sch-fim"]  { display: none; }
 }
+
+/* ══════════════════════════════════════════════════════════
+   TEMA CLARO — overrides
+   ══════════════════════════════════════════════════════════ */
+[data-theme="light"] #sb { box-shadow: 2px 0 8px rgba(0,0,0,.06); }
+[data-theme="light"] .topbar { box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+
+[data-theme="light"] .gvc-table tbody tr:hover td {
+  background: rgba(0,0,0,.025);
+}
+
+[data-theme="light"] .uparea {
+  background: #f8fafc;
+}
+[data-theme="light"] .uparea:hover {
+  background: rgba(0,170,142,.04);
+}
+
+[data-theme="light"] .media-thumb {
+  border-color: var(--bord);
+}
+
+[data-theme="light"] .ni:hover { background: rgba(0,0,0,.05); }
+[data-theme="light"] .ni.active { background: rgba(0,133,117,.12); }
+
+[data-theme="light"] .pl-item {
+  background: var(--bg3);
+  border-color: var(--bord);
+}
+[data-theme="light"] .pl-item:hover { background: #edf2f7; }
+
+[data-theme="light"] .stat-card .sl { color: var(--txt2); }
+[data-theme="light"] .gvc-table th   { color: var(--txt2); }
+
+[data-theme="light"] #sb-overlay { background: rgba(0,0,0,.35); }
+
+/* Scrollbar no tema claro */
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: var(--bord2); }

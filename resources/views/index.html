@@ -76,7 +76,18 @@
         </button>
         <h1 id="ptitle">Dashboard</h1>
       </div>
-      <div id="pact" class="d-flex gap-2 align-items-center"></div>
+      <div class="d-flex gap-2 align-items-center">
+        <!-- Botão tema claro/escuro — fora do #pact para não ser apagado pela navegação -->
+        <button id="btn-theme" onclick="toggleTheme()"
+          aria-label="Alternar tema claro/escuro"
+          title="Alternar tema"
+          style="background:transparent;border:1px solid var(--bord2);color:var(--txt2);
+                 width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+                 justify-content:center;cursor:pointer;transition:.15s;flex-shrink:0;">
+          <i class="bi bi-moon-fill" id="theme-icon" style="font-size:15px;"></i>
+        </button>
+        <div id="pact" class="d-flex gap-2 align-items-center"></div>
+      </div>
     </div>
 
     <div class="content">
@@ -172,9 +183,11 @@
             </div>
             <div class="d-flex gap-2 flex-wrap align-items-center">
               <input type="text" id="dev-search" placeholder="Buscar TV..."
+                aria-label="Buscar TV por nome"
                 oninput="filterDevs()"
                 style="width:180px;padding:7px 12px;background:var(--bg3);border:1px solid var(--bord2);border-radius:8px;color:var(--txt);font-size:13px;outline:none;"/>
               <select id="dev-filter-grupo" onchange="filterDevs()"
+                aria-label="Filtrar por grupo"
                 style="padding:7px 12px;background:var(--bg3);border:1px solid var(--bord2);border-radius:8px;color:var(--txt);font-size:13px;min-width:150px;">
                 <option value="">Todos os grupos</option>
               </select>
@@ -278,8 +291,8 @@
               <div class="gvc-card">
                 <div class="gvc-card-title mb-3">Distribuição rápida</div>
                 <div class="fg">
-                  <label>Atribuir a</label>
-                  <select id="pl-assign-target">
+                  <label for="pl-assign-target">Atribuir a</label>
+                  <select id="pl-assign-target" aria-label="Selecionar destino da playlist">
                     <option value="">— selecione —</option>
                     <option value="all">Todas as TVs</option>
                   </select>
@@ -328,9 +341,9 @@
           <div class="progbar"><div class="progfill" id="upbar" style="width:0%"></div></div>
         </div>
         <div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
-          <input type="text" id="media-search" placeholder="Buscar mídia..." oninput="renderMedia()"
+          <input type="text" id="media-search" placeholder="Buscar mídia..." aria-label="Buscar mídia por nome" oninput="renderMedia()"
             style="width:200px;padding:7px 12px;background:var(--bg3);border:1px solid var(--bord2);border-radius:8px;color:var(--txt);font-size:13px;outline:none;"/>
-          <select id="media-filter" onchange="renderMedia()"
+          <select id="media-filter" onchange="renderMedia()" aria-label="Filtrar por tipo de mídia"
             style="padding:7px 12px;background:var(--bg3);border:1px solid var(--bord2);border-radius:8px;color:var(--txt);font-size:13px;">
             <option value="">Todos os tipos</option>
             <option value="image">Imagens</option>
@@ -352,11 +365,11 @@
               <p style="font-size:12px;color:var(--txt2);margin-bottom:16px;">Atualize suas credenciais</p>
               <form onsubmit="doChangePass();return false;" autocomplete="on">
                 <div class="fg">
-                  <label>Senha atual</label>
+                  <label for="cfg-cur-pass">Senha atual</label>
                   <input type="password" id="cfg-cur-pass" autocomplete="current-password" placeholder="••••••••"/>
                 </div>
                 <div class="fg">
-                  <label>Nova senha</label>
+                  <label for="cfg-new-pass">Nova senha</label>
                   <input type="password" id="cfg-new-pass" autocomplete="new-password" placeholder="••••••••"/>
                 </div>
                 <button type="submit" class="btn-p">
@@ -428,10 +441,10 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="fg"><label>Nome</label><input type="text" id="d-nome" placeholder="TV Recepção..."/></div>
-        <div class="fg"><label>Local / Unidade</label><input type="text" id="d-unit" placeholder="Andar 2, Unidade Norte..."/></div>
-        <div class="fg"><label>Grupo</label><select id="d-grupo"></select></div>
-        <div class="fg"><label>Playlist padrão</label><select id="d-playlist"></select></div>
+        <div class="fg"><label for="d-nome">Nome</label><input type="text" id="d-nome" placeholder="TV Recepção..."/></div>
+        <div class="fg"><label for="d-unit">Local / Unidade</label><input type="text" id="d-unit" placeholder="Andar 2, Unidade Norte..."/></div>
+        <div class="fg"><label for="d-grupo">Grupo</label><select id="d-grupo"></select></div>
+        <div class="fg"><label for="d-playlist">Playlist padrão</label><select id="d-playlist"></select></div>
       </div>
       <div class="modal-footer">
         <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
@@ -451,20 +464,20 @@
       </div>
       <div class="modal-body">
         <div class="fg">
-          <label>Status de Pareamento</label>
+          <label for="gr-nome">Status de Pareamento</label>
           <div id="dev-pair-status" style="font-size:13px;padding:4px 0;"></div>
         </div>
         <div class="fg">
-          <label>URL da TV</label>
+          <label id="lbl-purl">URL da TV</label>
           <div class="tokdisp">
-            <code id="dev-purl">—</code>
+            <code id="dev-purl" aria-labelledby="lbl-purl">—</code>
             <button class="copybtn" onclick="copyT(document.getElementById('dev-purl').textContent)">Copiar</button>
           </div>
         </div>
         <div class="fg">
-          <label>Token</label>
+          <label id="lbl-token">Token</label>
           <div class="tokdisp">
-            <code id="dev-token">—</code>
+            <code id="dev-token" aria-labelledby="lbl-token">—</code>
             <button class="copybtn" onclick="copyT(document.getElementById('dev-token').textContent)">Copiar</button>
           </div>
         </div>
@@ -488,8 +501,8 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="fg"><label>Nome</label><input type="text" id="gr-nome" placeholder="Unidade Norte..."/></div>
-        <div class="fg"><label>Descrição</label><input type="text" id="gr-desc" placeholder="Opcional..."/></div>
+        <div class="fg"><label for="gr-nome">Nome</label><input type="text" id="gr-nome" placeholder="Unidade Norte..."/></div>
+        <div class="fg"><label for="gr-desc">Descrição</label><input type="text" id="gr-desc" placeholder="Opcional..."/></div>
       </div>
       <div class="modal-footer">
         <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
@@ -508,7 +521,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="fg"><label>Nome</label><input type="text" id="pl-nome" placeholder="Comunicados, Campanha Abril..."/></div>
+        <div class="fg"><label for="pl-is-default">Nome</label><input type="text" id="pl-nome" placeholder="Comunicados, Campanha Abril..."/></div>
         <div style="display:flex;align-items:center;gap:8px;">
           <input type="checkbox" id="pl-is-default" style="width:auto;accent-color:var(--primary)"/>
           <label for="pl-is-default" style="font-size:13px;cursor:pointer;">
@@ -533,8 +546,8 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="fg"><label>Origem</label><select id="dup-src"></select></div>
-        <div class="fg"><label>Nome da cópia</label><input type="text" id="dup-name" placeholder="Cópia de..."/></div>
+        <div class="fg"><label for="dup-src">Origem</label><select id="dup-src"></select></div>
+        <div class="fg"><label for="dup-name">Nome da cópia</label><input type="text" id="dup-name" placeholder="Cópia de..."/></div>
       </div>
       <div class="modal-footer">
         <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
@@ -554,7 +567,7 @@
       </div>
       <div class="modal-body">
         <div class="fg">
-          <label>Tipo</label>
+          <label for="it-tipo">Tipo</label>
           <select id="it-tipo" onchange="togDur();renderMpicker()">
             <option value="image">Imagem</option>
             <option value="video">Vídeo</option>
@@ -562,12 +575,12 @@
           </select>
         </div>
         <div class="fg">
-          <label>URL</label>
+          <label for="it-url">URL</label>
           <input type="text" id="it-url" placeholder="https:// ou /uploads/..."/>
           <p class="hint">Cole a URL ou clique em uma mídia da biblioteca abaixo</p>
         </div>
         <div class="fg" id="dur-grp">
-          <label>Duração (segundos)</label>
+          <label for="it-dur">Duração (segundos)</label>
           <input type="number" id="it-dur" value="10" min="1" max="600"/>
         </div>
         <div style="font-size:12px;color:var(--txt2);font-weight:500;margin-bottom:8px;">Selecionar da biblioteca:</div>
@@ -595,8 +608,8 @@
         <p style="font-size:13px;color:var(--txt2);margin-bottom:16px;">
           Envia uma playlist imediatamente para TVs selecionadas.
         </p>
-        <div class="fg"><label>Playlist</label><select id="bc-pl"><option value="">— selecione —</option></select></div>
-        <div class="fg"><label>Destino</label><select id="bc-target"><option value="all">Todas as TVs</option></select></div>
+        <div class="fg"><label for="bc-pl">Playlist</label><select id="bc-pl"><option value="">— selecione —</option></select></div>
+        <div class="fg"><label for="bc-target">Destino</label><select id="bc-target"><option value="all">Todas as TVs</option></select></div>
       </div>
       <div class="modal-footer">
         <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
@@ -617,26 +630,26 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="fg"><label>Playlist</label><select id="ag-pl"><option value="">— selecione —</option></select></div>
-        <div class="fg"><label>Destino</label><select id="ag-target"><option value="all">Todas as TVs</option></select></div>
+        <div class="fg"><label for="ag-pl">Playlist</label><select id="ag-pl"><option value="">— selecione —</option></select></div>
+        <div class="fg"><label for="ag-target">Destino</label><select id="ag-target"><option value="all">Todas as TVs</option></select></div>
         <div class="row g-2">
           <div class="col-6">
             <div class="fg">
-              <label>Data Início</label>
+              <label for="ag-inicio-data">Data Início</label>
               <input type="date" id="ag-inicio-data" style="width:100%;"/>
             </div>
             <div class="fg">
-              <label>Hora Início</label>
+              <label for="ag-inicio-hora">Hora Início</label>
               <input type="time" id="ag-inicio-hora" value="08:00" style="width:100%;"/>
             </div>
           </div>
           <div class="col-6">
             <div class="fg">
-              <label>Data Fim</label>
+              <label for="ag-fim-data">Data Fim</label>
               <input type="date" id="ag-fim-data" style="width:100%;"/>
             </div>
             <div class="fg">
-              <label>Hora Fim</label>
+              <label for="ag-repeat">Hora Fim</label>
               <input type="time" id="ag-fim-hora" value="18:00" style="width:100%;"/>
             </div>
           </div>
@@ -646,7 +659,7 @@
           <label for="ag-repeat" style="font-size:13px;cursor:pointer;">Repetir semanalmente</label>
         </div>
         <div id="ag-days-wrap" class="hidden">
-          <label style="display:block;font-size:12px;color:var(--txt2);margin-bottom:8px;">Dias da semana</label>
+          <label for="pair-input-code" style="display:block;font-size:12px;color:var(--txt2);margin-bottom:8px;">Dias da semana</label>
           <div class="d-flex gap-2 flex-wrap">
             <label class="day-check"><input type="checkbox" value="0"/>Dom</label>
             <label class="day-check"><input type="checkbox" value="1"/>Seg</label>
@@ -689,7 +702,7 @@
         <!-- Tab: Código manual -->
         <div id="pair-tab-code">
           <div class="fg" style="margin-bottom:12px;">
-            <label>Código da TV (6 dígitos)</label>
+            <label for="pair-input-code">Código da TV (6 dígitos)</label>
             <input type="text" id="pair-input-code" placeholder="000000" maxlength="6"
               style="font-size:32px;letter-spacing:12px;text-align:center;font-family:monospace;padding:14px;"
               oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"
@@ -713,14 +726,14 @@
 
         <!-- Nome da TV -->
         <div class="fg" style="margin-bottom:12px;">
-          <label>Nome para esta TV</label>
+          <label for="pair-tv-name">Nome para esta TV</label>
           <input type="text" id="pair-tv-name" placeholder="Ex: TV Recepção, TV Sala de Reuniões..."
             style="font-size:14px;"/>
         </div>
 
         <!-- Local (opcional) -->
         <div class="fg" style="margin-bottom:4px;">
-          <label>Local / Andar <span style="color:var(--txt2);font-size:11px;">(opcional)</span></label>
+          <label for="pair-tv-location">Local / Andar <span style="color:var(--txt2);font-size:11px;">(opcional)</span></label>
           <input type="text" id="pair-tv-location" placeholder="Ex: 2º Andar, Bloco B..."/>
         </div>
 
@@ -748,10 +761,10 @@
         <p style="font-size:13px;color:var(--txt2);margin-bottom:14px;">
           Código: <span class="pair-code-box" id="pair-code"></span>
         </p>
-        <div class="fg"><label>Dispositivo</label><select id="pair-dev-select" onchange="togPairNew()"></select></div>
+        <div class="fg"><label for="pair-dev-select">Dispositivo</label><select id="pair-dev-select" onchange="togPairNew()"></select></div>
         <div id="pair-new-fields">
-          <div class="fg"><label>Nome</label><input type="text" id="pair-dev-nome" placeholder="TV Recepção..."/></div>
-          <div class="fg"><label>Local</label><input type="text" id="pair-dev-unit" placeholder="Andar, setor..."/></div>
+          <div class="fg"><label for="pair-dev-nome">Nome</label><input type="text" id="pair-dev-nome" placeholder="TV Recepção..."/></div>
+          <div class="fg"><label for="pair-dev-unit">Local</label><input type="text" id="pair-dev-unit" placeholder="Andar, setor..."/></div>
         </div>
       </div>
       <div class="modal-footer">
@@ -849,7 +862,37 @@
     }
   });
 
-  // Inicia
+  // ── Tema claro/escuro ────────────────────────────────────
+  const THEME_KEY = 'gvc_theme';
+  const themeIcon = document.getElementById('theme-icon');
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    if (themeIcon) {
+      themeIcon.className = theme === 'light'
+        ? 'bi bi-sun-fill'
+        : 'bi bi-moon-fill';
+    }
+    const btn = document.getElementById('btn-theme');
+    if (btn) btn.setAttribute('aria-label',
+      theme === 'light' ? 'Mudar para tema escuro' : 'Mudar para tema claro');
+  }
+
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+  }
+
+  // Aplica tema salvo (ou preferência do sistema)
+  (function initTheme() {
+    const saved = localStorage.getItem(THEME_KEY);
+    const preferLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+    applyTheme(saved || (preferLight ? 'light' : 'dark'));
+  })();
+
+  // Inicia sidebar
   initSidebar();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
