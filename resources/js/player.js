@@ -1,17 +1,16 @@
 /* ============================================================
-   GVC Display — Player da TV  (reescrito)
+   GVC Display — Player da TV
 
-   Lógica de estados:
-   1. PAIRING   → TV nunca foi configurada → mostra código + QR
-   2. WAITING   → TV configurada mas sem playlist → "Aguardando..."
+   Estados:
+   1. PAIRING   → TV não configurada → mostra código + QR
+   2. WAITING   → TV configurada mas sem playlist → aguardando
    3. PLAYING   → Exibe slides em loop
 
-   Transições automáticas via heartbeat a cada 5s.
-   Detecta mudanças de hash e recarrega playlist sem refresh.
+   Heartbeat a cada 5s detecta mudanças e recarrega automaticamente.
    ============================================================ */
 
 const TOKEN = window.__DEVICE_TOKEN__ || '';
-const BASE  = window.__BASE_URL__      || (() => {
+const BASE  = window.__BASE_URL__     || (() => {
   const p = window.location.pathname
     .replace(/\/tv(\/[^/]*)?$/, '')
     .replace(/\/+$/, '');
@@ -19,17 +18,16 @@ const BASE  = window.__BASE_URL__      || (() => {
 })();
 const API = BASE + '/api';
 
-// ── Estados ───────────────────────────────────────────────────
 const S = {
-  phase:        'init',   // 'pairing' | 'waiting' | 'playing'
-  playlist:     [],
-  idx:          0,
-  slideTimer:   null,
-  hbTimer:      null,
-  pairTimer:    null,
-  pairCountdown:null,
-  lastHash:     null,
-  lastPlId:     null,
+  phase:         'init',
+  playlist:      [],
+  idx:           0,
+  slideTimer:    null,
+  hbTimer:       null,
+  pairTimer:     null,
+  pairCountdown: null,
+  lastHash:      null,
+  lastPlId:      null,
 };
 
 // ── Bootstrap ─────────────────────────────────────────────────
@@ -38,12 +36,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setPhase('error', '⚙️', 'Acesse pelo endereço /tv/ no navegador');
     return;
   }
-  heartbeat();                         // primeiro heartbeat imediato
-  S.hbTimer = setInterval(heartbeat, 5000); // depois a cada 5s
+  heartbeat();
+  S.hbTimer = setInterval(heartbeat, 5000);
 });
 
 // ════════════════════════════════════════════════════════════════
-//  HEARTBEAT — cérebro de toda a lógica de estado
+//  HEARTBEAT
 // ════════════════════════════════════════════════════════════════
 async function heartbeat() {
   try {
@@ -53,7 +51,6 @@ async function heartbeat() {
       body: JSON.stringify({ token: TOKEN }),
     });
 
-    // Token inválido → TV deletada do painel
     if (r.status === 401) {
       if (S.phase !== 'pairing') enterPairing();
       return;
@@ -65,31 +62,34 @@ async function heartbeat() {
 
     const d = (await r.json()).data ?? {};
 
-    // ── Não configurada → pareamento ──────────────────────────
+    // Não configurada → pareamento
     if (!d.configured) {
       if (S.phase !== 'pairing') enterPairing();
       return;
     }
 
-    // ── Configurada mas sem playlist → aguardando ─────────────
+    // Configurada mas sem playlist
     if (!d.playlist_id) {
-      if (S.phase !== 'waiting') setPhase('waiting', '📋', 'Aguardando playlist', 'Atribua uma playlist a esta TV no painel');
+      if (S.phase !== 'waiting') {
+        exitPairing();
+        setPhase('waiting', '📋', 'Aguardando playlist', 'Atribua uma playlist a esta TV no painel');
+      }
+      S.lastPlId = null;
+      S.lastHash = null;
       return;
     }
 
-    // ── Com playlist ──────────────────────────────────────────
-    // Saiu do pareamento? Limpa tudo
+    // Com playlist — saiu do pareamento/waiting?
     if (S.phase === 'pairing') exitPairing();
 
-    // Playlist mudou (hash diferente ou id diferente)?
+    // Playlist ou conteúdo mudou?
     if (d.playlist_id !== S.lastPlId || d.playlist_hash !== S.lastHash) {
-      S.lastHash = d.playlist_hash;
       S.lastPlId = d.playlist_id;
-      await loadAndPlay(d.playlist_id);
+      S.lastHash = d.playlist_hash;
+      await loadAndPlay();
     }
 
-  } catch {
-    // Sem internet — continua exibindo o que tem
+  } catch (e) {
     if (S.phase === 'init') setPhase('error', '📡', 'Sem conexão', 'Tentando reconectar...');
   }
 }
@@ -99,6 +99,8 @@ async function heartbeat() {
 // ════════════════════════════════════════════════════════════════
 function enterPairing() {
   S.phase = 'pairing';
+  S.lastPlId = null;
+  S.lastHash = null;
   clearSlideTimer();
 
   el('stage').innerHTML              = '';
@@ -116,11 +118,9 @@ function exitPairing() {
 }
 
 async function generatePairingCode() {
-  // Limpa timers anteriores
   clearInterval(S.pairTimer);
   clearInterval(S.pairCountdown);
 
-  // Mostra traços enquanto gera
   setDigits('------');
   setText('pair-ttl', 'Gerando código...');
 
@@ -132,18 +132,20 @@ async function generatePairingCode() {
 
     setDigits(code);
 
-    // QR Code aponta para o painel admin
+    // QR contém os 6 dígitos (scanner do admin extrai \d{6})
     const qr = el('pair-qr');
+    const fb = el('pair-qr-fallback');
     if (qr) {
-      qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=ffffff&color=000000&qzone=1&data=${enc(BASE + '/')}`;
+      qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=ffffff&color=000000&qzone=1&data=${enc(code)}`;
       qr.style.display = 'block';
-      if (qr.nextElementSibling) qr.nextElementSibling.style.display = 'none';
+      if (fb) fb.style.display = 'none';
+      qr.onerror = () => { qr.style.display = 'none'; if (fb) fb.style.display = 'flex'; };
     }
 
     const urlEl = el('pair-admin-url');
     if (urlEl) urlEl.textContent = BASE + '/';
 
-    // Contador 30 minutos
+    // Countdown 30 min
     let secs = 30 * 60;
     S.pairCountdown = setInterval(() => {
       secs--;
@@ -152,7 +154,7 @@ async function generatePairingCode() {
       setText('pair-ttl', `Código válido por ${m}:${s}`);
       if (secs <= 0) {
         clearInterval(S.pairCountdown);
-        generatePairingCode(); // renova automaticamente
+        generatePairingCode();
       }
     }, 1000);
 
@@ -166,22 +168,29 @@ async function generatePairingCode() {
 }
 
 function setDigits(code) {
-  const el = document.getElementById('pair-digits');
-  if (!el) return;
+  const d = document.getElementById('pair-digits');
+  if (!d) return;
   const chars = String(code).padEnd(6, '-').slice(0, 6);
-  el.innerHTML = chars.split('').map(d => `<span>${d}</span>`).join('');
+  d.innerHTML = chars.split('').map(c => `<span>${c}</span>`).join('');
 }
 
 // ════════════════════════════════════════════════════════════════
 //  PLAYLIST & SLIDES
 // ════════════════════════════════════════════════════════════════
-async function loadAndPlay(plId) {
+async function loadAndPlay() {
   try {
-    const r  = await fetch(`${API}/playlists/${plId}`, {
-      headers: { Authorization: `Bearer ${TOKEN}` },
-    });
-    if (!r.ok) return;
-    const pl = (await r.json()).data ?? {};
+    const r = await fetch(`${API}/devices/tv-playlist?token=${enc(TOKEN)}`);
+    if (r.status === 204) {
+      setPhase('waiting', '📺', 'Playlist vazia', 'Adicione itens no painel');
+      return;
+    }
+    if (!r.ok) {
+      console.warn('[GVC Player] tv-playlist HTTP', r.status);
+      return;
+    }
+
+    const body = await r.json();
+    const pl   = body.data ?? body;
 
     if (!pl.items?.length) {
       setPhase('waiting', '📺', 'Playlist vazia', 'Adicione itens no painel');
@@ -196,8 +205,9 @@ async function loadAndPlay(plId) {
     el('pairing-screen').style.display = 'none';
 
     showSlide(0);
-  } catch {
-    // Mantém o que está exibindo — tenta no próximo heartbeat
+
+  } catch (e) {
+    console.warn('[GVC Player] loadAndPlay error:', e);
   }
 }
 
@@ -208,7 +218,7 @@ function showSlide(i) {
   const item = S.playlist[i % S.playlist.length];
   S.idx = i % S.playlist.length;
 
-  const url = resolveUrl(item.media_url || item.url || '');
+  const url     = resolveUrl(item.media_url || item.url || '');
   const isVideo = item.type === 'video' || /\.(mp4|webm|ogg|mov)$/i.test(url);
   const isPage  = item.type === 'page';
 
@@ -224,17 +234,22 @@ function renderImage(src, item) {
   const stage = el('stage');
   stage.innerHTML = '';
 
-  const img    = new Image();
+  const img = new Image();
   img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
-  img.onload  = () => { stage.appendChild(img); S.slideTimer = setTimeout(nextSlide, dur); };
-  img.onerror = () => { S.slideTimer = setTimeout(nextSlide, 2000); };
-  img.src     = src;
 
-  // Se já está em cache e carregada
-  if (img.complete && img.naturalWidth) {
+  let fired = false;
+  const show = () => {
+    if (fired) return;
+    fired = true;
     stage.appendChild(img);
     S.slideTimer = setTimeout(nextSlide, dur);
-  }
+  };
+
+  img.onload  = show;
+  img.onerror = () => { if (!fired) { fired = true; S.slideTimer = setTimeout(nextSlide, 2000); } };
+  img.src     = src;
+
+  if (img.complete && img.naturalWidth) show();
 }
 
 function renderVideo(src, item) {
@@ -247,7 +262,6 @@ function renderVideo(src, item) {
   const vid = stage.querySelector('video');
   vid.onended = nextSlide;
   vid.onerror = () => { S.slideTimer = setTimeout(nextSlide, 2000); };
-  // Safety timeout: duração + 10s para vídeos sem metadata
   S.slideTimer = setTimeout(nextSlide, ((item.duration || 30) + 10) * 1000);
   vid.play().catch(() => { S.slideTimer = setTimeout(nextSlide, 3000); });
 }
@@ -265,7 +279,7 @@ function clearSlideTimer() {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  TELA DE STATUS GENÉRICA
+//  STATUS GENÉRICA
 // ════════════════════════════════════════════════════════════════
 function setPhase(phase, icon, msg, sub) {
   S.phase = phase;
@@ -295,9 +309,9 @@ function resolveUrl(url) {
   return url;
 }
 
-function el(id)       { return document.getElementById(id); }
+function el(id)        { return document.getElementById(id); }
 function setText(id, t) { const e = el(id); if (e) e.textContent = t; }
-function enc(s)       { return encodeURIComponent(s); }
+function enc(s)        { return encodeURIComponent(s); }
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
     ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));

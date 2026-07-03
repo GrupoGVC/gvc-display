@@ -12,15 +12,19 @@ class DashboardController extends Controller
 
         $stats = [
             'total_devices'    => (int)$db->query("SELECT COUNT(*) FROM devices")->fetchColumn(),
-            'online_devices'   => (int)$db->query("SELECT COUNT(*) FROM devices WHERE status='online' AND last_ping >= DATE_SUB(NOW(), INTERVAL 30 SECOND)")->fetchColumn(),
+            'online_devices'   => (int)$db->query("SELECT COUNT(*) FROM devices WHERE last_ping >= DATE_SUB(NOW(), INTERVAL 30 SECOND)")->fetchColumn(),
             'total_playlists'  => (int)$db->query("SELECT COUNT(*) FROM playlists")->fetchColumn(),
             'total_media'      => (int)$db->query("SELECT COUNT(*) FROM media")->fetchColumn(),
         ];
 
         $devices = $db->query("
-            SELECT d.id, d.name, d.location, d.status, p.name AS playlist_name
+            SELECT d.id, d.name, d.location, p.name AS playlist_name,
+                   CASE
+                     WHEN d.last_ping >= DATE_SUB(NOW(), INTERVAL 30 SECOND)
+                     THEN 'online' ELSE 'offline'
+                   END AS status
             FROM devices d LEFT JOIN playlists p ON p.id=d.playlist_id
-            ORDER BY d.status DESC, d.name LIMIT 20
+            ORDER BY (d.last_ping >= DATE_SUB(NOW(), INTERVAL 30 SECOND)) DESC, d.name LIMIT 20
         ")->fetchAll();
 
         $logs = $db->query("

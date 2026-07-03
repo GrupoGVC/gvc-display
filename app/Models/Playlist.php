@@ -35,19 +35,4 @@ class Playlist extends Model
         $pl['hash']  = md5(json_encode($pl['items']));
         return $pl;
     }
-
-    public function activeForDevice(int $deviceId, ?int $groupId): ?int
-    {
-        $now = date('Y-m-d H:i:s');
-        $st  = $this->db->prepare("
-            SELECT s.playlist_id FROM schedules s
-            WHERE s.active = 1 AND s.starts_at <= ? AND s.ends_at >= ?
-              AND (s.target_type='all'
-                OR (s.target_type='device' AND s.target_id=?)
-                OR (s.target_type='group'  AND s.target_id=?))
-            ORDER BY FIELD(s.target_type,'all','group','device') DESC LIMIT 1");
-        $st->execute([$now, $now, $deviceId, $groupId]);
-        $row = $st->fetch();
-        return $row ? (int)$row['playlist_id'] : null;
-    }
 }

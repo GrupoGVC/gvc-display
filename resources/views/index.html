@@ -25,7 +25,7 @@
       <img src="assets/logos/logo_gvc_display_192.png" alt="GVC Display" width="36" height="36" style="border-radius:8px;"/>
       <div style="flex:1;min-width:0;">
         <div class="sb-brand">GVC <span style="color:var(--primary)">Display</span></div>
-        <div class="sb-sub">Sinalização Digital Corporativa</div>
+        <div class="sb-sub">Comunicação & Marketing</div>
       </div>
       <!-- Botão fechar sidebar — visível só no mobile -->
       <button id="btn-sb-close" onclick="closeSb()" title="Fechar menu"
@@ -37,31 +37,40 @@
       </button>
     </div>
     <nav class="sb-nav">
-      <button class="ni active" data-s="dashboard"    onclick="nav('dashboard')">
-        <i class="bi bi-speedometer2"></i> Dashboard
+      <button class="ni active" data-s="dashboard"    onclick="nav('dashboard')" data-tip="Início">
+        <i class="bi bi-house-door"></i> <span class="ni-label">Início</span>
       </button>
-      <button class="ni" data-s="dispositivos" onclick="nav('dispositivos')">
-        <i class="bi bi-display"></i> Dispositivos
+      <button class="ni" data-s="dispositivos" onclick="nav('dispositivos')" data-tip="Dispositivos">
+        <i class="bi bi-display"></i> <span class="ni-label">Dispositivos</span>
       </button>
-      <button class="ni" data-s="grupos"       onclick="nav('grupos')">
-        <i class="bi bi-collection"></i> Grupos
+      <button class="ni" data-s="midia"        onclick="nav('midia')" data-tip="Mídia">
+        <i class="bi bi-images"></i> <span class="ni-label">Mídia</span>
       </button>
-      <button class="ni" data-s="playlists"    onclick="nav('playlists')">
-        <i class="bi bi-play-circle"></i> Playlists
+      <button class="ni" data-s="playlists"    onclick="nav('playlists')" data-tip="Playlists">
+        <i class="bi bi-play-circle"></i> <span class="ni-label">Playlists</span>
       </button>
-      <button class="ni" data-s="agendamentos" onclick="nav('agendamentos')">
-        <i class="bi bi-calendar3"></i> Agendamentos
+      <button class="ni" data-s="grupos"       onclick="nav('grupos')" data-tip="Grupos">
+        <i class="bi bi-collection"></i> <span class="ni-label">Grupos</span>
       </button>
-      <button class="ni" data-s="midia"        onclick="nav('midia')">
-        <i class="bi bi-images"></i> Mídia
-      </button>
-      <button class="ni" data-s="config"       onclick="nav('config')">
-        <i class="bi bi-gear"></i> Config
+      <button class="ni" data-s="config"       onclick="nav('config')" data-tip="Configurações">
+        <i class="bi bi-gear"></i> <span class="ni-label">Config</span>
       </button>
     </nav>
     <div class="sb-foot">
       <span class="dot-on"></span>
-      <span id="conn-user">—</span>
+      <span id="conn-user" class="sb-foot-user">—</span>
+      <div class="sb-foot-actions">
+        <button id="btn-theme" onclick="toggleTheme()"
+          aria-label="Alternar tema claro/escuro" data-tip="Alternar tema"
+          class="sb-foot-btn">
+          <i class="bi bi-moon-fill" id="theme-icon"></i>
+        </button>
+        <button id="btn-collapse" onclick="collapseSb()"
+          aria-label="Recolher menu lateral" data-tip="Recolher/expandir"
+          class="sb-foot-btn">
+          <i class="bi bi-layout-sidebar-inset" id="collapse-icon"></i>
+        </button>
+      </div>
     </div>
   </div>
   <!-- Overlay mobile -->
@@ -74,20 +83,9 @@
         <button id="btn-sb" onclick="toggleSb()" aria-label="Abrir menu lateral" aria-expanded="false" aria-controls="sb">
           <i class="bi bi-list" style="font-size:22px"></i>
         </button>
-        <h1 id="ptitle">Dashboard</h1>
+        <h1 id="ptitle">Início</h1>
       </div>
-      <div class="d-flex gap-2 align-items-center">
-        <!-- Botão tema claro/escuro — fora do #pact para não ser apagado pela navegação -->
-        <button id="btn-theme" onclick="toggleTheme()"
-          aria-label="Alternar tema claro/escuro"
-          title="Alternar tema"
-          style="background:transparent;border:1px solid var(--bord2);color:var(--txt2);
-                 width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
-                 justify-content:center;cursor:pointer;transition:.15s;flex-shrink:0;">
-          <i class="bi bi-moon-fill" id="theme-icon" style="font-size:15px;"></i>
-        </button>
-        <div id="pact" class="d-flex gap-2 align-items-center"></div>
-      </div>
+      <div id="pact" class="d-flex gap-2 align-items-center"></div>
     </div>
 
     <div class="content">
@@ -289,36 +287,23 @@
                 <div id="prev-hint" style="font-size:11px;color:var(--txt2);text-align:center;margin-top:6px;"></div>
               </div>
               <div class="gvc-card">
-                <div class="gvc-card-title mb-3">Distribuição rápida</div>
+                <div class="gvc-card-title mb-3">Configurações</div>
                 <div class="fg">
-                  <label for="pl-assign-target">Atribuir a</label>
-                  <select id="pl-assign-target" aria-label="Selecionar destino da playlist">
-                    <option value="">— selecione —</option>
-                    <option value="all">Todas as TVs</option>
-                  </select>
+                  <label for="pl-edit-rename">Nome da Playlist</label>
+                  <input type="text" id="pl-edit-rename" placeholder="Nome da playlist"/>
                 </div>
-                <button class="btn-p w-100 justify-content-center" onclick="quickAssign()" id="btn-quick-assign">
-                  Aplicar <i class="bi bi-arrow-right"></i>
+                <div class="fg" style="margin-bottom:16px;">
+                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;">
+                    <input type="checkbox" id="pl-edit-is-default" style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer;flex-shrink:0;"/>
+                    <span>Definir como playlist padrão</span>
+                  </label>
+                </div>
+                <button class="btn-p w-100 justify-content-center" onclick="savePlSettings()" id="btn-save-pl">
+                  <i class="bi bi-check-lg"></i>Salvar
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- ══ AGENDAMENTOS ═══════════════════════════════════════ -->
-      <div id="sec-agendamentos" class="sec">
-        <div class="gvc-card">
-          <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-              <div class="gvc-card-title">Agendamentos</div>
-              <div style="font-size:12px;color:var(--txt2);margin-top:3px;">Programe apresentações por data e horário</div>
-            </div>
-            <button class="btn-p" onclick="openAddAgenda()">
-              <i class="bi bi-plus-lg"></i>Novo Agendamento
-            </button>
-          </div>
-          <div id="sch-list"></div>
         </div>
       </div>
 
@@ -621,66 +606,6 @@
   </div>
 </div>
 
-<!-- Modal: Agendamento -->
-<div class="modal fade" id="m-agenda" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered" style="max-width:540px;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title"><i class="bi bi-calendar-check"></i>Novo Agendamento</div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="fg"><label for="ag-pl">Playlist</label><select id="ag-pl"><option value="">— selecione —</option></select></div>
-        <div class="fg"><label for="ag-target">Destino</label><select id="ag-target"><option value="all">Todas as TVs</option></select></div>
-        <div class="row g-2">
-          <div class="col-6">
-            <div class="fg">
-              <label for="ag-inicio-data">Data Início</label>
-              <input type="date" id="ag-inicio-data" style="width:100%;"/>
-            </div>
-            <div class="fg">
-              <label for="ag-inicio-hora">Hora Início</label>
-              <input type="time" id="ag-inicio-hora" value="08:00" style="width:100%;"/>
-            </div>
-          </div>
-          <div class="col-6">
-            <div class="fg">
-              <label for="ag-fim-data">Data Fim</label>
-              <input type="date" id="ag-fim-data" style="width:100%;"/>
-            </div>
-            <div class="fg">
-              <label for="ag-repeat">Hora Fim</label>
-              <input type="time" id="ag-fim-hora" value="18:00" style="width:100%;"/>
-            </div>
-          </div>
-        </div>
-        <div class="d-flex align-items-center gap-2 mb-2">
-          <input type="checkbox" id="ag-repeat" style="width:auto;accent-color:var(--primary)" onchange="togRepeat()"/>
-          <label for="ag-repeat" style="font-size:13px;cursor:pointer;">Repetir semanalmente</label>
-        </div>
-        <div id="ag-days-wrap" class="hidden">
-          <label for="pair-input-code" style="display:block;font-size:12px;color:var(--txt2);margin-bottom:8px;">Dias da semana</label>
-          <div class="d-flex gap-2 flex-wrap">
-            <label class="day-check"><input type="checkbox" value="0"/>Dom</label>
-            <label class="day-check"><input type="checkbox" value="1"/>Seg</label>
-            <label class="day-check"><input type="checkbox" value="2"/>Ter</label>
-            <label class="day-check"><input type="checkbox" value="3"/>Qua</label>
-            <label class="day-check"><input type="checkbox" value="4"/>Qui</label>
-            <label class="day-check"><input type="checkbox" value="5"/>Sex</label>
-            <label class="day-check"><input type="checkbox" value="6"/>Sáb</label>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn-p" id="btn-save-agenda" onclick="doSaveAgenda()">
-          <i class="bi bi-check-lg"></i>Salvar
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Modal: Parear TV (abre de Dispositivos) -->
 <div class="modal fade" id="m-pair-device" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
@@ -732,9 +657,15 @@
         </div>
 
         <!-- Local (opcional) -->
-        <div class="fg" style="margin-bottom:4px;">
+        <div class="fg" style="margin-bottom:12px;">
           <label for="pair-tv-location">Local / Andar <span style="color:var(--txt2);font-size:11px;">(opcional)</span></label>
           <input type="text" id="pair-tv-location" placeholder="Ex: 2º Andar, Bloco B..."/>
+        </div>
+
+        <!-- Grupo (opcional) -->
+        <div class="fg" style="margin-bottom:4px;">
+          <label for="pair-tv-group">Grupo <span style="color:var(--txt2);font-size:11px;">(opcional)</span></label>
+          <select id="pair-tv-group"></select>
         </div>
 
         <div id="pair-error" style="display:none;color:var(--red);font-size:13px;margin-top:12px;text-align:center;border-radius:8px;padding:8px;background:rgba(255,79,106,.1);"></div>
@@ -786,12 +717,12 @@
     "doLogin","doLogout","nav","loadPairing","openAddDev","openEditDev","doSaveDev",
     "openDevInfo","delDev","openAddGrupo","openEditGrupo","doSaveGrupo","delGrupo",
     "showPlList","editPlaylist","openDupPl","openAddPl","deleteCurPl","openAddItem",
-    "delItem","openAddAgenda","delAgenda","doSaveAgenda","quickAssign","openBroadcast",
+    "delItem","saveItemDur","savePlSettings","openBroadcast",
     "doBroadcast","filterDevs","onDragStart","onDragOver","onDrop","previewItem",
-    "doChangePass","doUpload","renderMedia","togDur","renderMpicker","togRepeat","doAddPl",
-    "doDupPl","doAddItem","togPairNew","doPairDevice","copyT","openLogModal","delSched",
-    "toggleSched","openPair","pickMedia","delPl","cancelDevPairing","openPairForDevice",
-    "switchPairTab","startCamera","stopCamera","doPairDeviceNew",
+    "doChangePass","doUpload","renderMedia","togDur","renderMpicker","doAddPl",
+    "doDupPl","doAddItem","togPairNew","doPairDevice","copyT","openLogModal",
+    "openPair","pickMedia","delPl","cancelDevPairing","openPairForDevice",
+    "switchPairTab","startCamera","stopCamera","doPairDeviceNew","collapseSb",
   ].forEach(fn => {
     window[fn] = window[fn] || function() {
       const a = arguments;
@@ -803,6 +734,7 @@
   const OV   = document.getElementById('sb-overlay');
   const MAIN = document.getElementById('main');
   const BTN_SB = document.getElementById('btn-sb');
+  const COLLAPSE_KEY = 'gvc_sb_collapsed';
 
   // Fecha sidebar: remove sb-hidden no desktop, adiciona no mobile
   function isMobileView() { return window.innerWidth <= 992; }
@@ -823,6 +755,35 @@
     SB.classList.contains('sb-hidden') ? openSb() : closeSb();
   }
 
+  // ── Colapsar sidebar no desktop (modo ícones) ──────────────
+  const collapseIcon = document.getElementById('collapse-icon');
+
+  function applyCollapse(collapsed) {
+    SB.classList.toggle('sb-collapsed', collapsed);
+    if (collapseIcon) {
+      collapseIcon.className = collapsed ? 'bi bi-layout-sidebar' : 'bi bi-layout-sidebar-inset';
+    }
+  }
+
+  function collapseSb() {
+    if (isMobileView()) { closeSb(); return; }
+    const isCollapsed = SB.classList.contains('sb-collapsed');
+    applyCollapse(!isCollapsed);
+    if (isCollapsed) localStorage.removeItem(COLLAPSE_KEY);
+    else             localStorage.setItem(COLLAPSE_KEY, '1');
+  }
+
+  // toggleSb (botão de menu no topbar) — mobile: drawer; desktop: expande se colapsado
+  const _baseToggle = toggleSb;
+  window.toggleSb = function() {
+    if (!isMobileView()) {
+      applyCollapse(false);
+      localStorage.removeItem(COLLAPSE_KEY);
+    } else {
+      _baseToggle();
+    }
+  };
+
   const BTN_CLOSE = document.getElementById('btn-sb-close');
 
   function updateCloseBtn() {
@@ -834,9 +795,12 @@
     updateCloseBtn();
     if (isMobileView()) {
       SB.classList.add('sb-hidden');
+      SB.classList.remove('sb-collapsed');
       OV.classList.remove('visible');
     } else {
       SB.classList.remove('sb-hidden');
+      // Respeitar preferência de colapso salva (modo ícones)
+      applyCollapse(localStorage.getItem(COLLAPSE_KEY) === '1');
       OV.classList.remove('visible');
     }
   }
@@ -858,7 +822,10 @@
     updateCloseBtn();
     if (!isMobileView()) {
       SB.classList.remove('sb-hidden');
+      applyCollapse(localStorage.getItem(COLLAPSE_KEY) === '1');
       OV.classList.remove('visible');
+    } else {
+      SB.classList.remove('sb-collapsed');
     }
   });
 

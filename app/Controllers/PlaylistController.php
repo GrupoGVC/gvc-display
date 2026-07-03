@@ -62,6 +62,27 @@ class PlaylistController extends Controller
         Response::json(array_merge($this->model->find($id), ['item_count' => 0]), 201);
     }
 
+    public function update(array $params): void
+    {
+        $payload = $this->auth();
+        $id      = (int)$params['id'];
+        $name    = $this->request->input('name');
+        if (!$name) Response::error('Nome é obrigatório');
+
+        $isDefault = (bool)$this->request->body('is_default');
+        if ($isDefault) {
+            \App\Core\Database::connection()->query("UPDATE playlists SET is_default=0");
+        }
+
+        $this->model->update($id, [
+            'name'       => $name,
+            'is_default' => $isDefault ? 1 : 0,
+        ]);
+
+        $this->log('update_playlist', $payload['sub'], $name);
+        Response::json($this->model->findWithItems($id));
+    }
+
     public function destroy(array $params): void
     {
         $payload = $this->auth();

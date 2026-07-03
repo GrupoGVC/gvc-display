@@ -39,6 +39,18 @@ class ItemController extends Controller
         Response::json(['deleted' => (int)$params['id']]);
     }
 
+    public function update(array $params): void
+    {
+        $this->auth();
+        $id  = (int)$params['id'];
+        $dur = $this->request->int('duration');
+        if ($dur < 1)   $dur = 1;
+        if ($dur > 3600) $dur = 3600;
+
+        $this->model->update($id, ['duration' => $dur]);
+        Response::json(['id' => $id, 'duration' => $dur]);
+    }
+
     public function reorder(): void
     {
         $this->auth();

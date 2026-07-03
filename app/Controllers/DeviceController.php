@@ -83,13 +83,17 @@ class DeviceController extends Controller
 
         $this->model->updateStatus($device['id'], 'online');
 
-        if (!$this->model->isConfigured($device['name'])) {
+        // Configurado = nome renomeado pelo admin OU playlist/grupo atribuído
+        $configured = $this->model->isConfigured($device['name'])
+                   || !empty($device['playlist_id'])
+                   || !empty($device['group_id']);
+
+        if (!$configured) {
             Response::json(['playlist_id' => null, 'playlist_hash' => null, 'configured' => false]);
         }
 
-        $playlistModel = new \App\Models\Playlist();
-        $plId = $playlistModel->activeForDevice($device['id'], $device['group_id'])
-             ?? $device['playlist_id'];
+        // Playlist direta → default
+        $plId = $device['playlist_id'] ? (int)$device['playlist_id'] : null;
 
         if (!$plId) {
             $def  = \App\Core\Database::connection()->query("SELECT id FROM playlists WHERE is_default=1 LIMIT 1")->fetch();
@@ -98,7 +102,6 @@ class DeviceController extends Controller
 
         $hash = null;
         if ($plId) {
-            // Hash inclui id, sort_order e duration — detecta qualquer mudança de conteúdo
             $st = \App\Core\Database::connection()->prepare(
                 "SELECT GROUP_CONCAT(CONCAT(id,':',sort_order,':',duration) ORDER BY sort_order SEPARATOR ',')
                   FROM playlist_items WHERE playlist_id=?"
@@ -119,9 +122,8 @@ class DeviceController extends Controller
         $affected = 0;
 
         if ($target === 'all') {
-            $affected = $db->prepare("UPDATE devices SET playlist_id=?")->execute([$plId]) ? $db->query("SELECT ROW_COUNT()")->fetchColumn() : 0;
             $db->prepare("UPDATE devices SET playlist_id=?")->execute([$plId]);
-            $affected = $db->query("SELECT COUNT(*) FROM devices")->fetchColumn();
+            $affected = (int)$db->query("SELECT ROW_COUNT()")->fetchColumn();
         } elseif (str_starts_with($target, 'group:')) {
             $gId = (int)substr($target, 6);
             $st  = $db->prepare("UPDATE devices SET playlist_id=? WHERE group_id=?");
@@ -135,5 +137,39 @@ class DeviceController extends Controller
 
         $this->log('broadcast', $payload['sub'], "playlist=$plId target=$target");
         Response::json(['affected' => $affected]);
+    }
+
+    /**
+     * GET /api/devices/tv-playlist?token=DEVICE_TOKEN
+     * Endpoint para o player da TV buscar sua playlist ativa SEM JWT.
+     */
+    public function tvPlaylist(): void
+    {
+        $token = $this->request->query('token', '');
+        if (!$token) Response::unauthorized('Token ausente');
+
+        $device = $this->model->findByToken($token);
+        if (!$device) Response::unauthorized('Token inválido');
+
+        $plId = $device['playlist_id'] ? (int)$device['playlist_id'] : null;
+
+        if (!$plId) {
+            $def  = \App\Core\Database::connection()
+                ->query("SELECT id FROM playlists WHERE is_default=1 LIMIT 1")->fetch();
+            $plId = $def ? (int)$def['id'] : null;
+        }
+
+        if (!$plId) {
+            http_response_code(204);
+            exit;
+        }
+
+        $pl = (new \App\Models\Playlist())->findWithItems($plId);
+        if (!$pl || empty($pl['items'])) {
+            http_response_code(204);
+            exit;
+        }
+
+        Response::json($pl);
     }
 }

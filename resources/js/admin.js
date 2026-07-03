@@ -79,7 +79,6 @@ const S = {
   groups: [],
   playlists: [],
   media: [],
-  schedules: [],
   curPlId: null,
   curPlItems: [],
   editDevId: null,
@@ -123,9 +122,58 @@ async function initApp(dashData) {
   renderDash(dashData);
   await Promise.all([loadGroups(), loadPlaylists(), loadMedia()]);
 
-  setInterval(async () => {
-    try { renderDash(await get("dashboard")); } catch {}
-  }, 30_000);
+  startAutoRefresh();
+}
+
+// ── Auto-refresh inteligente ──────────────────────────────────
+// Atualiza a seção visível sem reload. Pausa quando a aba do navegador
+// está em segundo plano (economiza requisições) e retoma ao voltar.
+let _refreshTimer = null;
+
+function activeSection() {
+  const active = document.querySelector(".sec.active");
+  return active ? active.id.replace("sec-", "") : "dashboard";
+}
+
+async function refreshActive() {
+  if (document.hidden) return;              // aba em background → pula
+  try {
+    const sec = activeSection();
+    switch (sec) {
+      case "dashboard":
+        renderDash(await get("dashboard"));
+        break;
+      case "dispositivos":
+        S.devices = (await get("devices")) || [];
+        renderDevices();
+        break;
+      case "grupos":
+        await loadGroups();
+        break;
+      case "playlists":
+        // Só atualiza a LISTA (não o editor aberto)
+        if (!q("#pl-edit") || q("#pl-edit").classList.contains("hidden")) {
+          await loadPlaylists();
+        }
+        break;
+      case "midia":
+        S.media = (await get("media")) || [];
+        renderMedia();
+        break;
+    }
+    // Dashboard sempre atualizado em background para stats
+    if (sec !== "dashboard") {
+      try { renderDash(await get("dashboard")); } catch {}
+    }
+  } catch {}
+}
+
+function startAutoRefresh() {
+  if (_refreshTimer) clearInterval(_refreshTimer);
+  _refreshTimer = setInterval(refreshActive, 10_000);   // a cada 10s
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refreshActive();
+  });
 }
 
 // ── Navigation ────────────────────────────────────────────────
@@ -137,11 +185,10 @@ window.nav = (section) => {
   q(`#sec-${section}`)?.classList.add("active");
 
   const titles = {
-    dashboard: "Dashboard",
+    dashboard: "Início",
     dispositivos: "Dispositivos",
     grupos: "Grupos",
     playlists: "Playlists",
-    agendamentos: "Agendamentos",
     midia: "Biblioteca de Mídias",
     pareamento: "Pareamento",
     config: "Configurações",
@@ -150,7 +197,6 @@ window.nav = (section) => {
   q("#pact").innerHTML = "";
 
   if (section === "dispositivos") loadDevices();
-  if (section === "agendamentos") loadSchedules();
   if (section === "pareamento") loadPairing();
 };
 
@@ -284,7 +330,13 @@ function renderDevices() {
         <td data-col="ping" style="font-size:12px;color:var(--mut);">${d.last_ping ? fmtDate(d.last_ping) : "nunca"}</td>
         <td class="col-actions">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-            <button class="btn-p btn-sm" onclick="openPairForDevice(${d.id},'${esc(d.name)}')" title="Parear TV"><i class="bi bi-qr-code-scan"></i><span class="btn-label"> Parear</span></button>
+            ${d.paired
+              ? `<button class="btn-sm" disabled title="TV já pareada"
+                   style="background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.3);cursor:default;">
+                   <i class="bi bi-check-circle-fill"></i><span class="btn-label"> Pareado</span></button>`
+              : `<button class="btn-p btn-sm" onclick="openPairForDevice(${d.id},'${esc(d.name)}')" title="Parear TV">
+                   <i class="bi bi-qr-code-scan"></i><span class="btn-label"> Parear</span></button>`
+            }
             <button class="btn-g btn-sm" onclick="openEditDev(${d.id})" title="Editar"><i class="bi bi-pencil"></i></button>
             <button class="btn-g btn-sm" onclick="openDevInfo(${d.id})" title="Info"><i class="bi bi-gear"></i></button>
             <button class="btn-d btn-sm" onclick="delDev(${d.id})" title="Excluir"><i class="bi bi-trash3"></i></button>
@@ -548,12 +600,18 @@ window.editPlaylist = async (id) => {
 
   const pl = await get(`playlists/${id}`);
   S.curPlItems = Array.isArray(pl.items) ? pl.items : [];
+  S.curPl = pl;
   q("#pl-edit-name").textContent = pl.name;
   q("#pl-edit-default-badge").classList.toggle("hidden", !pl.is_default);
+  // Popula card de configurações
+  const renameInput = q("#pl-edit-rename");
+  if (renameInput) renameInput.value = pl.name;
+  const defCheck = q("#pl-edit-is-default");
+  if (defCheck) defCheck.checked = !!pl.is_default;
+
   q("#pl-list").classList.add("hidden");
   q("#pl-edit").classList.remove("hidden");
   renderPlItems();
-  buildAssignSelect();
 };
 
 function renderPlItems() {
@@ -587,11 +645,42 @@ function renderPlItems() {
           <div class="pl-iname">${esc(src || "(sem URL)")}</div>
           <div class="pl-imeta">${item.type} · ${item.duration}s</div>
         </div>
-        <span class="pl-dur">${item.duration}s</span>
-        <div><button class="btn-d btn-sm" onclick="delItem(${item.id})"><i class="bi bi-trash3"></i></button></div>
+        <div class="pl-dur-edit" title="Duração em segundos">
+          <input type="number" min="1" max="3600" value="${item.duration}"
+                 id="dur-in-${item.id}" draggable="false"
+                 onmousedown="event.stopPropagation()"
+                 onchange="saveItemDur(${item.id}, this.value)"
+                 onkeydown="if(event.key==='Enter')this.blur()"/>
+          <span>s</span>
+        </div>
+        <div><button class="btn-d btn-sm" onclick="delItem(${item.id})" title="Remover"><i class="bi bi-trash3"></i></button></div>
       </div>`;
   }).join("");
 }
+
+window.saveItemDur = async (id, val) => {
+  let dur = parseInt(val, 10);
+  if (isNaN(dur) || dur < 1) dur = 1;
+  if (dur > 3600) dur = 3600;
+
+  const inp = document.getElementById(`dur-in-${id}`);
+  if (inp) inp.value = dur;
+
+  try {
+    await put(`items/${id}`, { duration: dur });
+    // Atualiza cache local + meta
+    S.curPlItems = S.curPlItems.map(it => it.id === id ? { ...it, duration: dur } : it);
+    const item = S.curPlItems.find(it => it.id === id);
+    if (item) {
+      const row = inp?.closest('.pl-item');
+      const meta = row?.querySelector('.pl-imeta');
+      if (meta) meta.textContent = `${item.type} · ${dur}s`;
+    }
+    toast(`Duração: ${dur}s`);
+  } catch (e) {
+    toast(e.message || 'Erro ao salvar duração', 'err');
+  }
+};
 
 let _dragSrc = null;
 window.onDragStart = (e, i) => { _dragSrc = i; e.dataTransfer.effectAllowed = "move"; };
@@ -873,49 +962,33 @@ window.delItem = async (id) => {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// ASSIGN / BROADCAST
+// PLAYLIST SETTINGS (renomear, padrão)
 // ═══════════════════════════════════════════════════════════════
 
-function buildAssignSelect() {
-  const sel = q("#pl-assign-target");
-  if (!sel) return;
-  sel.innerHTML = '<option value="">— selecione —</option><option value="all">Todas as TVs</option>';
-  S.groups.forEach((g) =>
-    sel.insertAdjacentHTML("beforeend", `<option value="group:${g.id}">${esc(g.name)}</option>`),
-  );
-  S.devices.forEach((d) =>
-    sel.insertAdjacentHTML("beforeend", `<option value="device:${d.id}">${esc(d.name)}</option>`),
-  );
-}
+window.savePlSettings = async () => {
+  const name      = (q("#pl-edit-rename")?.value || "").trim();
+  const isDef     = q("#pl-edit-is-default")?.checked || false;
+  const btn       = q("#btn-save-pl");
 
-window.quickAssign = async () => {
-  const target = q("#pl-assign-target").value;
-  if (!target || !S.curPlId) return toast("Selecione o destino", "err");
-  const btn = document.querySelector("button[onclick='quickAssign()']") ||
-              [...document.querySelectorAll('button')].find(b => b.textContent.includes('Aplicar'));
-  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Aplicando...'; }
+  if (!name) return toast("Nome não pode ficar vazio", "err");
+  if (!S.curPlId) return;
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Salvando...'; }
+
   try {
-    const res = await post("devices/broadcast", { playlist_id: S.curPlId, target });
-    toast(`✅ Playlist enviada para ${res.affected} TV(s)!`);
-    // Atualiza playlist_id e playlist_name nos devices afetados in-place
-    const plObj = S.playlists.find((p) => p.id === S.curPlId);
-    if (plObj) {
-      S.devices = S.devices.map((d) => {
-        const match =
-          target === "all" ||
-          (target === `device:${d.id}`) ||
-          (target.startsWith("group:") && String(d.group_id) === target.split(":")[1]);
-        return match
-          ? { ...d, playlist_id: S.curPlId, playlist_name: plObj.name }
-          : d;
-      });
-    }
-    // Se a aba de dispositivos estiver visível, re-renderiza sem GET extra
-    if (q("#sec-dispositivos")?.classList.contains("active")) renderDevices();
-  } catch(e) {
-    toast(e.message || "Erro ao aplicar", "err");
+    const saved = await put(`playlists/${S.curPlId}`, { name, is_default: isDef });
+    // Atualiza header do editor
+    q("#pl-edit-name").textContent = name;
+    q("#pl-edit-default-badge").classList.toggle("hidden", !isDef);
+    // Atualiza cache local
+    S.playlists = S.playlists.map(p =>
+      p.id === S.curPlId ? { ...p, name, is_default: isDef ? 1 : 0 } : (isDef ? { ...p, is_default: 0 } : p)
+    );
+    toast("✅ Playlist salva!");
+  } catch (e) {
+    toast(e.message || "Erro ao salvar", "err");
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = 'Aplicar <i class="bi bi-arrow-right"></i>'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg"></i>Salvar'; }
   }
 };
 
@@ -1101,214 +1174,6 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// SCHEDULES
-// ═══════════════════════════════════════════════════════════════
-
-async function loadSchedules() {
-  const _schedules = await get("schedules");
-  S.schedules = Array.isArray(_schedules) ? _schedules : [];
-  renderSchedules();
-}
-
-function renderSchedules() {
-  const el = q("#sch-list");
-  if (!el) return;
-  const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-  el.innerHTML = S.schedules.length
-    ? `<table class="gvc-table"><thead><tr>
-          <th>Playlist</th>
-          <th data-col="sch-dest">Destino</th>
-          <th data-col="sch-inicio">Início</th>
-          <th data-col="sch-fim">Fim</th>
-          <th data-col="sch-rep">Repetição</th>
-          <th data-col="status">Status</th>
-          <th>Ações</th>
-        </tr></thead><tbody>
-       ${S.schedules.map((s) => `
-        <tr>
-          <td>${esc(s.playlist_name)}</td>
-          <td data-col="sch-dest">${esc(s.target_type)}${s.target_id ? " #" + s.target_id : ""}</td>
-          <td data-col="sch-inicio" style="font-size:12px;">${fmtDate(s.starts_at)}</td>
-          <td data-col="sch-fim" style="font-size:12px;">${fmtDate(s.ends_at)}</td>
-          <td data-col="sch-rep" style="font-size:12px;">${s.repeat_weekly ? (s.weekdays || []).map((d) => days[d]).join(", ") : "Único"}</td>
-          <td data-col="status"><span class="tag ${s.active ? "tg-on" : "tg-off"}">${s.active ? "Ativo" : "Inativo"}</span></td>
-          <td class="col-actions" style="white-space:nowrap;">
-            <div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;">
-              <button class="btn-g btn-sm" onclick="openEditSched(${s.id})" title="Editar"><i class="bi bi-pencil"></i></button>
-              <button class="btn-g btn-sm" onclick="toggleSched(${s.id},${s.active})" title="${s.active ? 'Pausar' : 'Ativar'}">${s.active ? '<i class="bi bi-pause-circle"></i>' : '<i class="bi bi-play-circle"></i>'}</button>
-              <button class="btn-d btn-sm" onclick="delSched(${s.id})" title="Excluir"><i class="bi bi-trash3"></i></button>
-            </div>
-          </td>
-        </tr>`).join("")}
-       </tbody></table>`
-    : '<p class="empty">Nenhum agendamento criado</p>';
-}
-
-window.openAddAgenda = () => {
-  populateSelect("ag-pl", S.playlists, "name", { emptyLabel: "selecione" });
-  const sel = q("#ag-target");
-  sel.innerHTML = '<option value="all">Todas as TVs</option>';
-  S.groups.forEach((g) =>
-    sel.insertAdjacentHTML("beforeend", `<option value="group:${g.id}">${esc(g.name)}</option>`),
-  );
-  S.devices.forEach((d) =>
-    sel.insertAdjacentHTML("beforeend", `<option value="device:${d.id}">${esc(d.name)}</option>`),
-  );
-  q("#ag-repeat").checked = false;
-  q("#ag-days-wrap").classList.add("hidden");
-  openModal("m-agenda");
-};
-
-window.togRepeat = () => {
-  q("#ag-days-wrap").classList.toggle("hidden", !q("#ag-repeat").checked);
-};
-
-// FIX: doSaveAgenda
-// ANTES: sem try/catch — erro silencioso, modal não fechava, lista não atualizava.
-// DEPOIS: try/catch com toast; insere o agendamento retornado diretamente em
-//         S.schedules[] e re-renderiza sem nova requisição GET.
-window.doSaveAgenda = async () => {
-  const pl     = q("#ag-pl").value;
-  const target = q("#ag-target").value;
-  // Combina date + time dos campos separados
-  const inicioData = q("#ag-inicio-data")?.value || "";
-  const inicioHora = q("#ag-inicio-hora")?.value || "08:00";
-  const fimData    = q("#ag-fim-data")?.value    || "";
-  const fimHora    = q("#ag-fim-hora")?.value    || "18:00";
-  const starts = inicioData ? `${inicioData} ${inicioHora}:00` : "";
-  const ends   = fimData    ? `${fimData} ${fimHora}:00`       : "";
-  const repeat = q("#ag-repeat").checked;
-  if (!pl || !starts || !ends) return toast("Preencha todos os campos", "err");
-
-  const weekdays = repeat
-    ? [...qa("#ag-days-wrap input:checked")].map((c) => parseInt(c.value))
-    : [];
-  let ttype = "all", tid = null;
-  if (target.startsWith("group:"))  { ttype = "group";  tid = parseInt(target.split(":")[1]); }
-  if (target.startsWith("device:")) { ttype = "device"; tid = parseInt(target.split(":")[1]); }
-
-  const btn    = q("#btn-save-agenda");
-  if (btn) btn.disabled = true;
-
-  // Verifica se é edição ou criação
-  const editId = parseInt(q("#m-agenda")?.dataset?.editId || "0");
-
-  try {
-    const payload = {
-      playlist_id:   pl,
-      target_type:   ttype,
-      target_id:     tid,
-      starts_at:     starts,
-      ends_at:       ends,
-      repeat_weekly: repeat,
-      weekdays,
-    };
-    // Suporta edição (PUT) e criação (POST)
-    const saved = editId
-      ? await put("schedules/" + editId, payload)
-      : await post("schedules", payload);
-    if (q("#m-agenda")) delete q("#m-agenda").dataset.editId;
-    if (q("#btn-save-agenda")) q("#btn-save-agenda").textContent = "Criar";
-
-    // Monta o objeto para o array local com os campos que renderSchedules() precisa
-    const plObj = S.playlists.find((p) => String(p.id) === String(pl));
-    S.schedules = [{
-      id:            saved.id,
-      playlist_id:   Number(pl),
-      playlist_name: plObj?.name ?? "—",
-      target_type:   ttype,
-      target_id:     tid,
-      starts_at:     starts.replace("T", " "),
-      ends_at:       ends.replace("T", " "),
-      repeat_weekly: repeat,
-      weekdays,
-      active:        true,
-    }, ...S.schedules];
-
-    renderSchedules();
-    closeModal("m-agenda");
-    toast("Agendamento criado");
-  } catch (e) {
-    toast(e.message, "err");
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-};
-
-// FIX: toggleSched
-// ANTES: sem try/catch — erro silencioso; chamava loadSchedules() sem await,
-//         gerando re-render antes da resposta do servidor.
-// DEPOIS: atualiza S.schedules[] in-place (toggle do campo active) e
-//         re-renderiza sem nenhuma requisição GET extra; erro exibe toast.
-window.toggleSched = async (id, active) => {
-  try {
-    await put(`schedules/${id}`, { active: !active });
-    S.schedules = S.schedules.map((s) =>
-      s.id === id ? { ...s, active: !active } : s
-    );
-    renderSchedules();
-  } catch (e) {
-    toast(e.message, "err");
-  }
-};
-
-window.delSched = async (id) => {
-  if (!await confirmDlg("Remover agendamento?")) return;
-  try {
-    await del(`schedules/${id}`);
-    S.schedules = S.schedules.filter((s) => s.id !== id);
-    renderSchedules();
-    toast("Agendamento removido");
-  } catch (e) {
-    toast(e.message, "err");
-  }
-};
-
-// Abre modal de agendamento para edição
-window.openEditSched = (id) => {
-  const s = S.schedules.find(x => x.id === id);
-  if (!s) return;
-
-  populateSelect("ag-pl", S.playlists, "name", { emptyLabel: "selecione", selectedVal: s.playlist_id });
-  const sel = q("#ag-target");
-  sel.innerHTML = '<option value="all">Todas as TVs</option>';
-  S.groups.forEach(g => sel.insertAdjacentHTML("beforeend", `<option value="group:${g.id}">${esc(g.name)}</option>`));
-  S.devices.forEach(d => sel.insertAdjacentHTML("beforeend", `<option value="device:${d.id}">${esc(d.name)}</option>`));
-
-  // Seta o destino
-  if (s.target_type === 'group')  sel.value = `group:${s.target_id}`;
-  else if (s.target_type === 'device') sel.value = `device:${s.target_id}`;
-  else sel.value = 'all';
-
-  // Preenche data/hora separados
-  if (s.starts_at) {
-    const [d, t] = (s.starts_at.replace('T', ' ')).split(' ');
-    if (q("#ag-inicio-data")) q("#ag-inicio-data").value = d || '';
-    if (q("#ag-inicio-hora")) q("#ag-inicio-hora").value = (t || '08:00').slice(0, 5);
-  }
-  if (s.ends_at) {
-    const [d, t] = (s.ends_at.replace('T', ' ')).split(' ');
-    if (q("#ag-fim-data")) q("#ag-fim-data").value = d || '';
-    if (q("#ag-fim-hora")) q("#ag-fim-hora").value = (t || '18:00').slice(0, 5);
-  }
-
-  const repeat = s.repeat_weekly;
-  q("#ag-repeat").checked = repeat;
-  q("#ag-days-wrap").classList.toggle("hidden", !repeat);
-  if (repeat && s.weekdays) {
-    const days = Array.isArray(s.weekdays) ? s.weekdays : JSON.parse(s.weekdays || '[]');
-    qa("#ag-days-wrap input[type=checkbox]").forEach(cb => {
-      cb.checked = days.includes(parseInt(cb.value));
-    });
-  }
-
-  // Guarda ID para o save saber que é edição
-  q("#m-agenda").dataset.editId = id;
-  q("#btn-save-agenda").textContent = "Salvar alterações";
-  openModal("m-agenda");
-};
-
-// ═══════════════════════════════════════════════════════════════
 // PAIRING
 // ═══════════════════════════════════════════════════════════════
 
@@ -1399,6 +1264,7 @@ let _qrStream   = null;
 let _qrInterval = null;
 
 window.openPairForDevice = (devId, devName) => {
+  S.pairTargetDevId = devId || null;   // guarda o device alvo (se veio de uma TV existente)
   const inp = document.getElementById('pair-input-code');
   const nm  = document.getElementById('pair-tv-name');
   const loc = document.getElementById('pair-tv-location');
@@ -1407,6 +1273,11 @@ window.openPairForDevice = (devId, devName) => {
   if (nm)  nm.value  = (devName && devName !== 'Nova TV') ? devName : '';
   if (loc) loc.value = '';
   if (err) { err.style.display = 'none'; err.textContent = ''; }
+
+  // Popula grupo (pré-seleciona o grupo da TV se existir)
+  const dev = devId ? S.devices.find(x => x.id === devId) : null;
+  populateSelect('pair-tv-group', S.groups, 'name', { emptyLabel: 'sem grupo', selectedVal: dev?.group_id });
+
   switchPairTab('code');
   openModal('m-pair-device');
   setTimeout(() => inp?.focus(), 300);
@@ -1476,12 +1347,12 @@ window.doPairDeviceNew = async () => {
   const code     = (document.getElementById('pair-input-code')?.value || '').replace(/\D/g, '');
   const tvName   = (document.getElementById('pair-tv-name')?.value   || '').trim();
   const tvLoc    = (document.getElementById('pair-tv-location')?.value || '').trim();
+  const tvGroup  = document.getElementById('pair-tv-group')?.value || null;
   const errEl    = document.getElementById('pair-error');
   const btn      = document.getElementById('btn-do-pair');
 
   if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
 
-  // Validações
   if (code.length !== 6) {
     if (errEl) { errEl.textContent = 'Digite os 6 dígitos do código exibido na TV'; errEl.style.display = 'block'; }
     document.getElementById('pair-input-code')?.focus();
@@ -1496,17 +1367,40 @@ window.doPairDeviceNew = async () => {
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Pareando...'; }
 
   try {
-    // action=confirm: só precisa do código + nome — sem device_id
-    const res = await post('pairing/confirm', {
-      code,
-      name:     tvName,
-      location: tvLoc,
-    });
+    if (S.pairTargetDevId) {
+      // Pareando uma TV JÁ criada no admin → vincula o código a ela (pair)
+      // Isso transfere o token da TV auto-gerada e remove a auto-gerada (sem duplicar)
+      await post('pairing/pair', {
+        code,
+        device_id: S.pairTargetDevId,
+      });
+      // Atualiza nome/local/grupo da TV alvo
+      await put(`devices/${S.pairTargetDevId}`, {
+        name:        tvName,
+        location:    tvLoc,
+        group_id:    tvGroup,
+        playlist_id: (S.devices.find(d => d.id === S.pairTargetDevId)?.playlist_id) || null,
+      });
+    } else {
+      // Pareamento avulso (botão genérico) → renomeia a TV auto-gerada (confirm)
+      const res = await post('pairing/confirm', {
+        code,
+        name:     tvName,
+        location: tvLoc,
+      });
+      // Aplica grupo se selecionado
+      if (tvGroup && res.device_id) {
+        await put(`devices/${res.device_id}`, {
+          name:     tvName,
+          location: tvLoc,
+          group_id: tvGroup,
+        });
+      }
+    }
 
     closeModal('m-pair-device');
     toast(`✅ TV "${tvName}" pareada com sucesso!`);
 
-    // Recarrega lista e navega para dispositivos
     await loadDevices();
     nav('dispositivos');
 
@@ -1515,5 +1409,6 @@ window.doPairDeviceNew = async () => {
     if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-link-45deg"></i> Parear TV'; }
+    S.pairTargetDevId = null;
   }
 };

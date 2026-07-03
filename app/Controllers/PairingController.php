@@ -66,33 +66,59 @@ class PairingController extends Controller
 
     // Admin vincula código a device existente
     // POST /api/pairing/pair
+    //
+    // Estratégia anti-duplicação:
+    // A TV que está aberta no navegador (auto-gerada) tem um slug que o navegador
+    // conhece via cookie. Se transferíssemos o token para a TV do admin e
+    // deletássemos a auto-gerada, o navegador recriaria outra TV no próximo acesso.
+    // Por isso: mantemos a TV auto-gerada (srcId) como a "real", copiamos os dados
+    // da TV do admin (nome, local, grupo, playlist) para ela, e removemos a do admin.
     public function pair(): void
     {
         $payload = $this->auth();
         $code    = $this->request->input('code');
-        $devId   = $this->request->int('device_id');
+        $devId   = $this->request->int('device_id'); // TV criada no admin
         if (!$code || !$devId) Response::error('code e device_id são obrigatórios');
 
         $pair = $this->codes->consume($code);
         if (!$pair) Response::error('Código inválido ou expirado');
 
-        $srcId = (int)$pair['device_id'];
-        if ($srcId !== $devId) {
-            $src = $this->devices->find($srcId);
-            if ($src) {
-                $this->devices->update($devId, ['token' => $src['token']]);
-                // Remove device temporário se auto-gerado
-                if (!$this->devices->isConfigured($src['name'])) {
-                    $this->devices->delete($srcId);
-                }
-            }
+        $srcId = (int)$pair['device_id']; // TV auto-gerada (aberta no navegador)
+        $admin = $this->devices->find($devId);
+        if (!$admin) Response::error('Dispositivo do admin não encontrado', 404);
+
+        // Mesmo device? Nada a mesclar (raro, mas seguro)
+        if ($srcId === $devId) {
+            $this->log('pair_device', $payload['sub'], "device=$devId code=$code (self)");
+            Response::json([
+                'device_id'  => $devId,
+                'player_url' => "/tv/{$admin['slug']}",
+                'device'     => $this->devices->findWithRelations($devId),
+            ]);
         }
 
-        $this->log('pair_device', $payload['sub'], "device=$devId code=$code");
+        $src = $this->devices->find($srcId);
+        if ($src) {
+            // Copia dados do admin para a TV auto-gerada (a que o navegador conhece)
+            $this->devices->update($srcId, [
+                'name'        => $admin['name'],
+                'location'    => $admin['location'],
+                'group_id'    => $admin['group_id'],
+                'playlist_id' => $admin['playlist_id'],
+            ]);
+            // Remove a TV do admin — a auto-gerada assume a identidade dela
+            $this->devices->delete($devId);
+            $keepId = $srcId;
+        } else {
+            // Auto-gerada sumiu? Mantém a do admin
+            $keepId = $devId;
+        }
+
+        $this->log('pair_device', $payload['sub'], "kept=$keepId code=$code");
         Response::json([
-            'device_id'  => $devId,
-            'player_url' => "/tv/{$this->devices->find($devId)['slug']}",
-            'device'     => $this->devices->findWithRelations($devId),
+            'device_id'  => $keepId,
+            'player_url' => "/tv/{$this->devices->find($keepId)['slug']}",
+            'device'     => $this->devices->findWithRelations($keepId),
         ]);
     }
 }

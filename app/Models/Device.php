@@ -9,16 +9,28 @@ class Device extends Model
 
     public function allWithRelations(): array
     {
-        return $this->db->query("
-            SELECT d.id, d.name, d.location, d.slug, d.status, d.last_ping,
+        $rows = $this->db->query("
+            SELECT d.id, d.name, d.location, d.slug, d.last_ping,
                    d.playlist_id, d.group_id, d.token,
                    g.name AS group_name, p.name AS playlist_name,
-                   CONCAT('/tv/', d.slug) AS player_url
+                   CONCAT('/tv/', d.slug) AS player_url,
+                   CASE
+                     WHEN d.last_ping >= DATE_SUB(NOW(), INTERVAL 30 SECOND)
+                     THEN 'online' ELSE 'offline'
+                   END AS status
             FROM devices d
             LEFT JOIN `groups` g ON g.id = d.group_id
             LEFT JOIN playlists p ON p.id = d.playlist_id
             ORDER BY d.name
         ")->fetchAll();
+
+        // Marca cada device como pareado: nome personalizado OU com playlist/grupo
+        foreach ($rows as &$r) {
+            $r['paired'] = $this->isConfigured($r['name'])
+                        || !empty($r['playlist_id'])
+                        || !empty($r['group_id']);
+        }
+        return $rows;
     }
 
     public function findWithRelations(int $id): ?array
@@ -31,7 +43,13 @@ class Device extends Model
             LEFT JOIN playlists p ON p.id = d.playlist_id
             WHERE d.id = ?");
         $st->execute([$id]);
-        return $st->fetch() ?: null;
+        $row = $st->fetch() ?: null;
+        if ($row) {
+            $row['paired'] = $this->isConfigured($row['name'])
+                          || !empty($row['playlist_id'])
+                          || !empty($row['group_id']);
+        }
+        return $row;
     }
 
     public function findBySlug(string $slug): ?array

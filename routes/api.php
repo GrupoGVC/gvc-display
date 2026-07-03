@@ -8,7 +8,7 @@
 use App\Controllers\{
     AuthController, DeviceController, GroupController,
     PlaylistController, ItemController, MediaController,
-    ScheduleController, PairingController, DashboardController
+    PairingController, DashboardController
 };
 
 // ── Auth ──────────────────────────────────────────────────────
@@ -24,6 +24,7 @@ $router->post('/api/devices',              [DeviceController::class, 'store']);
 // Rotas específicas ANTES de :id para evitar conflito de captura
 $router->post('/api/devices/heartbeat',    [DeviceController::class, 'heartbeat']);
 $router->post('/api/devices/broadcast',    [DeviceController::class, 'broadcast']);
+$router->get('/api/devices/tv-playlist',   [DeviceController::class, 'tvPlaylist']);
 $router->get('/api/devices/:id',           [DeviceController::class, 'show']);
 $router->put('/api/devices/:id',           [DeviceController::class, 'update']);
 $router->delete('/api/devices/:id',        [DeviceController::class, 'destroy']);
@@ -38,23 +39,19 @@ $router->delete('/api/groups/:id',         [GroupController::class, 'destroy']);
 $router->get('/api/playlists',             [PlaylistController::class, 'index']);
 $router->post('/api/playlists',            [PlaylistController::class, 'store']);
 $router->get('/api/playlists/:id',         [PlaylistController::class, 'show']);
+$router->put('/api/playlists/:id',         [PlaylistController::class, 'update']);
 $router->delete('/api/playlists/:id',      [PlaylistController::class, 'destroy']);
 
 // ── Playlist Items ────────────────────────────────────────────
 $router->post('/api/items',                [ItemController::class, 'store']);
 $router->post('/api/items/reorder',        [ItemController::class, 'reorder']);
+$router->put('/api/items/:id',             [ItemController::class, 'update']);
 $router->delete('/api/items/:id',          [ItemController::class, 'destroy']);
 
 // ── Media ─────────────────────────────────────────────────────
 $router->get('/api/media',                 [MediaController::class, 'index']);
 $router->post('/api/media',                [MediaController::class, 'store']);
 $router->delete('/api/media/:id',          [MediaController::class, 'destroy']);
-
-// ── Schedules ─────────────────────────────────────────────────
-$router->get('/api/schedules',             [ScheduleController::class, 'index']);
-$router->post('/api/schedules',            [ScheduleController::class, 'store']);
-$router->put('/api/schedules/:id',         [ScheduleController::class, 'update']);
-$router->delete('/api/schedules/:id',      [ScheduleController::class, 'destroy']);
 
 // ── Pairing ───────────────────────────────────────────────────
 $router->get('/api/pairing',               [PairingController::class, 'index']);
