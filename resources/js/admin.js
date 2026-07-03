@@ -331,8 +331,8 @@ function renderDevices() {
         <td class="col-actions">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             ${d.paired
-              ? `<button class="btn-sm" disabled title="TV já pareada"
-                   style="background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.3);cursor:default;">
+              ? `<button class="btn-sm btn-paired" onclick="unpairDevice(${d.id},'${esc(d.name)}')" title="Clique para desparear esta TV"
+                   style="background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.3);">
                    <i class="bi bi-check-circle-fill"></i><span class="btn-label"> Pareado</span></button>`
               : `<button class="btn-p btn-sm" onclick="openPairForDevice(${d.id},'${esc(d.name)}')" title="Parear TV">
                    <i class="bi bi-qr-code-scan"></i><span class="btn-label"> Parear</span></button>`
@@ -345,6 +345,24 @@ function renderDevices() {
       </tr>`).join("")
     : `<tr><td colspan="6" class="empty">Nenhum dispositivo encontrado</td></tr>`;
 }
+
+// Despareia uma TV: reseta ao estado inicial (volta pra tela de pareamento)
+window.unpairDevice = async (id, name) => {
+  const ok = await confirmDlg(
+    `Desparear "${esc(name)}"?<br><br>A TV voltará à tela de pareamento e perderá o nome, a playlist e o grupo atribuídos. Um novo código será gerado.`
+  );
+  if (!ok) return;
+
+  try {
+    await post("pairing/unpair", { device_id: id });
+    S.devices = (await get("devices")) || [];
+    renderDevices();
+    try { renderDash(await get("dashboard")); } catch {}
+    toast(`"${name}" foi despareada`);
+  } catch (e) {
+    toast(e.message || "Erro ao desparear", "err");
+  }
+};
 
 function buildGroupFilter() {
   const sel = q("#dev-filter-grupo");

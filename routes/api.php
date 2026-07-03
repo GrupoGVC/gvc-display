@@ -58,3 +58,4 @@ $router->get('/api/pairing',               [PairingController::class, 'index']);
 $router->get('/api/pairing/generate',      [PairingController::class, 'generate']);
 $router->post('/api/pairing/confirm',      [PairingController::class, 'confirm']);
 $router->post('/api/pairing/pair',         [PairingController::class, 'pair']);
+$router->post('/api/pairing/unpair',       [PairingController::class, 'unpair']);

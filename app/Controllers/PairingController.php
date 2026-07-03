@@ -121,4 +121,43 @@ class PairingController extends Controller
             'device'     => $this->devices->findWithRelations($keepId),
         ]);
     }
+
+    // Admin despareia uma TV — reseta ao estado inicial
+    // POST /api/pairing/unpair  { device_id }
+    //
+    // Volta o dispositivo ao estado "não configurado": nome auto-gerado
+    // (TV XXXXXX), sem playlist e sem grupo. No próximo heartbeat (até 5s)
+    // o player detecta configured=false e exibe a tela de pareamento
+    // novamente, gerando um novo código. O slug/token são preservados para
+    // que a mesma TV no navegador continue funcionando.
+    public function unpair(): void
+    {
+        $payload = $this->auth();
+        $devId   = $this->request->int('device_id');
+        if (!$devId) Response::error('device_id é obrigatório');
+
+        $device = $this->devices->find($devId);
+        if (!$device) Response::error('Dispositivo não encontrado', 404);
+
+        // Nome auto-gerado no mesmo formato das TVs novas (TV + 6 hex maiúsculos)
+        $autoName = 'TV ' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+
+        $this->devices->update($devId, [
+            'name'        => $autoName,
+            'location'    => null,
+            'group_id'    => null,
+            'playlist_id' => null,
+        ]);
+
+        // Remove códigos de pareamento pendentes deste device (higiene)
+        Database::connection()
+            ->prepare("DELETE FROM pairing_codes WHERE device_id = ?")
+            ->execute([$devId]);
+
+        $this->log('unpair_device', $payload['sub'], "device=$devId name={$device['name']}");
+        Response::json([
+            'device_id' => $devId,
+            'device'    => $this->devices->findWithRelations($devId),
+        ]);
+    }
 }
