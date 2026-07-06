@@ -291,4 +291,4 @@ O Apache `mod_dir` adiciona `/` em URLs sem extensão. Já resolvido com `Direct
 
 ## Licença
 
-Projeto proprietário — GrupoGVC. Todos os direitos reservados.
+Projeto proprietário - GrupoGVC. Todos os direitos reservados.
