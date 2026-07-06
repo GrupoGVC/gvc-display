@@ -2,13 +2,11 @@
 
 Sistema corporativo de sinalização digital. O administrador organiza apresentações num painel web e cada Smart TV exibe automaticamente o conteúdo configurado para ela, sem nenhuma interação manual.
 
-**Stack:** PHP 8.2 · MariaDB · Vanilla JS · Bootstrap 5.3  
-**Repositório:** `GrupoGVC/gvc-display` · Branch: `estruturaMVC`  
-**Produção:** `https://display.drc-gvc.tech`
+**Stack:** PHP 8.2 · MariaDB · Vanilla JS · Bootstrap 5.3
 
 ---
 
-## Como funciona (resumo simples)
+## Como funciona
 
 1. O admin acessa o painel pelo navegador, faz upload de imagens/vídeos e monta playlists.
 2. O admin cadastra as TVs no painel (nome, local, grupo).
@@ -21,7 +19,7 @@ Sistema corporativo de sinalização digital. O administrador organiza apresenta
 ## Pré-requisitos
 
 - XAMPP com **PHP 8.2+** e **MariaDB na porta 3307**
-- Navegador moderno
+- Navegador
 
 ---
 
