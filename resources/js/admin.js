@@ -325,7 +325,7 @@ function renderDevices() {
       <tr>
         <td><strong>${esc(d.name)}</strong><div style="font-size:12px;color:var(--mut);">${esc(d.location || "—")}</div></td>
         <td data-col="group">${d.group_name ? `<span class="tag tg">${esc(d.group_name)}</span>` : '<span style="color:var(--mut);">—</span>'}</td>
-        <td data-col="status"><span class="sdot ${d.status === "online" ? "sdot-on" : "sdot-off"}"></span> <span class="tag ${d.status === "online" ? "tg-on" : "tg-off"}">${d.status}</span></td>
+        <td data-col="status"><span class="tag ${d.status === "online" ? "tg-on" : "tg-off"}"><span class="sdot ${d.status === "online" ? "sdot-on" : "sdot-off"}"></span> ${d.status}</span></td>
         <td data-col="playlist">${d.playlist_name ? esc(d.playlist_name) : '<span style="color:var(--mut);">—</span>'}</td>
         <td data-col="ping" style="font-size:12px;color:var(--mut);">${d.last_ping ? fmtDate(d.last_ping) : "nunca"}</td>
         <td class="col-actions">
@@ -1301,23 +1301,19 @@ document.addEventListener("keydown", (e) => {
 // PAREAMENTO
 // ═══════════════════════════════════════════════════════════════
 
-let _qrStream   = null;
-let _qrInterval = null;
-
 window.openPairForDevice = (devId, devName) => {
   if (!devId) {
     toast('Crie a TV primeiro em "Adicionar TV" e depois clique em Parear', 'err');
     return;
   }
   S.pairTargetDevId = devId;
-  const inp = document.getElementById('pair-input-code');
-  const err = document.getElementById('pair-error');
+  const inp    = document.getElementById('pair-input-code');
+  const err    = document.getElementById('pair-error');
   const target = document.getElementById('pair-target-name');
-  if (inp) inp.value = '';
-  if (err) { err.style.display = 'none'; err.textContent = ''; }
+  if (inp)    inp.value = '';
+  if (err)    { err.style.display = 'none'; err.textContent = ''; }
   if (target) target.textContent = devName || '';
 
-  switchPairTab('code');
   openModal('m-pair-device');
   setTimeout(() => inp?.focus(), 300);
 };
@@ -1325,64 +1321,6 @@ window.openPairForDevice = (devId, devName) => {
 window.openPairModal = () => {
   toast('Selecione a TV que deseja parear na lista de dispositivos', 'err');
 };
-
-window.switchPairTab = (tab) => {
-  const isCode = tab === 'code';
-  document.getElementById('pair-tab-code')?.classList.toggle('hidden', !isCode);
-  document.getElementById('pair-tab-cam')?.classList.toggle('hidden',  isCode);
-  const bc = document.getElementById('tab-code');
-  const bm = document.getElementById('tab-cam');
-  if (bc) bc.className = (isCode ? 'btn-p' : 'btn-g') + ' btn-sm';
-  if (bm) bm.className = (isCode ? 'btn-g' : 'btn-p') + ' btn-sm';
-  if (!isCode) startCamera(); else stopCamera();
-};
-
-window.startCamera = async () => {
-  const video  = document.getElementById('qr-video');
-  const status = document.getElementById('qr-status');
-  try {
-    _qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    video.srcObject = _qrStream;
-    await video.play();
-    if (status) status.textContent = 'Aponte a câmera para o QR Code da TV';
-    scanQRFrame();
-  } catch (e) {
-    if (status) status.textContent = 'Câmera não disponível: ' + e.message;
-  }
-};
-
-window.stopCamera = () => {
-  if (_qrInterval) { clearInterval(_qrInterval); _qrInterval = null; }
-  if (_qrStream)   { _qrStream.getTracks().forEach(t => t.stop()); _qrStream = null; }
-};
-
-function scanQRFrame() {
-  const video  = document.getElementById('qr-video');
-  const canvas = document.getElementById('qr-canvas');
-  const status = document.getElementById('qr-status');
-  _qrInterval = setInterval(() => {
-    if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
-    const ctx = canvas.getContext('2d');
-    canvas.width  = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    if (window.jsQR) {
-      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-      if (code?.data) {
-        const match = code.data.match(/\b(\d{6})\b/);
-        if (match) {
-          stopCamera();
-          const inp = document.getElementById('pair-input-code');
-          if (inp) inp.value = match[1];
-          if (status) status.textContent = 'QR detectado: ' + match[1];
-          switchPairTab('code');
-          doPairDeviceNew();
-        }
-      }
-    }
-  }, 300);
-}
 
 window.doPairDeviceNew = async () => {
   const code    = (document.getElementById('pair-input-code')?.value || '').replace(/\D/g, '');

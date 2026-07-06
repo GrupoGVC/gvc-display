@@ -605,7 +605,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <div class="modal-title"><i class="bi bi-qr-code-scan"></i>Parear TV</div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopCamera()"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
 
@@ -615,43 +615,18 @@
           <div style="color:var(--txt);font-weight:600;" id="pair-target-name">—</div>
         </div>
 
-        <!-- Tabs: Código / Câmera -->
-        <div style="display:flex;gap:8px;margin-bottom:16px;">
-          <button id="tab-code" class="btn-p btn-sm" onclick="switchPairTab('code')"
-            style="flex:1;justify-content:center;"><i class="bi bi-123"></i>Código</button>
-          <button id="tab-cam" class="btn-g btn-sm" onclick="switchPairTab('cam')"
-            style="flex:1;justify-content:center;"><i class="bi bi-camera-video"></i>Câmera QR</button>
-        </div>
-
-        <!-- Tab: Código manual -->
-        <div id="pair-tab-code">
-          <div class="fg" style="margin-bottom:4px;">
-            <label for="pair-input-code">Código exibido na TV (6 dígitos)</label>
-            <input type="text" id="pair-input-code" placeholder="000000" maxlength="6"
-              style="font-size:32px;letter-spacing:12px;text-align:center;font-family:monospace;padding:14px;"
-              oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"
-              onkeydown="if(event.key==='Enter')doPairDeviceNew()"/>
-          </div>
-        </div>
-
-        <!-- Tab: Câmera QR -->
-        <div id="pair-tab-cam" class="hidden">
-          <div style="position:relative;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:4/3;margin-bottom:8px;">
-            <video id="qr-video" playsinline style="width:100%;height:100%;object-fit:cover;"></video>
-            <canvas id="qr-canvas" style="display:none;"></canvas>
-            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
-              <div style="width:55%;aspect-ratio:1;border:3px solid #00AA8E;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.45);"></div>
-            </div>
-          </div>
-          <p id="qr-status" style="font-size:12px;color:var(--txt2);text-align:center;margin-bottom:12px;">
-            Aponte a câmera para o QR Code da TV
-          </p>
+        <div class="fg" style="margin-bottom:4px;">
+          <label for="pair-input-code">Código exibido na TV (6 dígitos)</label>
+          <input type="text" id="pair-input-code" placeholder="000000" maxlength="6"
+            style="font-size:32px;letter-spacing:12px;text-align:center;font-family:monospace;padding:14px;"
+            oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"
+            onkeydown="if(event.key==='Enter')doPairDeviceNew()"/>
         </div>
 
         <div id="pair-error" style="display:none;color:var(--red);font-size:13px;margin-top:12px;text-align:center;border-radius:8px;padding:8px;background:rgba(255,79,106,.1);"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn-g" data-bs-dismiss="modal" onclick="stopCamera()">Cancelar</button>
+        <button class="btn-g" data-bs-dismiss="modal">Cancelar</button>
         <button class="btn-p" id="btn-do-pair" onclick="doPairDeviceNew()">
           <i class="bi bi-link-45deg"></i> Parear TV
         </button>
@@ -702,7 +677,7 @@
     "doChangePass","doUpload","renderMedia","togDur","renderMpicker","doAddPl",
     "doDupPl","doAddItem","togPairNew","doPairDevice","copyT","openLogModal",
     "openPair","pickMedia","delPl","cancelDevPairing","openPairForDevice",
-    "switchPairTab","startCamera","stopCamera","doPairDeviceNew","unpairDevice","unpairFromInfo","collapseSb",
+    "switchPairTab","doPairDeviceNew","unpairDevice","unpairFromInfo","collapseSb",
   ].forEach(fn => {
     window[fn] = window[fn] || function() {
       const a = arguments;
@@ -842,7 +817,6 @@
   // Inicia sidebar
   initSidebar();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script type="module" src="js/admin.js"></script>
 </body>
