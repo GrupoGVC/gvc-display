@@ -1,886 +1,293 @@
 # GVC Display
 
-> Sistema corporativo de sinalização digital para gerenciamento centralizado de Smart TVs via navegador.
+Sistema corporativo de sinalização digital. O administrador organiza apresentações num painel web e cada Smart TV exibe automaticamente o conteúdo configurado para ela, sem nenhuma interação manual.
 
-**GrupoGVC** · PHP 8.2 · MariaDB · Vanilla JS ES Modules · Bootstrap 5.3
-
----
-
-## Sumário
-
-- [Visão geral](#visão-geral)
-- [Arquitetura do sistema](#arquitetura-do-sistema)
-- [Estrutura de arquivos](#estrutura-de-arquivos)
-- [Banco de dados](#banco-de-dados)
-- [Fluxo de dados](#fluxo-de-dados)
-- [API Reference](#api-reference)
-- [Como rodar localmente](#como-rodar-localmente)
-- [Deploy em produção (VPS)](#deploy-em-produção-vps)
-- [Fluxo de pareamento de TVs](#fluxo-de-pareamento-de-tvs)
-- [Player da TV](#player-da-tv)
-- [Painel administrativo](#painel-administrativo)
-- [Testando com múltiplas TVs](#testando-com-múltiplas-tvs)
-- [Problemas comuns em Smart TVs](#problemas-comuns-em-smart-tvs)
-- [Variáveis de ambiente](#variáveis-de-ambiente)
-- [Credenciais padrão](#credenciais-padrão)
+**Stack:** PHP 8.2 · MariaDB · Vanilla JS · Bootstrap 5.3  
+**Repositório:** `GrupoGVC/gvc-display` · Branch: `estruturaMVC`  
+**Produção:** `https://display.drc-gvc.tech`
 
 ---
 
-## Visão geral
+## Como funciona (resumo simples)
 
-O GVC Display permite que uma empresa cadastre Smart TVs distribuídas em diferentes ambientes e exiba apresentações (playlists de imagens, vídeos e páginas web) de forma centralizada. O administrador organiza o conteúdo num painel web; cada TV acessa uma URL simples pelo próprio navegador e exibe automaticamente o que foi configurado para ela.
-
-```
-Admin (navegador) ──── POST/PUT/GET ───→ API PHP (MariaDB)
-                                              │
-                                              │ polling a cada 15s
-                                              ↓
-Smart TV (navegador) ──── /tv/{slug} ──→ Player HTML (fullscreen)
-```
+1. O admin acessa o painel pelo navegador, faz upload de imagens/vídeos e monta playlists.
+2. O admin cadastra as TVs no painel (nome, local, grupo).
+3. Cada Smart TV abre o endereço do sistema pelo próprio navegador e exibe um **código de 6 dígitos** na tela.
+4. O admin digita esse código no painel para vincular a TV. Pronto.
+5. A partir daí, a TV exibe automaticamente a playlist atribuída a ela. Se o admin trocar o conteúdo, a TV atualiza sozinha em até 15 segundos.
 
 ---
 
-## Arquitetura do sistema
+## Pré-requisitos
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        GVC Display                              │
-│                                                                 │
-│  ┌──────────────────┐        ┌──────────────────────────────┐   │
-│  │  Painel Admin    │        │       Player da TV           │   │
-│  │  /               │        │       /tv/{slug}             │   │
-│  │  login.html      │        │       player.html            │   │
-│  │  index.html      │        │       player.js              │   │
-│  │  admin.js        │        │       player.css             │   │
-│  └────────┬─────────┘        └──────────────┬───────────────┘   │
-│           │ JWT Bearer                       │ token query       │
-│           │                                  │ polling 15s       │
-│  ─────────┼──────────────────────────────────┼───────────────    │
-│           ↓                                  ↓                   │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │                   Backend PHP 8.2 MVC                   │    │
-│  │                                                         │    │
-│  │  index.php (Front Controller)                           │    │
-│  │  ├── Router (PSR-style, sem Composer)                   │    │
-│  │  ├── routes/api.php                                     │    │
-│  │  └── Controllers/                                       │    │
-│  │       ├── AuthController      → /api/auth/*             │    │
-│  │       ├── DashboardController → /api/dashboard          │    │
-│  │       ├── DeviceController    → /api/devices/*          │    │
-│  │       ├── GroupController     → /api/groups/*           │    │
-│  │       ├── PlaylistController  → /api/playlists/*        │    │
-│  │       ├── ItemController      → /api/items/*            │    │
-│  │       ├── MediaController     → /api/media/*            │    │
-│  │       ├── PairingController   → /api/pairing/*          │    │
-│  │       └── TvController        → /tv/:slug               │    │
-│  └─────────────────────────────────────────────────────────┘    │
-│                              │                                   │
-│                              ↓                                   │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │                MariaDB (porta 3307)                     │    │
-│  │  users · groups · devices · playlists · playlist_items  │    │
-│  │  media · schedules · pairing_codes · activity_logs      │    │
-│  │  content_versions                                       │    │
-│  └─────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Camadas
-
-| Camada | Tecnologia | Responsabilidade |
-|---|---|---|
-| **Front Controller** | `index.php` | Carrega `.env`, define `BASE_PATH`, registra autoloader PSR-4, injeta headers CORS, despacha rotas |
-| **Router** | `app/Core/Router.php` | Compila padrões `:param` em regex, despacha para controller/action |
-| **Controllers** | `app/Controllers/*.php` | Recebe Request, valida JWT, chama Models, retorna JSON ou HTML |
-| **Models** | `app/Models/*.php` | Wrappers PDO com queries SQL puras, sem ORM |
-| **Views** | `resources/views/*.html` | Templates HTML estáticos; caminhos de assets resolvidos pelo PHP em runtime |
-| **Admin JS** | `resources/js/admin.js` | SPA em Vanilla JS ES Modules — renderiza todas as telas do painel |
-| **Player JS** | `resources/js/player.js` | Máquina de estados da TV: PAIRING → WAITING → PLAYING |
-| **Banco** | MariaDB 10.x | Dados, triggers de versionamento, views, procedure `bump_content_version` |
+- XAMPP com **PHP 8.2+** e **MariaDB na porta 3307**
+- Navegador moderno
 
 ---
 
-## Estrutura de arquivos
+## Instalação local
 
-```
-gvc-display/
-│
-├── index.php                   ← Front Controller (raiz — NÃO em /public)
-├── .env                        ← Variáveis de ambiente (não versionar)
-├── .htaccess                   ← Rewrite rules do Apache
-├── db_gvc_display.sql          ← Schema completo + seeds
-│
-├── app/
-│   ├── Core/
-│   │   ├── Controller.php      ← Base: auth() JWT, log()
-│   │   ├── Database.php        ← Singleton PDO (MariaDB)
-│   │   ├── JWT.php             ← HS256 encode/decode
-│   │   ├── Model.php           ← CRUD base (find, create, update, delete)
-│   │   ├── Request.php         ← input(), query(), file(), bearerToken()
-│   │   └── Router.php          ← Registro e dispatch de rotas
-│   │
-│   ├── Controllers/
-│   │   ├── AuthController.php       ← login, changePassword
-│   │   ├── DashboardController.php  ← stats, últimos devices, logs
-│   │   ├── DeviceController.php     ← CRUD TVs, heartbeat, broadcast, tvPlaylist
-│   │   ├── GroupController.php      ← CRUD grupos
-│   │   ├── ItemController.php       ← CRUD itens de playlist, reorder
-│   │   ├── MediaController.php      ← upload, listagem, exclusão de mídia
-│   │   ├── PairingController.php    ← tv-generate, tv-status, pair, unpair
-│   │   ├── PlaylistController.php   ← CRUD playlists, duplicar
-│   │   └── TvController.php         ← Serve player.html com vars JS injetadas
-│   │
-│   └── Models/
-│       ├── Device.php          ← allWithRelations, findByToken, updateStatus
-│       ├── Group.php
-│       ├── Media.php
-│       ├── PairingCode.php     ← generateForClient, consume, findPendingByClient
-│       ├── Playlist.php        ← allWithCount, findWithItems (com hash)
-│       └── PlaylistItem.php
-│
-├── config/
-│   ├── app.php                 ← env, base_path
-│   └── database.php            ← host, port, name, user, pass
-│
-├── resources/
-│   ├── views/
-│   │   ├── index.html          ← Painel administrativo (SPA)
-│   │   ├── login.html          ← Tela de login
-│   │   └── player.html         ← Tela da TV (fullscreen)
-│   │
-│   ├── css/
-│   │   ├── main.css            ← Variáveis CSS, reset
-│   │   ├── admin.css           ← Sidebar, tabelas, modais do painel
-│   │   ├── login.css           ← Tela de login
-│   │   └── player.css          ← Fullscreen player, tela de pareamento
-│   │
-│   └── js/
-│       ├── admin.js            ← SPA do painel (todas as telas, ~54 KB)
-│       ├── player.js           ← Máquina de estados da TV (~12 KB)
-│       ├── api.js              ← Helpers fetch para o painel
-│       ├── utils.js            ← Formatação, datas, helpers gerais
-│       ├── login.js            ← Lógica inline da tela de login
-│       ├── pwa.js              ← Registra o Service Worker kill-switch
-│       └── sw.js               ← SW kill-switch (auto-desregistra)
-│
-├── routes/
-│   └── api.php                 ← Todas as rotas da API centralizadas
-│
-├── uploads/
-│   ├── images/                 ← Imagens enviadas (hash + extensão original)
-│   └── videos/                 ← Vídeos enviados (hash + extensão original)
-│
-└── assets/
-    ├── icons/                  ← icon-192.png, icon-512.png, icon.svg
-    ├── logos/                  ← Logos GVC Display e GrupoGVC
-    ├── manifest.admin.json     ← PWA manifest do painel
-    └── manifest.tv.json        ← PWA manifest da TV
-```
-
----
-
-## Banco de dados
-
-### Diagrama entidade-relacionamento
-
-```
-users
-  id, name, email, password_hash, active
-
-groups
-  id, name, description
-
-                        ┌─────────────┐
-                        │  playlists  │
-                        │  id, name   │
-                        │  is_default │
-                        └──────┬──────┘
-                               │ 1:N
-                        ┌──────┴──────────┐
-                        │ playlist_items  │
-                        │ id, type        │
-                        │ url, duration   │
-                        │ sort_order      │
-                        │ media_id ───────┼──→ media
-                        └─────────────────┘    (id, original_name,
-                                                type, url, size)
-
-devices
-  id, name, location
-  slug          → /tv/{slug} (gerado no pareamento)
-  token         → autenticação da TV (64 chars hex)
-  client_id     → fingerprint do navegador da TV
-  group_id ─────────────────────────────────────→ groups
-  playlist_id ──────────────────────────────────→ playlists
-  last_ping     → atualizado no heartbeat (a cada 15s)
-  status        → calculado: last_ping >= NOW()-30s
-
-pairing_codes
-  id, client_id, code (CHAR 6), expires_at
-
-schedules
-  id, playlist_id, target_type (all|group|device)
-  target_id, starts_at, ends_at
-  repeat_weekly, weekdays (JSON)
-
-activity_logs
-  id, user_id, action, detail, created_at
-
-content_versions
-  name, version, updated_at
-  ← bumped por triggers em cada mudança estrutural
-```
-
-### Tabela `content_versions`
-
-Cada alteração em devices, playlists, playlist_items, media ou schedules dispara automaticamente um trigger que incrementa a versão via `CALL bump_content_version(nome)`. O heartbeat da TV retorna o hash da playlist; se mudar, o player recarrega o conteúdo sem precisar recarregar a página.
-
-### Views SQL
-
-| View | Uso |
-|---|---|
-| `vw_devices_full` | Devices com nome do grupo e da playlist |
-| `vw_playlist_items_full` | Itens com dados da mídia vinculada |
-
----
-
-## Fluxo de dados
-
-### 1. Autenticação do admin
-
-```
-POST /api/auth/login  { email, password }
-     ↓
-AuthController verifica password_hash com password_verify()
-     ↓
-Gera JWT HS256  { sub: user_id, name, email, exp: now+86400 }
-     ↓
-Frontend armazena token no localStorage
-     ↓
-Todas as chamadas admin enviam: Authorization: Bearer {token}
-```
-
-### 2. Ciclo completo de uma TV
-
-```
-TV abre /tv/{slug}  (ou /tv/ sem slug)
-        ↓
-TvController::show()
-  ├── Tem slug? → busca device por slug → seta cookie gvc_tv_token
-  ├── Tem cookie gvc_tv_token? → busca device por token
-  └── Nenhum → retorna device = null
-        ↓
-renderPlayer($device)
-  ├── Injeta vars JS: __DEVICE_TOKEN__, __CLIENT_ID__, __PAIRED__, __BASE_URL__
-  └── Serve player.html com os caminhos de assets resolvidos
-        ↓
-player.js carrega no navegador da TV
-  ├── IS_PAIRED = true  → startPlayer()
-  └── IS_PAIRED = false → startPairing()
-```
-
-### 3. Fluxo de pareamento
-
-```
-TV (não pareada)                          Admin (painel)
-─────────────────                         ──────────────
-POST /api/pairing/tv-generate             Acessa Painel → aba Dispositivos
-  { client_id }                           Clica "Parear" no device criado
-  ↓                                       Digita o código de 6 dígitos
-Exibe código XXXXXX na tela              POST /api/pairing/pair
-  ↓                                         { code, device_id }
-GET /api/pairing/tv-status                  ↓
-  ?client_id=...  (a cada 3s)           Servidor:
-  ↓                                       - Valida código
-{ paired: false, code, expires_at }       - Gera slug + token únicos
-  ↓  (aguardando...)                      - UPDATE devices SET slug,token,client_id
-                                           ↓
-                                        { success, slug, player_url }
-
-TV (próximo poll):
-GET /api/pairing/tv-status
-  ↓
-{ paired: true, token, slug, name }
-  ↓
-Seta cookie gvc_tv_token = token
-Recarrega: window.location.href = BASE_URL + '/tv/' + slug
-  ↓
-TvController lê cookie → renderiza player autenticado
-```
-
-### 4. Loop do player (TV pareada)
-
-```
-startPlayer()
-  ↓
-fetchPlaylist()  → GET /api/devices/tv-playlist?token=...
-  ├── 204 No Content → setPhase('waiting', '📋', 'Nenhuma playlist atribuída')
-  └── 200 { items: [...] } → loadSlide(0)
-        ↓
-loadSlide(idx)
-  ├── type = 'image' → renderImage()  → setTimeout(nextSlide, duration*1000)
-  ├── type = 'video' → renderVideo()  → video.onended = nextSlide
-  └── type = 'page'  → renderPage()   → setTimeout(nextSlide, duration*1000)
-        ↓
-nextSlide() → idx++ → loadSlide(idx % items.length)
-
-Paralelamente, a cada 15s:
-POST /api/devices/heartbeat  { token }
-  ↓
-{ playlist_id, playlist_hash }
-  ├── hash igual → continua normalmente
-  └── hash diferente → fetchPlaylist() → reinicia do slide 0
-```
-
----
-
-## API Reference
-
-Todas as rotas da API retornam JSON no formato:
-
-```json
-{ "success": true, "data": { ... } }
-// ou em erro:
-{ "success": false, "message": "Descrição do erro" }
-```
-
-Rotas com 🔒 exigem `Authorization: Bearer {jwt}` no header.
-
-### Auth
-
-| Método | Rota | Corpo | Descrição |
-|--------|------|-------|-----------|
-| POST | `/api/auth/login` | `{ email, password }` | Retorna JWT |
-| POST | `/api/auth/password` 🔒 | `{ current_password, new_password }` | Troca senha |
-
-### Dashboard
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/dashboard` 🔒 | Stats, últimos 20 devices, últimos 20 logs |
-
-### Devices (TVs)
-
-| Método | Rota | Corpo/Params | Descrição |
-|--------|------|-------------|-----------|
-| GET | `/api/devices` 🔒 | — | Lista todas as TVs com status online/offline |
-| POST | `/api/devices` 🔒 | `{ name, location?, group_id?, playlist_id? }` | Cria TV sem parear |
-| GET | `/api/devices/:id` 🔒 | — | Detalhe de uma TV |
-| PUT | `/api/devices/:id` 🔒 | `{ name, location, group_id, playlist_id }` | Atualiza TV |
-| DELETE | `/api/devices/:id` 🔒 | — | Remove TV |
-| POST | `/api/devices/heartbeat` | `{ token }` | TV envia sinal de vida; retorna hash da playlist |
-| POST | `/api/devices/broadcast` 🔒 | `{ playlist_id, target }` | Envia playlist para `all`, `group:N` ou `device:N` |
-| GET | `/api/devices/tv-playlist` | `?token=...` | TV busca sua playlist completa |
-
-> **Status online/offline** é calculado em tempo real pela query SQL:
-> `CASE WHEN last_ping >= DATE_SUB(NOW(), INTERVAL 30 SECOND) THEN 'online' ELSE 'offline' END`
-> Não usa a coluna `status` (stale).
-
-### Groups
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/groups` 🔒 | Lista grupos |
-| POST | `/api/groups` 🔒 | Cria grupo |
-| PUT | `/api/groups/:id` 🔒 | Atualiza grupo |
-| DELETE | `/api/groups/:id` 🔒 | Remove grupo |
-
-### Playlists
-
-| Método | Rota | Corpo | Descrição |
-|--------|------|-------|-----------|
-| GET | `/api/playlists` 🔒 | — | Lista com contagem de itens |
-| POST | `/api/playlists` 🔒 | `{ name, is_default?, copy_from? }` | Cria (ou duplica com `copy_from`) |
-| GET | `/api/playlists/:id` 🔒 | — | Playlist com todos os itens |
-| PUT | `/api/playlists/:id` 🔒 | `{ name, is_default }` | Atualiza |
-| DELETE | `/api/playlists/:id` 🔒 | — | Remove (cascade nos itens) |
-
-### Playlist Items
-
-| Método | Rota | Corpo | Descrição |
-|--------|------|-------|-----------|
-| POST | `/api/items` 🔒 | `{ playlist_id, type, url, duration, media_id?, sort_order }` | Adiciona item |
-| POST | `/api/items/reorder` 🔒 | `{ items: [{id, sort_order}] }` | Reordena |
-| PUT | `/api/items/:id` 🔒 | `{ duration, sort_order }` | Atualiza item |
-| DELETE | `/api/items/:id` 🔒 | — | Remove item |
-
-### Media
-
-| Método | Rota | Corpo | Descrição |
-|--------|------|-------|-----------|
-| GET | `/api/media` 🔒 | — | Lista biblioteca de mídia |
-| POST | `/api/media` 🔒 | `multipart: file` | Upload (imagens: jpg/png/gif/webp; vídeos: mp4/webm) |
-| DELETE | `/api/media/:id` 🔒 | — | Remove arquivo e registro |
-
-> Arquivos salvos em `/uploads/images/` ou `/uploads/videos/` com nome `{hex32}.{ext}`. Limite: 100 MB.
-
-### Pairing
-
-| Método | Rota | Corpo/Params | Descrição |
-|--------|------|-------------|-----------|
-| GET | `/api/pairing` 🔒 | — | Lista códigos pendentes |
-| POST | `/api/pairing/tv-generate` | `{ client_id }` | TV gera código de 6 dígitos (30 min de validade) |
-| GET | `/api/pairing/tv-status` | `?client_id=...` | TV consulta se foi pareada |
-| POST | `/api/pairing/pair` 🔒 | `{ code, device_id }` | Admin vincula código a uma TV |
-| POST | `/api/pairing/unpair` 🔒 | `{ device_id }` | Admin desvincula TV (volta à tela de pareamento) |
-
----
-
-## Como rodar localmente
-
-### Pré-requisitos
-
-- **XAMPP** com PHP 8.2+ e MariaDB na porta 3307
-- MySQL Workbench (opcional, mas recomendado)
-
-### 1. Clonar o repositório
+**1. Clonar o projeto**
 
 ```bash
-# No terminal do Windows (Git Bash ou PowerShell)
 cd C:\xampp\htdocs
 git clone https://github.com/GrupoGVC/gvc-display.git
 cd gvc-display
 git checkout estruturaMVC
 ```
 
-### 2. Configurar o ambiente
+**2. Criar o arquivo `.env`** (copiar o exemplo e editar)
 
 ```bash
-# Copie e edite o arquivo de ambiente
-copy .env.example .env   # Windows
-# cp .env.example .env   # Linux/Mac
+copy .env.example .env
 ```
 
-Edite o `.env`:
+Conteúdo mínimo do `.env`:
 
-```env
+```
 DB_HOST=127.0.0.1
 DB_PORT=3307
 DB_NAME=db_gvc_display
 DB_USER=root
 DB_PASS=
 
-JWT_SECRET=troque-por-uma-string-aleatoria-longa
-JWT_TTL=86400
-
+JWT_SECRET=coloque-aqui-uma-string-aleatoria-longa
 APP_BASE_PATH=/gvc-display
 ```
 
-### 3. Criar o banco de dados
+**3. Criar o banco de dados**
 
-Abra o **MySQL Workbench** ou o phpMyAdmin, conecte na porta **3307** e execute:
-
-```sql
--- Importar o schema completo
-SOURCE C:/xampp/htdocs/gvc-display/db_gvc_display.sql;
-```
-
-Ou via linha de comando:
+Abra o MySQL Workbench (conecte na porta **3307**) e execute o arquivo `db_gvc_display.sql`. Ou via terminal:
 
 ```bash
 "C:\xampp\mysql\bin\mysql.exe" -h 127.0.0.1 -P 3307 -u root < db_gvc_display.sql
 ```
 
-O script cria o banco, todas as tabelas, triggers, views, a procedure `bump_content_version` e o usuário admin padrão.
+**4. Iniciar o XAMPP** (Apache + MySQL) e acessar:
 
-### 4. Verificar o .htaccess
-
-O arquivo `.htaccess` já está configurado para `RewriteBase /gvc-display/`. Se o projeto estiver em outra pasta, ajuste esta linha.
-
-### 5. Iniciar o XAMPP
-
-- Apache: porta 80 (ou 8080)
-- MySQL: porta **3307** (não 3306)
-
-### 6. Acessar
-
-| URL | O que abre |
-|-----|-----------|
-| `http://localhost/gvc-display/` | Painel administrativo |
-| `http://localhost/gvc-display/login` | Tela de login |
-| `http://localhost/gvc-display/tv` | Player da TV (tela de pareamento) |
-| `http://localhost/gvc-display/tv/{slug}` | Player de uma TV específica |
+| Endereço                             | O que abre              |
+| ------------------------------------ | ----------------------- |
+| `http://localhost/gvc-display/`      | Painel administrativo   |
+| `http://localhost/gvc-display/login` | Tela de login           |
+| `http://localhost/gvc-display/tv`    | Tela da TV (modo kiosk) |
 
 ---
 
-## Deploy em produção (VPS)
+## Primeiro acesso
 
-O servidor de produção usa **Nginx** com PHP-FPM e o domínio `display.drc-gvc.tech`.
+**Login padrão:**
 
-### 1. Configuração Nginx
+- E-mail: `admin@gvc.com`
+- Senha: `admin123`
+
+> Troque a senha após o primeiro acesso: ícone de usuário → "Alterar senha".
+
+---
+
+## Como cadastrar e parear uma TV
+
+1. No painel, vá em **Dispositivos → Novo Dispositivo**. Preencha nome e local.
+2. Na Smart TV, abra `http://display.drc-gvc.tech/tv`. Um código de 6 dígitos aparece na tela.
+3. No painel, clique em **Parear** no dispositivo criado e digite o código.
+4. A TV atualiza automaticamente e começa a exibir a playlist atribuída.
+
+Para **desparear**, clique no botão verde "Pareado" (fica vermelho no hover) e confirme.
+
+---
+
+## Como criar e enviar uma apresentação
+
+1. Vá em **Mídias** e faça upload das imagens e vídeos.
+2. Vá em **Playlists → Nova Playlist**, adicione os itens e defina a duração de cada um.
+3. Vá em **Dispositivos**, edite uma TV e selecione a playlist desejada.  
+   Ou use o botão **Broadcast** para enviar a mesma playlist para todas as TVs, um grupo inteiro ou uma TV específica.
+
+---
+
+## Testando com várias TVs ao mesmo tempo
+
+Abra uma **aba anônima** do navegador para cada TV simulada (cada aba anônima tem cookies isolados, como se fosse um dispositivo diferente).
+
+```
+Aba normal      → Painel admin
+Aba anônima 1   → http://localhost/gvc-display/tv  (TV 1)
+Aba anônima 2   → http://localhost/gvc-display/tv  (TV 2)
+```
+
+---
+
+## Deploy em produção (Nginx + VPS)
+
+**Configuração Nginx** (`/etc/nginx/sites-available/gvc-display`):
 
 ```nginx
 server {
-    listen 80;
-    server_name display.drc-gvc.tech;
-    return 301 https://$host$request_uri;
-}
-
-server {
     listen 443 ssl http2;
     server_name display.drc-gvc.tech;
-
     root /var/www/gvc-display;
     index index.php;
 
     ssl_certificate     /etc/letsencrypt/live/display.drc-gvc.tech/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/display.drc-gvc.tech/privkey.pem;
 
-    # Assets estáticos servidos diretamente
     location ~* ^/(uploads|assets|resources)/ {
         expires 7d;
-        add_header Cache-Control "public, immutable";
         try_files $uri =404;
     }
 
-    # Tudo mais vai pro front controller
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }
 
     location ~ \.php$ {
         fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
-        fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;
     }
 }
+
+server {
+    listen 80;
+    server_name display.drc-gvc.tech;
+    return 301 https://$host$request_uri;
+}
 ```
 
-### 2. Ajustar .env em produção
+**Ajuste o `.env` em produção:**
 
-```env
+```
 APP_BASE_PATH=
-# Em produção na raiz do domínio, APP_BASE_PATH fica vazio
-# O auto-detect do index.php cuida do caso
-
 DB_PORT=3306
-# MariaDB em produção normalmente usa 3306
 ```
 
-### 3. Deploy via Git
+**Atualizar via Git:**
 
 ```bash
-# No servidor (VPS)
 cd /var/www/gvc-display
 git fetch origin
 git reset --hard origin/main
-
-# Permissões dos uploads
 chmod -R 775 uploads/
 chown -R www-data:www-data uploads/
 ```
 
-### 4. Importar o banco em produção
+---
 
-```bash
-mysql -u usuario -p db_gvc_display < db_gvc_display.sql
+## Estrutura de pastas
+
+```
+gvc-display/
+├── index.php                  ← Ponto de entrada (front controller)
+├── .env                       ← Configurações locais (não versionar)
+├── .htaccess                  ← Regras de rewrite do Apache
+├── db_gvc_display.sql         ← Schema do banco + dados iniciais
+│
+├── app/
+│   ├── Core/                  ← Router, Database, JWT, Request, Response
+│   ├── Controllers/           ← Lógica de cada funcionalidade
+│   └── Models/                ← Acesso ao banco de dados
+│
+├── resources/
+│   ├── views/
+│   │   ├── index.html         ← Painel administrativo (SPA)
+│   │   ├── login.html         ← Tela de login
+│   │   └── player.html        ← Tela da TV (fullscreen)
+│   ├── css/                   ← Estilos do painel, login e player
+│   └── js/
+│       ├── admin.js           ← Toda a lógica do painel
+│       └── player.js          ← Toda a lógica da TV
+│
+├── routes/
+│   └── api.php                ← Todas as rotas da API
+│
+└── uploads/
+    ├── images/                ← Imagens enviadas pelo admin
+    └── videos/                ← Vídeos enviados pelo admin
 ```
 
 ---
 
-## Fluxo de pareamento de TVs
+## Banco de dados (tabelas principais)
 
-O pareamento funciona em 5 passos simples:
-
-```
-Passo 1 — Admin cria a TV no painel
-  Painel → Dispositivos → "+ Novo Dispositivo"
-  Preenche nome, local, grupo e playlist (opcional)
-  A TV é criada SEM slug/token (não pareada)
-
-Passo 2 — TV abre o sistema
-  Smart TV abre: http://display.drc-gvc.tech/tv
-  O player.js detecta que não está pareado (IS_PAIRED = false)
-  Chama POST /api/pairing/tv-generate com o client_id (cookie único)
-  Exibe na tela um código de 6 dígitos: ex. "847 291"
-  O código expira em 30 minutos
-
-Passo 3 — Admin digita o código
-  Painel → Dispositivos → botão "Parear" na TV desejada
-  Modal abre pedindo o código de 6 dígitos
-  Admin digita o código exibido na TV
-  POST /api/pairing/pair { code: "847291", device_id: 5 }
-
-Passo 4 — Servidor vincula
-  Valida o código e pega o client_id associado
-  Gera slug único baseado no nome da TV (ex: "tv-recepcao")
-  Gera token hex de 64 chars
-  UPDATE devices SET slug, token, client_id WHERE id = 5
-
-Passo 5 — TV detecta e atualiza
-  A cada 3s, player.js chama GET /api/pairing/tv-status?client_id=...
-  Servidor responde: { paired: true, token, slug, name }
-  TV salva o token no cookie gvc_tv_token (validade 10 anos)
-  Redireciona para /tv/tv-recepcao
-  TvController injeta token nas vars JS
-  Player inicia em modo PLAYING
-```
-
-Para **desparear** uma TV: Painel → Dispositivos → botão "Pareado" (fica vermelho no hover) → confirma → TV volta à tela de código no próximo heartbeat (resposta 401).
+| Tabela             | O que guarda                                                              |
+| ------------------ | ------------------------------------------------------------------------- |
+| `users`            | Administradores do sistema                                                |
+| `groups`           | Grupos de TVs (por setor, andar etc.)                                     |
+| `devices`          | Cada Smart TV cadastrada                                                  |
+| `playlists`        | Apresentações criadas pelo admin                                          |
+| `playlist_items`   | Cada imagem/vídeo/página dentro de uma playlist                           |
+| `media`            | Biblioteca de arquivos enviados                                           |
+| `pairing_codes`    | Códigos temporários de pareamento (6 dígitos, válidos 30 min)             |
+| `schedules`        | Agendamentos de playlists por data/horário                                |
+| `activity_logs`    | Histórico de ações dos administradores                                    |
+| `content_versions` | Número de versão do conteúdo — TVs comparam para saber se devem atualizar |
 
 ---
 
-## Player da TV
+## Rotas da API
 
-### Máquina de estados (`player.js`)
+Rotas com 🔒 exigem o header `Authorization: Bearer {token}`.
 
-```
-         startPairing()              startPlayer()
-              ↓                           ↓
-┌─────────────────────┐      ┌────────────────────────┐
-│      PAIRING        │      │        PLAYING         │
-│                     │      │                        │
-│  Exibe código 6d    │      │  Alterna slides:       │
-│  Polling 3s         │─────→│  • image → object-fit  │
-│  /pairing/tv-status │      │  • video → autoplay    │
-│  Countdown 30min    │      │  • page  → iframe      │
-└─────────────────────┘      └────────────┬───────────┘
-                                          │
-                              Heartbeat 15s
-                              /devices/heartbeat
-                                          │
-                              hash mudou? → fetchPlaylist()
-                              token inválido? → startPairing()
-                              sem playlist? ↓
-                                          │
-                             ┌────────────┴───────────┐
-                             │        WAITING         │
-                             │  "Nenhuma apresentação"│
-                             │  Polling 30s           │
-                             └────────────────────────┘
-```
+**Autenticação**
 
-### Variáveis injetadas pelo PHP
+- `POST /api/auth/login` — Faz login, retorna token JWT
+- `POST /api/auth/password` 🔒 — Troca senha
 
-O `TvController` injeta um bloco `<script>` antes do `</head>`:
+**Dispositivos (TVs)**
 
-```javascript
-window.__DEVICE_TOKEN__ = "abc123...";  // null se não pareada
-window.__DEVICE_SLUG__  = "tv-recepcao";
-window.__CLIENT_ID__    = "a1b2c3...";  // cookie persistente
-window.__BASE_URL__     = "https://display.drc-gvc.tech";
-window.__PAIRED__       = true;
-```
+- `GET /api/devices` 🔒 — Lista todas as TVs com status online/offline
+- `POST /api/devices` 🔒 — Cadastra nova TV
+- `PUT /api/devices/:id` 🔒 — Edita TV
+- `DELETE /api/devices/:id` 🔒 — Remove TV
+- `POST /api/devices/heartbeat` — TV envia sinal de vida a cada 15s
+- `GET /api/devices/tv-playlist` — TV busca sua playlist atual
+- `POST /api/devices/broadcast` 🔒 — Envia playlist para todas/grupo/TV específica
 
-### Reconexão automática
+**Playlists**
 
-- **Internet cai:** o `fetch()` do heartbeat falha silenciosamente; o slide atual continua exibindo
-- **Internet volta:** o próximo heartbeat (15s) funciona normalmente
-- **Token invalidado (despareamento):** heartbeat retorna 401 → `startPairing()` automaticamente
-- **Playlist atualizada:** hash muda → `fetchPlaylist()` → reinicia do slide 0
+- `GET /api/playlists` 🔒 — Lista playlists
+- `POST /api/playlists` 🔒 — Cria playlist (suporta `copy_from` para duplicar)
+- `GET /api/playlists/:id` 🔒 — Detalhes com todos os itens
+- `PUT /api/playlists/:id` 🔒 — Edita playlist
+- `DELETE /api/playlists/:id` 🔒 — Remove playlist
 
-### Compatibilidade com Smart TVs
+**Itens de playlist**
 
-O player foi escrito para máxima compatibilidade:
+- `POST /api/items` 🔒 — Adiciona item
+- `POST /api/items/reorder` 🔒 — Reordena itens
+- `PUT /api/items/:id` 🔒 — Edita duração/ordem
+- `DELETE /api/items/:id` 🔒 — Remove item
 
-- **Sem frameworks**, sem transpilação (ES2020 nativo)
-- **Autoplay de vídeo:** usa `muted + playsinline` (obrigatório em navegadores modernos)
-- **Fallback de vídeo:** se `play()` falhar, avança para o próximo slide em 3s
-- **Fallback de imagem:** se a imagem falhar, avança em 2s
-- **Sem Service Worker no player:** `/uploads/` é servido via `fetch()` direto para evitar `ERR_CACHE_OPERATION_NOT_SUPPORTED` com arquivos MP4
+**Mídias**
+
+- `GET /api/media` 🔒 — Lista biblioteca
+- `POST /api/media` 🔒 — Upload de arquivo (máx 100 MB)
+- `DELETE /api/media/:id` 🔒 — Remove arquivo
+
+**Pareamento**
+
+- `POST /api/pairing/tv-generate` — TV gera código de pareamento
+- `GET /api/pairing/tv-status` — TV consulta se já foi pareada
+- `POST /api/pairing/pair` 🔒 — Admin vincula código a uma TV
+- `POST /api/pairing/unpair` 🔒 — Admin desvincula TV
 
 ---
 
-## Painel administrativo
+## Problemas conhecidos e soluções
 
-O painel é uma **SPA (Single Page Application)** em Vanilla JS. Toda a lógica está em `resources/js/admin.js` (~54 KB).
+**Vídeo não inicia na TV**  
+Smart TVs exigem `muted` para autoplay. O player já usa `<video autoplay muted playsinline>`. Se ainda falhar, avança automaticamente para o próximo slide.
 
-### Telas disponíveis
+**Status online/offline sempre errado**  
+Verifique se PHP e MariaDB estão no mesmo fuso horário. O projeto usa UTC — confirme com `date_default_timezone_set('UTC')` no `index.php`.
 
-| Seção | Funcionalidades |
-|---|---|
-| **Dashboard** | Cards com totais (TVs, playlists, mídias), lista de dispositivos com status online/offline em tempo real, log de atividades recentes |
-| **Dispositivos** | Cadastro de TVs (nome, local, grupo, playlist), ação de parear/desparear com modal de código, botão de broadcast por TV |
-| **Grupos** | Organização de TVs por setor/andar/ambiente; broadcast para o grupo inteiro |
-| **Mídias** | Upload de imagens (jpg/png/gif/webp) e vídeos (mp4/webm); visualização em grid; exclusão |
-| **Playlists** | Criar, editar, duplicar, definir como padrão; editor de itens com duração individual; reordenação por drag and drop |
-| **Broadcast** | Enviar playlist para todas as TVs, um grupo ou uma TV específica |
+**POST vira GET no XAMPP**  
+Acontece quando `index.php` delega para `public/index.php`. A solução já está aplicada: o front controller completo fica na raiz.
 
-### Autenticação
+**Tela de login em loop infinito**  
+Service Worker antigo em cache. O `sw.js` do projeto é um kill-switch que se auto-desregistra. Se o loop persistir, abra o DevTools → Application → Service Workers → "Unregister" manual.
 
-O token JWT é armazenado em `localStorage` com chave `gvc_token`. Toda requisição ao painel adiciona automaticamente o header `Authorization: Bearer {token}`. Expiração padrão: 24 horas (`JWT_TTL=86400`).
-
-### Sidebar
-
-Sidebar com collapse/expand — largura expandida ~220px, colapsada 76px. Tooltips CSS puros via `data-tip` (sem JavaScript adicional). Em mobile, a sidebar colapsa automaticamente.
-
----
-
-## Testando com múltiplas TVs
-
-Você pode simular várias TVs em abas do navegador usando o modo anônimo ou perfis diferentes:
-
-### Método 1 — Abas anônimas
-
-Cada aba anônima tem cookies isolados, simulando TVs independentes:
-
-```
-Aba normal     → Painel admin  (http://localhost/gvc-display/)
-Aba anônima 1  → TV 1          (http://localhost/gvc-display/tv)
-Aba anônima 2  → TV 2          (http://localhost/gvc-display/tv)
-```
-
-### Método 2 — Perfis do Chrome
-
-Crie perfis separados no Chrome (cada perfil tem cookies próprios).
-
-### Método 3 — Slug direto
-
-Se uma TV já foi pareada, acesse diretamente pelo slug sem precisar do cookie:
-
-```
-http://localhost/gvc-display/tv/tv-recepcao
-http://localhost/gvc-display/tv/sala-reunioes
-http://localhost/gvc-display/tv/corredor-2
-```
-
-### Passo a passo para testar
-
-```bash
-# 1. Acesse o painel e faça login
-http://localhost/gvc-display/login
-# admin@gvc.com / admin123
-
-# 2. Crie 2 dispositivos:
-#    → "TV Recepção" (Recepção, Térreo)
-#    → "TV Sala de Reuniões" (Sala 201, 2º Andar)
-
-# 3. Faça upload de 2 ou 3 imagens em Mídias
-
-# 4. Crie uma playlist "Corporativo" com as imagens, duração 5s cada
-
-# 5. Abra uma aba anônima em /tv — anote o código exibido
-
-# 6. No painel, clique "Parear" na "TV Recepção" e digita o código
-
-# 7. A aba anônima deve redirecionar e começar a apresentação
-
-# 8. Troque a playlist pelo broadcast e veja a TV atualizar em até 15s
-```
-
----
-
-## Problemas comuns em Smart TVs
-
-### Autoplay de vídeo bloqueado
-
-**Problema:** Samsung Tizen, LG WebOS e outros bloqueiam autoplay com som.
-
-**Solução:** O player usa `muted` em todos os vídeos:
-```html
-<video autoplay muted playsinline>
-```
-
-Se o autoplay ainda falhar, o player captura o erro e avança para o próximo slide automaticamente.
-
-### Vídeos não carregam (HTTP Range Requests)
-
-**Problema:** Alguns navegadores de Smart TV exigem suporte a `Range` para vídeos. Apache e Nginx suportam por padrão, mas é necessário verificar.
-
-**Diagnóstico:**
-```bash
-curl -I -H "Range: bytes=0-1023" http://display.drc-gvc.tech/uploads/videos/arquivo.mp4
-# Deve retornar: HTTP/1.1 206 Partial Content
-```
-
-### Service Worker interferindo
-
-**Problema:** SW de versões antigas intercepta requisições e retorna conteúdo em cache.
-
-**Solução:** O projeto usa um SW kill-switch (`sw.js`) que se auto-desregistra e limpa todos os caches ao ativar. O login não registra SW (`$injectSW = false`).
-
-### Trailing slash no Apache
-
-**Problema:** `mod_dir` adiciona `/` no final de URLs sem extensão, quebrando as rotas da API.
-
-**Solução já aplicada:**
-```apache
-# .htaccess
-DirectorySlash Off
-```
-```php
-// Router.php
-if ($uri !== '/' && str_ends_with($uri, '/')) {
-    $uri = rtrim($uri, '/');
-}
-```
-
-### Tizen (Samsung) — cookies de terceiros
-
-**Problema:** TVs Samsung podem bloquear cookies de domínios diferentes.
-
-**Solução:** O sistema usa cookies do próprio domínio. Certifique-se de que o `APP_BASE_PATH` está correto no `.env` e que o cookie é setado com `path=/` e `samesite=Lax`.
-
-### POST vira GET no XAMPP
-
-**Problema:** Quando `index.php` usa `require 'public/index.php'` para delegar, o Apache converte o método POST em GET no redirect interno.
-
-**Solução já aplicada:** O front controller completo fica em `index.php` na raiz — não delega para `public/index.php`.
-
-### MariaDB — fuso horário
-
-**Problema:** Se PHP e MySQL estão em fusos diferentes, comparações com `NOW()` ficam erradas (status online/offline sempre errado, JWT expira antes da hora).
-
-**Solução já aplicada:**
-```php
-// index.php
-date_default_timezone_set('UTC');
-```
-O banco usa `CURRENT_TIMESTAMP` que segue o timezone do servidor MariaDB. Em produção, alinhe ambos para UTC.
-
----
-
-## Variáveis de ambiente
-
-| Variável | Padrão | Descrição |
-|---|---|---|
-| `DB_HOST` | `127.0.0.1` | Host do MariaDB |
-| `DB_PORT` | `3307` | Porta (XAMPP usa 3307; produção tipicamente 3306) |
-| `DB_NAME` | `db_gvc_display` | Nome do banco |
-| `DB_USER` | `root` | Usuário do banco |
-| `DB_PASS` | _(vazio)_ | Senha do banco |
-| `JWT_SECRET` | _(obrigatório)_ | Segredo HS256 — use string aleatória com 64+ chars |
-| `JWT_TTL` | `86400` | Expiração do token em segundos (padrão: 24h) |
-| `APP_BASE_PATH` | `/gvc-display` | Prefixo da URL. Deixar vazio se o projeto estiver na raiz do domínio |
-
----
-
-## Credenciais padrão
-
-| Campo | Valor |
-|---|---|
-| **E-mail** | `admin@gvc.com` |
-| **Senha** | `admin123` |
-
-> ⚠️ Troque a senha imediatamente após o primeiro acesso em produção: Painel → ícone de usuário → "Alterar senha".
-
----
-
-## Segurança
-
-- **Painel:** protegido por JWT HS256 em todas as rotas `/api/*` (exceto `/api/auth/login` e rotas da TV)
-- **TVs:** autenticadas por token único de 64 chars hexadecimais armazenado no cookie `httponly=false` (necessário para o JS do player ler) e `samesite=Lax`
-- **Uploads:** MIME type validado no PHP; extensão derivada do nome original; arquivos salvos com nome hash aleatório
-- **SQL Injection:** todas as queries usam PDO com prepared statements
-- **Rota da TV:** `/tv/:slug` não expõe nenhuma função administrativa; o token só permite operações de leitura (heartbeat, tv-playlist)
-- **Logs:** todas as ações administrativas são gravadas em `activity_logs` com user_id, action e detalhe
-
----
-
-## Tecnologias utilizadas
-
-| Tecnologia | Versão | Uso |
-|---|---|---|
-| PHP | 8.2 | Backend MVC, JWT, PDO |
-| MariaDB | 10.x | Banco de dados principal |
-| Apache | 2.4 | Servidor web local (XAMPP) |
-| Nginx | 1.24 | Servidor web em produção |
-| Bootstrap | 5.3 | Grid e componentes do painel |
-| Bootstrap Icons | 1.11 | Ícones do painel |
-| Vanilla JS | ES2020 | Admin SPA + Player TV |
-| Google Fonts | — | Inter (player), Lato (login) |
-| QR Server API | — | Geração de QR Code no pareamento |
+**Barra no final da URL quebrando a API**  
+O Apache `mod_dir` adiciona `/` em URLs sem extensão. Já resolvido com `DirectorySlash Off` no `.htaccess` e `rtrim` no Router.
 
 ---
 
