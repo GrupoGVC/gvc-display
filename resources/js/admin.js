@@ -331,7 +331,7 @@ function renderDevices() {
         <td class="col-actions">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             ${d.paired
-              ? `<button class="btn-sm btn-paired" onclick="unpairDevice(${d.id},'${esc(d.name)}')" title="Clique para desparear esta TV"
+              ? `<button class="btn-sm btn-paired" onclick="unpairDevice(${d.id},'${esc(d.name)}')" title="Clique para desparear"
                    style="background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.3);">
                    <i class="bi bi-check-circle-fill"></i><span class="btn-label"> Pareado</span></button>`
               : `<button class="btn-p btn-sm" onclick="openPairForDevice(${d.id},'${esc(d.name)}')" title="Parear TV">
@@ -345,24 +345,6 @@ function renderDevices() {
       </tr>`).join("")
     : `<tr><td colspan="6" class="empty">Nenhum dispositivo encontrado</td></tr>`;
 }
-
-// Despareia uma TV: reseta ao estado inicial (volta pra tela de pareamento)
-window.unpairDevice = async (id, name) => {
-  const ok = await confirmDlg(
-    `Desparear "${esc(name)}"?<br><br>A TV voltará à tela de pareamento e perderá o nome, a playlist e o grupo atribuídos. Um novo código será gerado.`
-  );
-  if (!ok) return;
-
-  try {
-    await post("pairing/unpair", { device_id: id });
-    S.devices = (await get("devices")) || [];
-    renderDevices();
-    try { renderDash(await get("dashboard")); } catch {}
-    toast(`"${name}" foi despareada`);
-  } catch (e) {
-    toast(e.message || "Erro ao desparear", "err");
-  }
-};
 
 function buildGroupFilter() {
   const sel = q("#dev-filter-grupo");
@@ -446,10 +428,51 @@ window.doSaveDev = async () => {
 window.openDevInfo = (id) => {
   const d = S.devices.find((x) => x.id === id);
   if (!d) return;
+
   q("#m-devinfo-title").innerHTML = `<i class="bi bi-gear"></i>${esc(d.name)}`;
-  q("#dev-purl").textContent = d.player_url;
-  q("#dev-token").textContent = d.token;
+
+  // Status de pareamento visual
+  const statusEl = q("#dev-pair-status");
+  if (d.paired) {
+    statusEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">
+      <i class="bi bi-check-circle-fill" style="color:#22c55e;"></i>
+      <span style="color:#22c55e;font-weight:600;">Pareada</span>
+    </span>`;
+  } else {
+    statusEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">
+      <i class="bi bi-circle" style="color:var(--mut);"></i>
+      <span style="color:var(--mut);">Não pareada — clique em "Parear" na lista</span>
+    </span>`;
+  }
+
+  // URL da TV
+  const purlWrap = q("#dev-purl-wrap");
+  const purlEl   = q("#dev-purl");
+  if (d.player_url) {
+    purlEl.textContent = d.player_url;
+    if (purlWrap) purlWrap.style.display = '';
+  } else {
+    if (purlWrap) purlWrap.style.display = 'none';
+  }
+
+  // Botão desparear só aparece se estiver pareada
+  const btnUnpair = q("#btn-info-unpair");
+  if (btnUnpair) {
+    btnUnpair.style.display = d.paired ? '' : 'none';
+    btnUnpair.dataset.devId   = id;
+    btnUnpair.dataset.devName = d.name;
+  }
+
   openModal("m-devinfo");
+};
+
+window.unpairFromInfo = async () => {
+  const btn  = q("#btn-info-unpair");
+  const id   = parseInt(btn?.dataset.devId);
+  const name = btn?.dataset.devName || '';
+  if (!id) return;
+  closeModal("m-devinfo");
+  await unpairDevice(id, name);
 };
 
 // FIX: delDev
@@ -1282,26 +1305,26 @@ let _qrStream   = null;
 let _qrInterval = null;
 
 window.openPairForDevice = (devId, devName) => {
-  S.pairTargetDevId = devId || null;   // guarda o device alvo (se veio de uma TV existente)
+  if (!devId) {
+    toast('Crie a TV primeiro em "Adicionar TV" e depois clique em Parear', 'err');
+    return;
+  }
+  S.pairTargetDevId = devId;
   const inp = document.getElementById('pair-input-code');
-  const nm  = document.getElementById('pair-tv-name');
-  const loc = document.getElementById('pair-tv-location');
   const err = document.getElementById('pair-error');
+  const target = document.getElementById('pair-target-name');
   if (inp) inp.value = '';
-  if (nm)  nm.value  = (devName && devName !== 'Nova TV') ? devName : '';
-  if (loc) loc.value = '';
   if (err) { err.style.display = 'none'; err.textContent = ''; }
-
-  // Popula grupo (pré-seleciona o grupo da TV se existir)
-  const dev = devId ? S.devices.find(x => x.id === devId) : null;
-  populateSelect('pair-tv-group', S.groups, 'name', { emptyLabel: 'sem grupo', selectedVal: dev?.group_id });
+  if (target) target.textContent = devName || '';
 
   switchPairTab('code');
   openModal('m-pair-device');
   setTimeout(() => inp?.focus(), 300);
 };
 
-window.openPairModal = () => window.openPairForDevice(null, '');
+window.openPairModal = () => {
+  toast('Selecione a TV que deseja parear na lista de dispositivos', 'err');
+};
 
 window.switchPairTab = (tab) => {
   const isCode = tab === 'code';
@@ -1362,71 +1385,60 @@ function scanQRFrame() {
 }
 
 window.doPairDeviceNew = async () => {
-  const code     = (document.getElementById('pair-input-code')?.value || '').replace(/\D/g, '');
-  const tvName   = (document.getElementById('pair-tv-name')?.value   || '').trim();
-  const tvLoc    = (document.getElementById('pair-tv-location')?.value || '').trim();
-  const tvGroup  = document.getElementById('pair-tv-group')?.value || null;
-  const errEl    = document.getElementById('pair-error');
-  const btn      = document.getElementById('btn-do-pair');
+  const code    = (document.getElementById('pair-input-code')?.value || '').replace(/\D/g, '');
+  const errEl   = document.getElementById('pair-error');
+  const btn     = document.getElementById('btn-do-pair');
 
   if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
 
-  if (code.length !== 6) {
-    if (errEl) { errEl.textContent = 'Digite os 6 dígitos do código exibido na TV'; errEl.style.display = 'block'; }
-    document.getElementById('pair-input-code')?.focus();
+  if (!S.pairTargetDevId) {
+    if (errEl) { errEl.textContent = 'TV alvo não selecionada. Feche e clique em Parear na linha da TV.'; errEl.style.display = 'block'; }
     return;
   }
-  if (!tvName) {
-    if (errEl) { errEl.textContent = 'Dê um nome para esta TV'; errEl.style.display = 'block'; }
-    document.getElementById('pair-tv-name')?.focus();
+  if (code.length !== 6) {
+    if (errEl) { errEl.textContent = 'Digite os 6 dígitos exibidos na TV'; errEl.style.display = 'block'; }
+    document.getElementById('pair-input-code')?.focus();
     return;
   }
 
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Pareando...'; }
 
   try {
-    if (S.pairTargetDevId) {
-      // Pareando uma TV JÁ criada no admin → vincula o código a ela (pair)
-      // Isso transfere o token da TV auto-gerada e remove a auto-gerada (sem duplicar)
-      await post('pairing/pair', {
-        code,
-        device_id: S.pairTargetDevId,
-      });
-      // Atualiza nome/local/grupo da TV alvo
-      await put(`devices/${S.pairTargetDevId}`, {
-        name:        tvName,
-        location:    tvLoc,
-        group_id:    tvGroup,
-        playlist_id: (S.devices.find(d => d.id === S.pairTargetDevId)?.playlist_id) || null,
-      });
-    } else {
-      // Pareamento avulso (botão genérico) → renomeia a TV auto-gerada (confirm)
-      const res = await post('pairing/confirm', {
-        code,
-        name:     tvName,
-        location: tvLoc,
-      });
-      // Aplica grupo se selecionado
-      if (tvGroup && res.device_id) {
-        await put(`devices/${res.device_id}`, {
-          name:     tvName,
-          location: tvLoc,
-          group_id: tvGroup,
-        });
-      }
-    }
+    await post('pairing/pair', {
+      code,
+      device_id: S.pairTargetDevId,
+    });
 
     closeModal('m-pair-device');
-    toast(`✅ TV "${tvName}" pareada com sucesso!`);
+    toast(`✅ TV pareada com sucesso!`);
 
     await loadDevices();
     nav('dispositivos');
-
   } catch (e) {
     const msg = e.message || 'Erro ao parear — verifique o código';
     if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-link-45deg"></i> Parear TV'; }
     S.pairTargetDevId = null;
+  }
+};
+
+// ── Desparear TV ──────────────────────────────────────────────
+window.unpairDevice = async (id, name) => {
+  const ok = await confirmDlg(
+    `Desparear <b>${esc(name)}</b>?<br><br>` +
+    `A TV voltará à tela de pareamento e perderá o vínculo atual. Um novo código será gerado. ` +
+    `A TV continua cadastrada e você pode reparear a qualquer momento.`
+  );
+  if (!ok) return;
+
+  try {
+    await post('pairing/unpair', { device_id: id });
+    S.devices = (await get('devices')) || [];
+    renderDevices();
+    try { renderDash(await get('dashboard')); } catch {}
+    toast(`✅ "${name}" foi despareada`);
+  } catch (e) {
+    toast(e.message || 'Erro ao desparear', 'err');
   }
 };

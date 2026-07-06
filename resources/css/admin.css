@@ -493,12 +493,16 @@ input[type="datetime-local"] { width: 100%; }
   .gvc-toast { max-width: 100%; }
 }
 
-/* ── Botão "Pareado" — fica vermelho no hover (ação desparear) ─── */
-.btn-paired { cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
-.btn-paired:hover {
-  background: rgba(255,79,106,.14) !important;
-  color: #ff4f6a !important;
-  border-color: rgba(255,79,106,.4) !important;
+/* ── Tabela de agendamentos: responsive ──────────────────── */
+@media (max-width: 768px) {
+  .gvc-table [data-col="sch-rep"],
+  .gvc-table th[data-col="sch-rep"] { display: none; }
+}
+@media (max-width: 576px) {
+  .gvc-table [data-col="sch-dest"],
+  .gvc-table th[data-col="sch-dest"],
+  .gvc-table [data-col="sch-fim"],
+  .gvc-table th[data-col="sch-fim"]  { display: none; }
 }
 
 /* ══════════════════════════════════════════════════════════

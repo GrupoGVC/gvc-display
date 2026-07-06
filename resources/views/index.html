@@ -449,27 +449,20 @@
       </div>
       <div class="modal-body">
         <div class="fg">
-          <label for="gr-nome">Status de Pareamento</label>
+          <label>Status de Pareamento</label>
           <div id="dev-pair-status" style="font-size:13px;padding:4px 0;"></div>
         </div>
-        <div class="fg">
+        <div class="fg" id="dev-purl-wrap">
           <label id="lbl-purl">URL da TV</label>
           <div class="tokdisp">
             <code id="dev-purl" aria-labelledby="lbl-purl">—</code>
             <button class="copybtn" onclick="copyT(document.getElementById('dev-purl').textContent)">Copiar</button>
           </div>
         </div>
-        <div class="fg">
-          <label id="lbl-token">Token</label>
-          <div class="tokdisp">
-            <code id="dev-token" aria-labelledby="lbl-token">—</code>
-            <button class="copybtn" onclick="copyT(document.getElementById('dev-token').textContent)">Copiar</button>
-          </div>
-        </div>
       </div>
       <div class="modal-footer">
-        <button id="btn-cancel-pair" class="btn-d btn-sm" onclick="cancelDevPairing()" style="display:none;">
-          <i class="bi bi-link-45deg"></i>Encerrar Pareamento
+        <button id="btn-info-unpair" class="btn-d btn-sm" onclick="unpairFromInfo()" style="display:none;">
+          <i class="bi bi-x-circle"></i> Desparear
         </button>
         <button class="btn-p" data-bs-dismiss="modal">Fechar</button>
       </div>
@@ -616,6 +609,12 @@
       </div>
       <div class="modal-body">
 
+        <!-- Info da TV alvo -->
+        <div style="background:var(--bg2);border:1px solid var(--bord);border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:13px;">
+          <div style="color:var(--txt2);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Pareando</div>
+          <div style="color:var(--txt);font-weight:600;" id="pair-target-name">—</div>
+        </div>
+
         <!-- Tabs: Código / Câmera -->
         <div style="display:flex;gap:8px;margin-bottom:16px;">
           <button id="tab-code" class="btn-p btn-sm" onclick="switchPairTab('code')"
@@ -626,8 +625,8 @@
 
         <!-- Tab: Código manual -->
         <div id="pair-tab-code">
-          <div class="fg" style="margin-bottom:12px;">
-            <label for="pair-input-code">Código da TV (6 dígitos)</label>
+          <div class="fg" style="margin-bottom:4px;">
+            <label for="pair-input-code">Código exibido na TV (6 dígitos)</label>
             <input type="text" id="pair-input-code" placeholder="000000" maxlength="6"
               style="font-size:32px;letter-spacing:12px;text-align:center;font-family:monospace;padding:14px;"
               oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)"
@@ -647,25 +646,6 @@
           <p id="qr-status" style="font-size:12px;color:var(--txt2);text-align:center;margin-bottom:12px;">
             Aponte a câmera para o QR Code da TV
           </p>
-        </div>
-
-        <!-- Nome da TV -->
-        <div class="fg" style="margin-bottom:12px;">
-          <label for="pair-tv-name">Nome para esta TV</label>
-          <input type="text" id="pair-tv-name" placeholder="Ex: TV Recepção, TV Sala de Reuniões..."
-            style="font-size:14px;"/>
-        </div>
-
-        <!-- Local (opcional) -->
-        <div class="fg" style="margin-bottom:12px;">
-          <label for="pair-tv-location">Local / Andar <span style="color:var(--txt2);font-size:11px;">(opcional)</span></label>
-          <input type="text" id="pair-tv-location" placeholder="Ex: 2º Andar, Bloco B..."/>
-        </div>
-
-        <!-- Grupo (opcional) -->
-        <div class="fg" style="margin-bottom:4px;">
-          <label for="pair-tv-group">Grupo <span style="color:var(--txt2);font-size:11px;">(opcional)</span></label>
-          <select id="pair-tv-group"></select>
         </div>
 
         <div id="pair-error" style="display:none;color:var(--red);font-size:13px;margin-top:12px;text-align:center;border-radius:8px;padding:8px;background:rgba(255,79,106,.1);"></div>
@@ -722,7 +702,7 @@
     "doChangePass","doUpload","renderMedia","togDur","renderMpicker","doAddPl",
     "doDupPl","doAddItem","togPairNew","doPairDevice","copyT","openLogModal",
     "openPair","pickMedia","delPl","cancelDevPairing","openPairForDevice",
-    "switchPairTab","startCamera","stopCamera","doPairDeviceNew","collapseSb",
+    "switchPairTab","startCamera","stopCamera","doPairDeviceNew","unpairDevice","unpairFromInfo","collapseSb",
   ].forEach(fn => {
     window[fn] = window[fn] || function() {
       const a = arguments;

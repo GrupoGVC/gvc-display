@@ -55,7 +55,9 @@ $router->delete('/api/media/:id',          [MediaController::class, 'destroy']);
 
 // ── Pairing ───────────────────────────────────────────────────
 $router->get('/api/pairing',               [PairingController::class, 'index']);
-$router->get('/api/pairing/generate',      [PairingController::class, 'generate']);
-$router->post('/api/pairing/confirm',      [PairingController::class, 'confirm']);
+// TV: gera código e consulta status (sem JWT — usa client_id)
+$router->post('/api/pairing/tv-generate',  [PairingController::class, 'tvGenerate']);
+$router->get('/api/pairing/tv-status',     [PairingController::class, 'tvStatus']);
+// Admin: pareia/despareia
 $router->post('/api/pairing/pair',         [PairingController::class, 'pair']);
 $router->post('/api/pairing/unpair',       [PairingController::class, 'unpair']);

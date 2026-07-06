@@ -30,7 +30,7 @@
         <span id="l-err-txt"></span>
       </div>
 
-      <form onsubmit="doLogin(event)" autocomplete="on">
+      <form id="login-form" autocomplete="on">
         <div class="fg">
           <label for="l-email">E-mail</label>
           <input type="email" id="l-email" name="email"
@@ -51,6 +51,89 @@
     </div>
   </div>
 
-  <script src="js/login.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    var _base = window.location.pathname
+      .replace(/\/(login)(\/.*)?$/, '')
+      .replace(/\/+$/, '');
+    var _api = window.location.origin + _base + '/api';
+
+    // Se tem token, valida antes de redirecionar
+    var tok = localStorage.getItem('gvc_token');
+    if (tok) {
+      fetch(_api + '/dashboard', { headers: { Authorization: 'Bearer ' + tok } })
+        .then(function (r) {
+          if (r.ok) window.location.replace(_base + '/');
+          else localStorage.removeItem('gvc_token');
+        })
+        .catch(function () { localStorage.removeItem('gvc_token'); });
+    }
+
+    function showErr(msg) {
+      var el  = document.getElementById('l-err');
+      var txt = document.getElementById('l-err-txt');
+      if (txt) txt.textContent = msg;
+      if (el)  el.style.display = 'flex';
+    }
+
+    function doLogin(e) {
+      if (e && e.preventDefault) e.preventDefault();
+
+      var email = document.getElementById('l-email').value.trim();
+      var pass  = document.getElementById('l-pass').value;
+      var btn   = document.getElementById('btn-login');
+
+      var errBox = document.getElementById('l-err');
+      if (errBox) errBox.style.display = 'none';
+
+      if (!email || !pass) { showErr('Preencha e-mail e senha'); return false; }
+
+      btn.disabled  = true;
+      btn.innerHTML = 'Entrando...';
+
+      fetch(_api + '/auth/login', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email: email, password: pass })
+      })
+      .then(function (res) {
+        return res.text().then(function (raw) {
+          var data;
+          try { data = JSON.parse(raw.replace(/^[^{[]*/, '')); }
+          catch (_) { throw new Error('Resposta inválida do servidor'); }
+          if (!res.ok) throw new Error((data && data.error) || 'Credenciais inválidas');
+          return data;
+        });
+      })
+      .then(function (data) {
+        var tok = (data.data && data.data.token) || data.token;
+        localStorage.setItem('gvc_token', tok);
+        window.location.replace(_base + '/');
+      })
+      .catch(function (err) {
+        showErr(err.message || 'E-mail ou senha inválidos');
+        btn.disabled  = false;
+        btn.innerHTML = 'Entrar <i class="bi bi-arrow-right"></i>';
+      });
+
+      return false;
+    }
+
+    var form = document.getElementById('login-form');
+    if (form) form.addEventListener('submit', doLogin);
+
+    var btn = document.getElementById('btn-login');
+    if (btn) btn.addEventListener('click', function (e) { e.preventDefault(); doLogin(e); });
+
+    ['l-email', 'l-pass'].forEach(function (id) {
+      var inp = document.getElementById(id);
+      if (inp) inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); doLogin(e); }
+      });
+    });
+  })();
+  </script>
 </body>
 </html>

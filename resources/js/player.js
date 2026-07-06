@@ -1,16 +1,23 @@
 /* ============================================================
-   GVC Display — Player da TV
+   GVC Display — Player da TV (NOVO FLUXO)
+   ============================================================
+
+   O TvController injeta:
+     window.__DEVICE_TOKEN__  → token da TV (null se não pareada)
+     window.__CLIENT_ID__     → fingerprint persistente da TV
+     window.__PAIRED__        → true/false
+     window.__BASE_URL__      → base do app
 
    Estados:
-   1. PAIRING   → TV não configurada → mostra código + QR
-   2. WAITING   → TV configurada mas sem playlist → aguardando
-   3. PLAYING   → Exibe slides em loop
+     PAIRING  → mostra código, faz polling em /pairing/tv-status
+     WAITING  → pareada mas sem playlist
+     PLAYING  → exibe a playlist
+============================================================ */
 
-   Heartbeat a cada 5s detecta mudanças e recarrega automaticamente.
-   ============================================================ */
-
-const TOKEN = window.__DEVICE_TOKEN__ || '';
-const BASE  = window.__BASE_URL__     || (() => {
+const TOKEN     = window.__DEVICE_TOKEN__ || null;
+const CLIENT_ID = window.__CLIENT_ID__    || '';
+const IS_PAIRED = !!window.__PAIRED__;
+const BASE      = window.__BASE_URL__ || (() => {
   const p = window.location.pathname
     .replace(/\/tv(\/[^/]*)?$/, '')
     .replace(/\/+$/, '');
@@ -24,147 +31,121 @@ const S = {
   idx:           0,
   slideTimer:    null,
   hbTimer:       null,
-  pairTimer:     null,
+  pairPollTimer: null,
   pairCountdown: null,
+  currentCode:   null,
   lastHash:      null,
   lastPlId:      null,
 };
 
 // ── Bootstrap ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  if (!TOKEN) {
-    setPhase('error', '⚙️', 'Acesse pelo endereço /tv/ no navegador');
-    return;
+  if (IS_PAIRED && TOKEN) {
+    // TV já pareada — vai direto pro modo player
+    startPlayer();
+  } else {
+    // TV não pareada — inicia fluxo de pareamento
+    startPairing();
   }
-  heartbeat();
-  S.hbTimer = setInterval(heartbeat, 5000);
 });
 
 // ════════════════════════════════════════════════════════════════
-//  HEARTBEAT
+//  MODO PAREAMENTO
 // ════════════════════════════════════════════════════════════════
-async function heartbeat() {
-  try {
-    const r = await fetch(`${API}/devices/heartbeat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: TOKEN }),
-    });
-
-    if (r.status === 401) {
-      if (S.phase !== 'pairing') enterPairing();
-      return;
-    }
-    if (!r.ok) {
-      if (S.phase === 'init') setPhase('error', '📡', 'Sem conexão com o servidor');
-      return;
-    }
-
-    const d = (await r.json()).data ?? {};
-
-    // Não configurada → pareamento
-    if (!d.configured) {
-      if (S.phase !== 'pairing') enterPairing();
-      return;
-    }
-
-    // Configurada mas sem playlist
-    if (!d.playlist_id) {
-      if (S.phase !== 'waiting') {
-        exitPairing();
-        setPhase('waiting', '📋', 'Aguardando playlist', 'Atribua uma playlist a esta TV no painel');
-      }
-      S.lastPlId = null;
-      S.lastHash = null;
-      return;
-    }
-
-    // Com playlist — saiu do pareamento/waiting?
-    if (S.phase === 'pairing') exitPairing();
-
-    // Playlist ou conteúdo mudou?
-    if (d.playlist_id !== S.lastPlId || d.playlist_hash !== S.lastHash) {
-      S.lastPlId = d.playlist_id;
-      S.lastHash = d.playlist_hash;
-      await loadAndPlay();
-    }
-
-  } catch (e) {
-    if (S.phase === 'init') setPhase('error', '📡', 'Sem conexão', 'Tentando reconectar...');
-  }
-}
-
-// ════════════════════════════════════════════════════════════════
-//  PAREAMENTO
-// ════════════════════════════════════════════════════════════════
-function enterPairing() {
+async function startPairing() {
   S.phase = 'pairing';
-  S.lastPlId = null;
-  S.lastHash = null;
-  clearSlideTimer();
-
-  el('stage').innerHTML              = '';
-  el('status-screen').style.display  = 'none';
+  el('stage').innerHTML             = '';
+  el('status-screen').style.display = 'none';
   el('pairing-screen').style.display = 'flex';
 
-  generatePairingCode();
-}
-
-function exitPairing() {
-  clearInterval(S.pairTimer);
-  clearInterval(S.pairCountdown);
-  S.pairTimer = S.pairCountdown = null;
-  el('pairing-screen').style.display = 'none';
+  await generatePairingCode();
+  // Polling do status a cada 3s
+  S.pairPollTimer = setInterval(pollPairingStatus, 3000);
+  // Primeira consulta imediata (para casos onde admin já pareou entre gerar e o primeiro poll)
+  pollPairingStatus();
 }
 
 async function generatePairingCode() {
-  clearInterval(S.pairTimer);
-  clearInterval(S.pairCountdown);
-
   setDigits('------');
   setText('pair-ttl', 'Gerando código...');
 
   try {
-    const r    = await fetch(`${API}/pairing/generate?token=${enc(TOKEN)}`);
-    const data = (await r.json()).data ?? {};
-    const code = data.code;
+    const r = await fetch(`${API}/pairing/tv-generate`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ client_id: CLIENT_ID }),
+    });
+    if (!r.ok) throw new Error('http ' + r.status);
+    const body = await r.json();
+    const code = (body.data && body.data.code) || body.code;
     if (!code) throw new Error('sem código');
 
+    S.currentCode = code;
     setDigits(code);
 
-    // QR contém os 6 dígitos (scanner do admin extrai \d{6})
+    // QR aponta pro URL do admin (facilita abrir no celular)
     const qr = el('pair-qr');
     const fb = el('pair-qr-fallback');
     if (qr) {
-      qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=ffffff&color=000000&qzone=1&data=${enc(code)}`;
+      const adminUrl = BASE + '/';
+      qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=ffffff&color=000000&qzone=1&data=${enc(adminUrl)}`;
       qr.style.display = 'block';
       if (fb) fb.style.display = 'none';
       qr.onerror = () => { qr.style.display = 'none'; if (fb) fb.style.display = 'flex'; };
     }
-
     const urlEl = el('pair-admin-url');
     if (urlEl) urlEl.textContent = BASE + '/';
 
     // Countdown 30 min
-    let secs = 30 * 60;
-    S.pairCountdown = setInterval(() => {
-      secs--;
-      const m = String(Math.floor(secs / 60)).padStart(2, '0');
-      const s = String(secs % 60).padStart(2, '0');
-      setText('pair-ttl', `Código válido por ${m}:${s}`);
-      if (secs <= 0) {
-        clearInterval(S.pairCountdown);
-        generatePairingCode();
-      }
-    }, 1000);
-
+    startCountdown(30 * 60);
     setText('pair-status-txt', 'Aguardando vinculação...');
 
-  } catch {
+  } catch (e) {
     setDigits('------');
-    setText('pair-ttl', 'Erro ao gerar código. Tentando em 15s...');
-    S.pairTimer = setTimeout(generatePairingCode, 15000);
+    setText('pair-ttl', 'Erro ao gerar. Tentando de novo em 10s...');
+    setTimeout(generatePairingCode, 10000);
   }
+}
+
+function startCountdown(secs) {
+  clearInterval(S.pairCountdown);
+  S.pairCountdown = setInterval(() => {
+    secs--;
+    const m = String(Math.floor(secs / 60)).padStart(2, '0');
+    const s = String(secs % 60).padStart(2, '0');
+    setText('pair-ttl', `Código válido por ${m}:${s}`);
+    if (secs <= 0) {
+      clearInterval(S.pairCountdown);
+      generatePairingCode();  // regenera código expirado
+    }
+  }, 1000);
+}
+
+async function pollPairingStatus() {
+  if (!CLIENT_ID) return;
+  try {
+    const r = await fetch(`${API}/pairing/tv-status?client_id=${enc(CLIENT_ID)}`);
+    if (!r.ok) return;
+    const body = await r.json();
+    const d = body.data || body;
+
+    if (d.paired && d.token) {
+      // Foi pareada! Salva cookie e reinicia como player.
+      document.cookie = `gvc_tv_token=${d.token}; path=/; max-age=${10*365*24*3600}; SameSite=Lax`;
+      // Limpa timers
+      clearInterval(S.pairPollTimer);
+      clearInterval(S.pairCountdown);
+      S.pairPollTimer = S.pairCountdown = null;
+
+      setText('pair-status-txt', 'Vinculação confirmada! Carregando...');
+      // Recarrega — TvController vai reconhecer o cookie e injetar __PAIRED__ = true
+      setTimeout(() => window.location.reload(), 800);
+    } else if (d.code && d.code !== S.currentCode) {
+      // Código mudou (expirou e foi renovado no servidor)
+      S.currentCode = d.code;
+      setDigits(d.code);
+    }
+  } catch { /* silencioso */ }
 }
 
 function setDigits(code) {
@@ -175,8 +156,60 @@ function setDigits(code) {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  PLAYLIST & SLIDES
+//  MODO PLAYER (TV pareada)
 // ════════════════════════════════════════════════════════════════
+function startPlayer() {
+  S.phase = 'init';
+  el('pairing-screen').style.display = 'none';
+  heartbeat();
+  S.hbTimer = setInterval(heartbeat, 5000);
+}
+
+async function heartbeat() {
+  try {
+    const r = await fetch(`${API}/devices/heartbeat`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ token: TOKEN }),
+    });
+
+    if (r.status === 401) {
+      // TV foi despareada no admin — apaga cookie e volta pro pareamento
+      document.cookie = 'gvc_tv_token=; path=/; max-age=0';
+      clearInterval(S.hbTimer);
+      window.location.reload();
+      return;
+    }
+    if (!r.ok) {
+      if (S.phase === 'init') setPhase('error', '📡', 'Sem conexão com o servidor');
+      return;
+    }
+
+    const body = await r.json();
+    const d    = body.data || body;
+
+    // Sem playlist → tela "aguardando"
+    if (!d.playlist_id) {
+      if (S.phase !== 'waiting') {
+        setPhase('waiting', '📋', 'Aguardando apresentação',
+                 'Atribua uma playlist a esta TV no painel administrativo');
+      }
+      S.lastPlId = null;
+      S.lastHash = null;
+      return;
+    }
+
+    // Playlist ou hash mudou?
+    if (d.playlist_id !== S.lastPlId || d.playlist_hash !== S.lastHash) {
+      S.lastPlId = d.playlist_id;
+      S.lastHash = d.playlist_hash;
+      await loadAndPlay();
+    }
+  } catch (e) {
+    if (S.phase === 'init') setPhase('error', '📡', 'Sem conexão', 'Tentando reconectar...');
+  }
+}
+
 async function loadAndPlay() {
   try {
     const r = await fetch(`${API}/devices/tv-playlist?token=${enc(TOKEN)}`);
@@ -184,15 +217,12 @@ async function loadAndPlay() {
       setPhase('waiting', '📺', 'Playlist vazia', 'Adicione itens no painel');
       return;
     }
-    if (!r.ok) {
-      console.warn('[GVC Player] tv-playlist HTTP', r.status);
-      return;
-    }
+    if (!r.ok) return;
 
     const body = await r.json();
-    const pl   = body.data ?? body;
+    const pl   = body.data || body;
 
-    if (!pl.items?.length) {
+    if (!pl.items || !pl.items.length) {
       setPhase('waiting', '📺', 'Playlist vazia', 'Adicione itens no painel');
       return;
     }
@@ -201,11 +231,9 @@ async function loadAndPlay() {
     S.phase    = 'playing';
     S.idx      = 0;
 
-    el('status-screen').style.display  = 'none';
+    el('status-screen').style.display = 'none';
     el('pairing-screen').style.display = 'none';
-
     showSlide(0);
-
   } catch (e) {
     console.warn('[GVC Player] loadAndPlay error:', e);
   }
@@ -213,7 +241,7 @@ async function loadAndPlay() {
 
 function showSlide(i) {
   clearSlideTimer();
-  if (!S.playlist?.length) return;
+  if (!S.playlist || !S.playlist.length) return;
 
   const item = S.playlist[i % S.playlist.length];
   S.idx = i % S.playlist.length;
@@ -222,9 +250,9 @@ function showSlide(i) {
   const isVideo = item.type === 'video' || /\.(mp4|webm|ogg|mov)$/i.test(url);
   const isPage  = item.type === 'page';
 
-  if (isVideo) renderVideo(url, item);
+  if (isVideo)     renderVideo(url, item);
   else if (isPage) renderPage(url, item);
-  else renderImage(url, item);
+  else             renderImage(url, item);
 }
 
 function nextSlide() { showSlide(S.idx + 1); }
@@ -233,10 +261,8 @@ function renderImage(src, item) {
   const dur   = (item.duration || 10) * 1000;
   const stage = el('stage');
   stage.innerHTML = '';
-
   const img = new Image();
   img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
-
   let fired = false;
   const show = () => {
     if (fired) return;
@@ -244,11 +270,9 @@ function renderImage(src, item) {
     stage.appendChild(img);
     S.slideTimer = setTimeout(nextSlide, dur);
   };
-
   img.onload  = show;
   img.onerror = () => { if (!fired) { fired = true; S.slideTimer = setTimeout(nextSlide, 2000); } };
   img.src     = src;
-
   if (img.complete && img.naturalWidth) show();
 }
 
@@ -258,7 +282,6 @@ function renderVideo(src, item) {
     style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
     <source src="${esc(src)}" type="${src.endsWith('.webm') ? 'video/webm' : 'video/mp4'}">
   </video>`;
-
   const vid = stage.querySelector('video');
   vid.onended = nextSlide;
   vid.onerror = () => { S.slideTimer = setTimeout(nextSlide, 2000); };
@@ -284,12 +307,12 @@ function clearSlideTimer() {
 function setPhase(phase, icon, msg, sub) {
   S.phase = phase;
   clearSlideTimer();
-  el('stage').innerHTML               = '';
-  el('pairing-screen').style.display  = 'none';
-  el('status-screen').style.display   = 'flex';
-  el('status-icon').textContent       = icon || '📺';
-  el('status-msg').textContent        = msg  || '';
-  el('status-sub').textContent        = sub  || '';
+  el('stage').innerHTML              = '';
+  el('pairing-screen').style.display = 'none';
+  el('status-screen').style.display  = 'flex';
+  el('status-icon').textContent      = icon || '📺';
+  el('status-msg').textContent       = msg  || '';
+  el('status-sub').textContent       = sub  || '';
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -310,7 +333,7 @@ function resolveUrl(url) {
 }
 
 function el(id)        { return document.getElementById(id); }
-function setText(id, t) { const e = el(id); if (e) e.textContent = t; }
+function setText(id, t){ const e = el(id); if (e) e.textContent = t; }
 function enc(s)        { return encodeURIComponent(s); }
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>

@@ -5,7 +5,6 @@ class Router
 {
     private array $routes = [];
 
-    // Registra rota: GET /api/devices
     public function add(string $method, string $pattern, callable|array $handler): void
     {
         $this->routes[] = [
@@ -24,18 +23,20 @@ class Router
     {
         // Remove query string
         $uri = strtok($uri, '?');
-        // Remove o BASE_PATH para que as rotas sejam relativas à raiz do app
-        // Ex: /gvc-display-mvc/api/devices → /api/devices
+        // Remove BASE_PATH
         if (defined('BASE_PATH') && BASE_PATH !== '' && str_starts_with($uri, BASE_PATH)) {
             $uri = substr($uri, strlen(BASE_PATH));
         }
         $uri = '/' . ltrim($uri, '/');
+        // Remove barra final (exceto na raiz "/")
+        if ($uri !== '/' && str_ends_with($uri, '/')) {
+            $uri = rtrim($uri, '/');
+        }
 
         foreach ($this->routes as $route) {
             if ($route['method'] !== $method && $method !== 'OPTIONS') continue;
 
             if (preg_match($route['pattern'], $uri, $m)) {
-                // Remove índices numéricos, mantém só named captures
                 $params = array_filter($m, 'is_string', ARRAY_FILTER_USE_KEY);
 
                 if ($method === 'OPTIONS') {
@@ -44,7 +45,6 @@ class Router
                 }
 
                 $handler = $route['handler'];
-
                 if (is_array($handler)) {
                     [$class, $action] = $handler;
                     (new $class())->$action($params);
@@ -60,7 +60,6 @@ class Router
 
     private function compile(string $pattern): string
     {
-        // Converte :id, :slug etc. em named captures regex
         $regex = preg_replace('/:([a-zA-Z_]+)/', '(?P<$1>[^/]+)', $pattern);
         return '#^' . $regex . '$#';
     }

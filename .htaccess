@@ -2,6 +2,12 @@
 
 DirectoryIndex index.php index.html
 
+# Impede que o Apache adicione barra no final de URLs
+# (evita redirect 301 /api/dashboard → /api/dashboard/ que quebra rotas)
+<IfModule mod_dir.c>
+  DirectorySlash Off
+</IfModule>
+
 <IfModule mod_mime.c>
   AddHandler application/x-httpd-php .php
 </IfModule>
@@ -22,13 +28,10 @@ DirectoryIndex index.php index.html
   RewriteCond %{REQUEST_URI} ^/gvc-display/(uploads|assets|resources)/
   RewriteRule ^ - [L]
 
-  # Preserva o método HTTP explicitamente antes do rewrite
+  # Todo resto vai pro front controller
   RewriteRule ^ index.php [QSA,L]
 </IfModule>
 
-# FallbackResource como backup caso o mod_rewrite não funcione corretamente
-# Isso garante que QUALQUER request não resolvido vai para o index.php
-# preservando o método HTTP original
 <IfModule !mod_rewrite.c>
   FallbackResource /gvc-display/index.php
 </IfModule>

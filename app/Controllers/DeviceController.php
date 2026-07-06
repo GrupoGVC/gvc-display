@@ -1,7 +1,7 @@
 <?php
 namespace App\Controllers;
 
-use App\Core\{Controller, Response};
+use App\Core\{Controller, Response, Database};
 use App\Models\Device;
 
 class DeviceController extends Controller
@@ -16,7 +16,7 @@ class DeviceController extends Controller
 
     public function index(): void
     {
-        $payload = $this->auth();
+        $this->auth();
         Response::json($this->model->allWithRelations());
     }
 
@@ -28,19 +28,28 @@ class DeviceController extends Controller
         Response::json($device);
     }
 
+    /**
+     * Cria uma TV SEM slug/token (não pareada).
+     * O admin cadastra a TV, depois usa o botão "Parear" para vinculá-la
+     * a uma TV física via código de 6 dígitos.
+     */
     public function store(): void
     {
         $payload = $this->auth();
         $name    = $this->request->input('name');
         if (!$name) Response::error('Nome é obrigatório');
 
-        $id = $this->model->createWithSlug([
-            'name'        => $name,
-            'location'    => $this->request->input('location') ?: null,
-            'group_id'    => $this->request->int('group_id')   ?: null,
-            'playlist_id' => $this->request->int('playlist_id') ?: null,
-            'status'      => 'offline',
+        $db = Database::connection();
+        $db->prepare("
+            INSERT INTO devices (name, location, group_id, playlist_id, slug, token, client_id)
+            VALUES (?, ?, ?, ?, NULL, NULL, NULL)
+        ")->execute([
+            $name,
+            $this->request->input('location') ?: null,
+            $this->request->int('group_id')   ?: null,
+            $this->request->int('playlist_id') ?: null,
         ]);
+        $id = (int)$db->lastInsertId();
 
         $this->log('create_device', $payload['sub'], $name);
         Response::json($this->model->findWithRelations($id), 201);
@@ -73,6 +82,10 @@ class DeviceController extends Controller
         Response::json(['deleted' => (int)$params['id']]);
     }
 
+    /**
+     * TV envia heartbeat. Precisa de token válido (só TVs pareadas fazem heartbeat).
+     * Retorna a playlist ativa e um hash pra detectar mudanças.
+     */
     public function heartbeat(): void
     {
         $token = $this->request->input('token');
@@ -83,34 +96,25 @@ class DeviceController extends Controller
 
         $this->model->updateStatus($device['id'], 'online');
 
-        // Configurado = nome renomeado pelo admin OU playlist/grupo atribuído
-        $configured = $this->model->isConfigured($device['name'])
-                   || !empty($device['playlist_id'])
-                   || !empty($device['group_id']);
-
-        if (!$configured) {
-            Response::json(['playlist_id' => null, 'playlist_hash' => null, 'configured' => false]);
-        }
-
-        // Playlist direta → default
+        // Resolve playlist ativa: direta → default
         $plId = $device['playlist_id'] ? (int)$device['playlist_id'] : null;
 
         if (!$plId) {
-            $def  = \App\Core\Database::connection()->query("SELECT id FROM playlists WHERE is_default=1 LIMIT 1")->fetch();
+            $def  = Database::connection()->query("SELECT id FROM playlists WHERE is_default=1 LIMIT 1")->fetch();
             $plId = $def ? (int)$def['id'] : null;
         }
 
         $hash = null;
         if ($plId) {
-            $st = \App\Core\Database::connection()->prepare(
+            $st = Database::connection()->prepare(
                 "SELECT GROUP_CONCAT(CONCAT(id,':',sort_order,':',duration) ORDER BY sort_order SEPARATOR ',')
-                  FROM playlist_items WHERE playlist_id=?"
+                  FROM playlist_items WHERE playlist_id = ?"
             );
             $st->execute([$plId]);
-            $hash = md5($st->fetchColumn() ?? '');
+            $hash = md5((string)($st->fetchColumn() ?: ''));
         }
 
-        Response::json(['playlist_id' => $plId, 'playlist_hash' => $hash, 'configured' => true]);
+        Response::json(['playlist_id' => $plId, 'playlist_hash' => $hash]);
     }
 
     public function broadcast(): void
@@ -118,20 +122,20 @@ class DeviceController extends Controller
         $payload  = $this->auth();
         $plId     = $this->request->int('playlist_id');
         $target   = $this->request->input('target', 'all');
-        $db       = \App\Core\Database::connection();
+        $db       = Database::connection();
         $affected = 0;
 
         if ($target === 'all') {
-            $db->prepare("UPDATE devices SET playlist_id=?")->execute([$plId]);
+            $db->prepare("UPDATE devices SET playlist_id = ?")->execute([$plId]);
             $affected = (int)$db->query("SELECT ROW_COUNT()")->fetchColumn();
         } elseif (str_starts_with($target, 'group:')) {
             $gId = (int)substr($target, 6);
-            $st  = $db->prepare("UPDATE devices SET playlist_id=? WHERE group_id=?");
+            $st  = $db->prepare("UPDATE devices SET playlist_id = ? WHERE group_id = ?");
             $st->execute([$plId, $gId]);
             $affected = $st->rowCount();
         } elseif (str_starts_with($target, 'device:')) {
             $dId = (int)substr($target, 7);
-            $db->prepare("UPDATE devices SET playlist_id=? WHERE id=?")->execute([$plId, $dId]);
+            $db->prepare("UPDATE devices SET playlist_id = ? WHERE id = ?")->execute([$plId, $dId]);
             $affected = 1;
         }
 
@@ -140,8 +144,8 @@ class DeviceController extends Controller
     }
 
     /**
-     * GET /api/devices/tv-playlist?token=DEVICE_TOKEN
-     * Endpoint para o player da TV buscar sua playlist ativa SEM JWT.
+     * TV busca sua playlist. Autentica via token na query.
+     * GET /api/devices/tv-playlist?token=...
      */
     public function tvPlaylist(): void
     {
@@ -154,7 +158,7 @@ class DeviceController extends Controller
         $plId = $device['playlist_id'] ? (int)$device['playlist_id'] : null;
 
         if (!$plId) {
-            $def  = \App\Core\Database::connection()
+            $def  = Database::connection()
                 ->query("SELECT id FROM playlists WHERE is_default=1 LIMIT 1")->fetch();
             $plId = $def ? (int)$def['id'] : null;
         }

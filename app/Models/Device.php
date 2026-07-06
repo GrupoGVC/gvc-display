@@ -7,13 +7,20 @@ class Device extends Model
 {
     protected string $table = 'devices';
 
+    /**
+     * Lista todas as TVs cadastradas com dados relacionais.
+     * Cada uma vem com paired = true/false baseado em ter token ou não.
+     */
     public function allWithRelations(): array
     {
         $rows = $this->db->query("
-            SELECT d.id, d.name, d.location, d.slug, d.last_ping,
-                   d.playlist_id, d.group_id, d.token,
+            SELECT d.id, d.name, d.location, d.slug, d.token, d.client_id,
+                   d.last_ping, d.playlist_id, d.group_id,
                    g.name AS group_name, p.name AS playlist_name,
-                   CONCAT('/tv/', d.slug) AS player_url,
+                   CASE WHEN d.slug IS NOT NULL
+                     THEN CONCAT('/tv/', d.slug)
+                     ELSE NULL
+                   END AS player_url,
                    CASE
                      WHEN d.last_ping >= DATE_SUB(NOW(), INTERVAL 30 SECOND)
                      THEN 'online' ELSE 'offline'
@@ -24,11 +31,10 @@ class Device extends Model
             ORDER BY d.name
         ")->fetchAll();
 
-        // Marca cada device como pareado: nome personalizado OU com playlist/grupo
         foreach ($rows as &$r) {
-            $r['paired'] = $this->isConfigured($r['name'])
-                        || !empty($r['playlist_id'])
-                        || !empty($r['group_id']);
+            $r['paired'] = !empty($r['token']);
+            // Não expõe token para o frontend admin
+            unset($r['token']);
         }
         return $rows;
     }
@@ -37,17 +43,20 @@ class Device extends Model
     {
         $st = $this->db->prepare("
             SELECT d.*, g.name AS group_name, p.name AS playlist_name,
-                   CONCAT('/tv/', d.slug) AS player_url
+                   CASE WHEN d.slug IS NOT NULL
+                     THEN CONCAT('/tv/', d.slug)
+                     ELSE NULL
+                   END AS player_url
             FROM devices d
             LEFT JOIN `groups` g ON g.id = d.group_id
             LEFT JOIN playlists p ON p.id = d.playlist_id
-            WHERE d.id = ?");
+            WHERE d.id = ?
+        ");
         $st->execute([$id]);
         $row = $st->fetch() ?: null;
         if ($row) {
-            $row['paired'] = $this->isConfigured($row['name'])
-                          || !empty($row['playlist_id'])
-                          || !empty($row['group_id']);
+            $row['paired'] = !empty($row['token']);
+            unset($row['token']);
         }
         return $row;
     }
@@ -61,27 +70,14 @@ class Device extends Model
 
     public function findByToken(string $token): ?array
     {
-        $st = $this->db->prepare("SELECT id, name, playlist_id, group_id FROM devices WHERE token = ?");
+        $st = $this->db->prepare("SELECT * FROM devices WHERE token = ? LIMIT 1");
         $st->execute([$token]);
         return $st->fetch() ?: null;
     }
 
     public function updateStatus(int $id, string $status): void
     {
-        $this->db->prepare("UPDATE devices SET status=?, last_ping=NOW() WHERE id=?")
-                 ->execute([$status, $id]);
-    }
-
-    public function createWithSlug(array $data): int
-    {
-        $data['slug']  = $data['slug']  ?? strtolower(preg_replace('/[^a-z0-9]+/i', '-', $data['name'])) . '-' . substr(bin2hex(random_bytes(3)), 0, 6);
-        $data['token'] = $data['token'] ?? bin2hex(random_bytes(16));
-        return $this->create($data);
-    }
-
-    public function isConfigured(string $name): bool
-    {
-        // TVs auto-geradas têm nome "TV XXXXXX" (6 hex chars)
-        return !preg_match('/^TV [A-F0-9]{6}$/i', $name);
+        $this->db->prepare("UPDATE devices SET last_ping = NOW() WHERE id = ?")
+                 ->execute([$id]);
     }
 }

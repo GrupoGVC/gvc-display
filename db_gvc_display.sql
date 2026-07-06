@@ -72,8 +72,9 @@ CREATE TABLE devices (
   id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
   name         VARCHAR(150) NOT NULL,
   location     VARCHAR(200) NULL,
-  slug         VARCHAR(100) NOT NULL,
-  token        VARCHAR(64) NOT NULL,
+  slug         VARCHAR(100) NULL,
+  token        VARCHAR(64) NULL,
+  client_id    VARCHAR(64) NULL,
   group_id     INT UNSIGNED NULL,
   playlist_id  INT UNSIGNED NULL,
   status       ENUM('online','offline') NOT NULL DEFAULT 'offline',
@@ -84,6 +85,7 @@ CREATE TABLE devices (
   PRIMARY KEY (id),
   UNIQUE KEY uk_devices_slug (slug),
   UNIQUE KEY uk_devices_token (token),
+  KEY idx_devices_client_id (client_id),
   KEY idx_devices_group_id (group_id),
   KEY idx_devices_playlist_id (playlist_id),
   KEY idx_devices_status (status),
@@ -184,7 +186,8 @@ CREATE TABLE schedules (
 -- =========================================================
 CREATE TABLE pairing_codes (
   id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  device_id   INT UNSIGNED NOT NULL,
+  device_id   INT UNSIGNED NULL,
+  client_id   VARCHAR(64) NULL,
   code        CHAR(6) NOT NULL,
   expires_at  DATETIME NOT NULL,
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -192,6 +195,7 @@ CREATE TABLE pairing_codes (
   PRIMARY KEY (id),
   UNIQUE KEY uk_pairing_codes_code (code),
   KEY idx_pairing_codes_device_id (device_id),
+  KEY idx_pairing_codes_client_id (client_id),
   KEY idx_pairing_codes_expires_at (expires_at),
 
   CONSTRAINT fk_pairing_codes_device
