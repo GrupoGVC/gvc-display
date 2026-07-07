@@ -1,48 +1,118 @@
-# GVC Display
+<h1 align="center">
+  <br>
+  <img src="assets/logos/logo_gvc_display_192.png" alt="GVC Display" width="120"/>
+  <br>
+  GVC Display
+  <br>
+</h1>
 
-Sistema corporativo de sinalização digital. O administrador organiza apresentações num painel web e cada Smart TV exibe automaticamente o conteúdo configurado para ela, sem nenhuma interação manual.
+<p align="center">
+  Sistema corporativo de sinalização digital — gerencie Smart TVs e apresentações a partir de um único painel web.
+</p>
 
-**Stack:** PHP 8.2 · MariaDB · Vanilla JS · Bootstrap 5.3
-
----
-
-## Como funciona
-
-1. O admin acessa o painel pelo navegador, faz upload de imagens/vídeos e monta playlists.
-2. O admin cadastra as TVs no painel (nome, local, grupo).
-3. Cada Smart TV abre o endereço do sistema pelo próprio navegador e exibe um **código de 6 dígitos** na tela.
-4. O admin digita esse código no painel para vincular a TV. Pronto.
-5. A partir daí, a TV exibe automaticamente a playlist atribuída a ela. Se o admin trocar o conteúdo, a TV atualiza sozinha em até 15 segundos.
-
----
-
-## Pré-requisitos
-
-- XAMPP com **PHP 8.2+** e **MariaDB na porta 3307**
-- Navegador
+<p align="center">
+  <img alt="PHP" src="https://img.shields.io/badge/PHP-8.2-777BB4?style=flat-square&logo=php&logoColor=white"/>
+  <img alt="MariaDB" src="https://img.shields.io/badge/MariaDB-10.x-003545?style=flat-square&logo=mariadb&logoColor=white"/>
+  <img alt="JavaScript" src="https://img.shields.io/badge/JavaScript-ES2020-F7DF1E?style=flat-square&logo=javascript&logoColor=black"/>
+  <img alt="Bootstrap" src="https://img.shields.io/badge/Bootstrap-5.3-7952B3?style=flat-square&logo=bootstrap&logoColor=white"/>
+  <img alt="License" src="https://img.shields.io/badge/licença-proprietária-red?style=flat-square"/>
+</p>
 
 ---
 
-## Instalação local
+## Descrição do Projeto
 
-**1. Clonar o projeto**
+O GVC Display permite que o administrador organize imagens, vídeos e páginas em playlists e as exiba em qualquer número de Smart TVs distribuídas pela empresa — tudo controlado por um painel web centralizado.
 
+Cada TV acessa uma URL simples pelo próprio navegador e fica em modo apresentação em tela cheia. Quando o admin troca o conteúdo, a TV atualiza automaticamente em até **15 segundos**, sem nenhuma interação manual.
+
+> **Produção:** https://display.drc-gvc.tech  
+> **Repositório:** https://github.com/GrupoGVC/gvc-display
+
+---
+
+## Funcionalidades do Projeto
+
+**Painel administrativo**
+- Login seguro com JWT
+- Cadastro de TVs por nome, local e grupo (setor, andar, ambiente)
+- Upload de imagens (JPG, PNG, GIF, WebP) e vídeos (MP4, WebM) até 100 MB
+- Criação e edição de playlists com múltiplos itens
+- Duração individual por item (em segundos)
+- Reordenação por drag and drop
+- Duplicar playlists existentes
+- Definir playlist padrão (exibida quando nenhuma outra está atribuída)
+- Agendamento de playlists por data e horário
+- Broadcast: enviar playlist para todas as TVs, um grupo ou uma TV específica
+- Dashboard com status online/offline de cada TV em tempo real
+- Log de atividades administrativas
+
+**Player da TV**
+- Exibição em tela cheia, sem menus ou botões visíveis
+- Suporte a imagens, vídeos e páginas HTML (iframe)
+- Atualização automática ao detectar mudança de conteúdo
+- Reconexão automática em caso de queda de internet
+- Tela de pareamento com código de 6 dígitos no primeiro acesso
+
+**Pareamento de TVs**
+- TV gera automaticamente um código de 6 dígitos ao abrir pela primeira vez
+- Admin digita o código no painel para vincular a TV
+- Após pareada, a TV sempre carrega a playlist correta automaticamente
+- Despareamento pelo painel, com retorno imediato à tela de código
+
+---
+
+## Testes de Software
+
+| Tipo | O que foi validado |
+|---|---|
+| Funcional | Pareamento e despareamento de TVs, troca de playlist em tempo real, broadcast para grupos |
+| Autenticação | JWT HS256: expiração, assinatura inválida, token ausente retornam 401 |
+| Upload | MIME type validado no servidor; arquivos acima de 100 MB rejeitados |
+| Multi-TV | Várias TVs simultâneas via abas anônimas (cookies isolados) |
+| Reconexão | Player continua exibindo o último slide durante queda de rede; retoma no próximo heartbeat |
+| Compatibilidade | Autoplay de vídeo com `muted + playsinline` testado em Chrome, Edge e navegadores de Smart TV |
+
+---
+
+## Tecnologias e Linguagens
+
+- **PHP 8.2** — backend MVC sem framework externo (sem Composer)
+- **MariaDB 10.x** — banco de dados relacional
+- **JavaScript ES2020** — frontend (Vanilla JS, sem transpilação)
+- **HTML5 / CSS3** — views e estilos
+
+---
+
+## Bibliotecas e Frameworks
+
+- **Bootstrap 5.3** — grid e componentes do painel administrativo
+- **Bootstrap Icons 1.11** — ícones do painel
+- **Google Fonts** — Inter (player) e Lato (login/admin)
+- **PDO** — acesso ao banco (nativo do PHP)
+
+---
+
+## Pré-requisitos e Instalação
+
+**Pré-requisitos**
+- XAMPP com PHP 8.2+ e MariaDB na porta 3307
+- Git
+
+**1. Clonar o repositório**
 ```bash
 cd C:\xampp\htdocs
 git clone https://github.com/GrupoGVC/gvc-display.git
 cd gvc-display
-git checkout estruturaMVC
 ```
 
-**2. Criar o arquivo `.env`** (copiar o exemplo e editar)
-
+**2. Criar o arquivo de configuração**
 ```bash
 copy .env.example .env
 ```
 
-Conteúdo mínimo do `.env`:
-
-```
+Edite o `.env` com os dados do seu ambiente:
+```env
 DB_HOST=127.0.0.1
 DB_PORT=3307
 DB_NAME=db_gvc_display
@@ -55,111 +125,107 @@ APP_BASE_PATH=/gvc-display
 
 **3. Criar o banco de dados**
 
-Abra o MySQL Workbench (conecte na porta **3307**) e execute o arquivo `db_gvc_display.sql`. Ou via terminal:
-
+Abra o MySQL Workbench (porta **3307**) e execute o arquivo `db_gvc_display.sql`.  
+Ou via terminal:
 ```bash
 "C:\xampp\mysql\bin\mysql.exe" -h 127.0.0.1 -P 3307 -u root < db_gvc_display.sql
 ```
 
-**4. Iniciar o XAMPP** (Apache + MySQL) e acessar:
-
-| Endereço                             | O que abre              |
-| ------------------------------------ | ----------------------- |
-| `http://localhost/gvc-display/`      | Painel administrativo   |
-| `http://localhost/gvc-display/login` | Tela de login           |
-| `http://localhost/gvc-display/tv`    | Tela da TV (modo kiosk) |
+**4. Iniciar o XAMPP** (Apache + MySQL)
 
 ---
 
-## Primeiro acesso
+## Instruções de Uso
 
-**Login padrão:**
+**Endereços após a instalação**
 
-- E-mail: `admin@gvc.com`
-- Senha: `admin123`
+| URL | O que abre |
+|---|---|
+| `http://localhost/gvc-display/` | Painel administrativo |
+| `http://localhost/gvc-display/login` | Tela de login |
+| `http://localhost/gvc-display/tv` | Player da TV |
+| `http://localhost/gvc-display/tv/{slug}` | Player de uma TV específica |
 
+**Login padrão**
+```
+E-mail: admin@gvc.com
+Senha:  admin123
+```
 > Troque a senha após o primeiro acesso: ícone de usuário → "Alterar senha".
 
----
+**Fluxo básico de uso**
 
-## Como cadastrar e parear uma TV
+1. Acesse o painel e faça login
+2. Em **Mídias**, faça upload das imagens e vídeos
+3. Em **Playlists**, crie uma apresentação e adicione os itens com duração
+4. Em **Dispositivos**, cadastre uma TV e clique em **Parear**
+5. Na Smart TV, abra `http://display.drc-gvc.tech/tv` e aguarde o código aparecer
+6. No painel, digite o código — a TV começa a exibir a playlist imediatamente
 
-1. No painel, vá em **Dispositivos → Novo Dispositivo**. Preencha nome e local.
-2. Na Smart TV, abra `http://display.drc-gvc.tech/tv`. Um código de 6 dígitos aparece na tela.
-3. No painel, clique em **Parear** no dispositivo criado e digite o código.
-4. A TV atualiza automaticamente e começa a exibir a playlist atribuída.
-
-Para **desparear**, clique no botão verde "Pareado" (fica vermelho no hover) e confirme.
-
----
-
-## Como criar e enviar uma apresentação
-
-1. Vá em **Mídias** e faça upload das imagens e vídeos.
-2. Vá em **Playlists → Nova Playlist**, adicione os itens e defina a duração de cada um.
-3. Vá em **Dispositivos**, edite uma TV e selecione a playlist desejada.  
-   Ou use o botão **Broadcast** para enviar a mesma playlist para todas as TVs, um grupo inteiro ou uma TV específica.
-
----
-
-## Testando com várias TVs ao mesmo tempo
-
-Abra uma **aba anônima** do navegador para cada TV simulada (cada aba anônima tem cookies isolados, como se fosse um dispositivo diferente).
-
+**Simulando várias TVs no navegador**
 ```
-Aba normal      → Painel admin
-Aba anônima 1   → http://localhost/gvc-display/tv  (TV 1)
-Aba anônima 2   → http://localhost/gvc-display/tv  (TV 2)
+Aba normal     → Painel admin
+Aba anônima 1  → /tv  (simula TV 1, cookies isolados)
+Aba anônima 2  → /tv  (simula TV 2, cookies isolados)
 ```
 
 ---
 
-## Deploy em produção (Nginx + VPS)
+## Documentação
 
-**Configuração Nginx** (`/etc/nginx/sites-available/gvc-display`):
+| Tecnologia | Link |
+|---|---|
+| PHP 8.2 | https://www.php.net/releases/8.2/ |
+| MariaDB | https://mariadb.com/kb/en/documentation/ |
+| PDO | https://www.php.net/manual/pt_BR/book.pdo.php |
+| Bootstrap 5.3 | https://getbootstrap.com/docs/5.3/ |
+| Bootstrap Icons | https://icons.getbootstrap.com |
+| JWT (RFC 7519) | https://jwt.io/introduction |
+| Web Autoplay Policy | https://developer.chrome.com/blog/autoplay |
 
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name display.drc-gvc.tech;
-    root /var/www/gvc-display;
-    index index.php;
+---
 
-    ssl_certificate     /etc/letsencrypt/live/display.drc-gvc.tech/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/display.drc-gvc.tech/privkey.pem;
+## Licença
 
-    location ~* ^/(uploads|assets|resources)/ {
-        expires 7d;
-        try_files $uri =404;
-    }
+Projeto proprietário — GrupoGVC. Todos os direitos reservados.  
+Uso interno exclusivo. Redistribuição não autorizada.
 
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
+---
 
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-}
+## Contribuição
 
-server {
-    listen 80;
-    server_name display.drc-gvc.tech;
-    return 301 https://$host$request_uri;
-}
+Este é um projeto interno do GrupoGVC. Contribuições externas não estão abertas no momento.
+
+Colaboradores internos devem seguir o fluxo abaixo.
+
+---
+
+## Gitflow
+
+**Nomenclatura de branches**
+```
+main              → produção (deploy automático via git reset --hard)
+estruturaMVC      → branch de desenvolvimento principal
+feature/nome      → novas funcionalidades
+hotfix/nome       → correções urgentes em produção
 ```
 
-**Ajuste o `.env` em produção:**
+**Fluxo de trabalho**
+```bash
+# Criar branch de feature
+git checkout -b feature/minha-funcionalidade
 
+# Commits semânticos
+git commit -m "feat: adiciona agendamento por horário"
+git commit -m "fix: corrige loop de login no Safari"
+git commit -m "refactor: extrai lógica de hash para PlaylistModel"
+git commit -m "docs: atualiza README com instruções de deploy"
+
+# Abrir Pull Request para estruturaMVC
+# Após revisão e merge → cherry-pick ou merge para main
 ```
-APP_BASE_PATH=
-DB_PORT=3306
-```
 
-**Atualizar via Git:**
-
+**Deploy em produção**
 ```bash
 cd /var/www/gvc-display
 git fetch origin
@@ -167,128 +233,8 @@ git reset --hard origin/main
 chmod -R 775 uploads/
 chown -R www-data:www-data uploads/
 ```
-
 ---
 
-## Estrutura de pastas
-
-```
-gvc-display/
-├── index.php                  ← Ponto de entrada (front controller)
-├── .env                       ← Configurações locais (não versionar)
-├── .htaccess                  ← Regras de rewrite do Apache
-├── db_gvc_display.sql         ← Schema do banco + dados iniciais
-│
-├── app/
-│   ├── Core/                  ← Router, Database, JWT, Request, Response
-│   ├── Controllers/           ← Lógica de cada funcionalidade
-│   └── Models/                ← Acesso ao banco de dados
-│
-├── resources/
-│   ├── views/
-│   │   ├── index.html         ← Painel administrativo (SPA)
-│   │   ├── login.html         ← Tela de login
-│   │   └── player.html        ← Tela da TV (fullscreen)
-│   ├── css/                   ← Estilos do painel, login e player
-│   └── js/
-│       ├── admin.js           ← Toda a lógica do painel
-│       └── player.js          ← Toda a lógica da TV
-│
-├── routes/
-│   └── api.php                ← Todas as rotas da API
-│
-└── uploads/
-    ├── images/                ← Imagens enviadas pelo admin
-    └── videos/                ← Vídeos enviados pelo admin
-```
-
----
-
-## Banco de dados (tabelas principais)
-
-| Tabela             | O que guarda                                                              |
-| ------------------ | ------------------------------------------------------------------------- |
-| `users`            | Administradores do sistema                                                |
-| `groups`           | Grupos de TVs (por setor, andar etc.)                                     |
-| `devices`          | Cada Smart TV cadastrada                                                  |
-| `playlists`        | Apresentações criadas pelo admin                                          |
-| `playlist_items`   | Cada imagem/vídeo/página dentro de uma playlist                           |
-| `media`            | Biblioteca de arquivos enviados                                           |
-| `pairing_codes`    | Códigos temporários de pareamento (6 dígitos, válidos 30 min)             |
-| `schedules`        | Agendamentos de playlists por data/horário                                |
-| `activity_logs`    | Histórico de ações dos administradores                                    |
-| `content_versions` | Número de versão do conteúdo — TVs comparam para saber se devem atualizar |
-
----
-
-## Rotas da API
-
-Rotas com 🔒 exigem o header `Authorization: Bearer {token}`.
-
-**Autenticação**
-
-- `POST /api/auth/login` — Faz login, retorna token JWT
-- `POST /api/auth/password` 🔒 — Troca senha
-
-**Dispositivos (TVs)**
-
-- `GET /api/devices` 🔒 — Lista todas as TVs com status online/offline
-- `POST /api/devices` 🔒 — Cadastra nova TV
-- `PUT /api/devices/:id` 🔒 — Edita TV
-- `DELETE /api/devices/:id` 🔒 — Remove TV
-- `POST /api/devices/heartbeat` — TV envia sinal de vida a cada 15s
-- `GET /api/devices/tv-playlist` — TV busca sua playlist atual
-- `POST /api/devices/broadcast` 🔒 — Envia playlist para todas/grupo/TV específica
-
-**Playlists**
-
-- `GET /api/playlists` 🔒 — Lista playlists
-- `POST /api/playlists` 🔒 — Cria playlist (suporta `copy_from` para duplicar)
-- `GET /api/playlists/:id` 🔒 — Detalhes com todos os itens
-- `PUT /api/playlists/:id` 🔒 — Edita playlist
-- `DELETE /api/playlists/:id` 🔒 — Remove playlist
-
-**Itens de playlist**
-
-- `POST /api/items` 🔒 — Adiciona item
-- `POST /api/items/reorder` 🔒 — Reordena itens
-- `PUT /api/items/:id` 🔒 — Edita duração/ordem
-- `DELETE /api/items/:id` 🔒 — Remove item
-
-**Mídias**
-
-- `GET /api/media` 🔒 — Lista biblioteca
-- `POST /api/media` 🔒 — Upload de arquivo (máx 100 MB)
-- `DELETE /api/media/:id` 🔒 — Remove arquivo
-
-**Pareamento**
-
-- `POST /api/pairing/tv-generate` — TV gera código de pareamento
-- `GET /api/pairing/tv-status` — TV consulta se já foi pareada
-- `POST /api/pairing/pair` 🔒 — Admin vincula código a uma TV
-- `POST /api/pairing/unpair` 🔒 — Admin desvincula TV
-
----
-
-## Problemas conhecidos e soluções
-
-**Vídeo não inicia na TV**  
-Smart TVs exigem `muted` para autoplay. O player já usa `<video autoplay muted playsinline>`. Se ainda falhar, avança automaticamente para o próximo slide.
-
-**Status online/offline sempre errado**  
-Verifique se PHP e MariaDB estão no mesmo fuso horário. O projeto usa UTC — confirme com `date_default_timezone_set('UTC')` no `index.php`.
-
-**POST vira GET no XAMPP**  
-Acontece quando `index.php` delega para `public/index.php`. A solução já está aplicada: o front controller completo fica na raiz.
-
-**Tela de login em loop infinito**  
-Service Worker antigo em cache. O `sw.js` do projeto é um kill-switch que se auto-desregistra. Se o loop persistir, abra o DevTools → Application → Service Workers → "Unregister" manual.
-
-**Barra no final da URL quebrando a API**  
-O Apache `mod_dir` adiciona `/` em URLs sem extensão. Já resolvido com `DirectorySlash Off` no `.htaccess` e `rtrim` no Router.
-
----
-
-## Licença
-
-Projeto proprietário - GrupoGVC. Todos os direitos reservados.
+<p align="center">
+  Desenvolvido pelo <a href="https://grupogvc.eco.br">Grupo GVC</a>
+</p>
