@@ -15,11 +15,42 @@ class MediaController extends Controller
         Response::json($this->model->allOrdered());
     }
 
+    /**
+     * Retorna os limites reais de upload do servidor (para o front saber o que o PHP aceita).
+     */
+    public function limits(): void
+    {
+        $this->auth();
+        $parse = fn(string $v): int => match (strtolower(substr(trim($v), -1))) {
+            'g' => (int)$v * 1073741824,
+            'm' => (int)$v * 1048576,
+            'k' => (int)$v * 1024,
+            default => (int)$v,
+        };
+
+        $uploadMax = $parse(ini_get('upload_max_filesize') ?: '2M');
+        $postMax   = $parse(ini_get('post_max_size') ?: '8M');
+        $effective = min($uploadMax, $postMax);
+        $appMax    = 100 * 1024 * 1024; // limite do app
+
+        Response::json([
+            'upload_max_filesize' => $uploadMax,
+            'post_max_size'       => $postMax,
+            'app_max'             => $appMax,
+            'effective_max'       => min($effective, $appMax),
+            'effective_max_mb'    => round(min($effective, $appMax) / 1048576),
+        ]);
+    }
+
     public function store(): void
     {
-        $payload = $this->auth();
-        $file    = $this->request->file('file');
-        if (!$file) Response::error('Nenhum arquivo enviado');
+        $payload  = $this->auth();
+        $fileErr  = null;
+        $file     = $this->request->file('file', $fileErr);
+
+        if (!$file) {
+            Response::error($fileErr ?: 'Nenhum arquivo enviado');
+        }
 
         $allowed = ['image/jpeg','image/png','image/gif','image/webp','video/mp4','video/webm'];
         if (!in_array($file['type'], $allowed)) Response::error('Tipo não permitido: ' . $file['type']);
@@ -56,5 +87,50 @@ class MediaController extends Controller
         $this->model->delete((int)$params['id']);
         $this->log('delete_media', $payload['sub'], $media['url']);
         Response::json(['deleted' => (int)$params['id']]);
+    }
+
+    /**
+     * Exclusão em lote: recebe { ids: [1, 2, 3] }
+     */
+    public function destroyBatch(): void
+    {
+        $payload = $this->auth();
+        $ids     = $this->request->body('ids');
+
+        if (!is_array($ids) || empty($ids)) {
+            Response::error('Envie um array de IDs em { "ids": [...] }');
+        }
+
+        // Sanitiza: aceita somente inteiros positivos
+        $ids = array_values(array_filter(
+            array_map('intval', $ids),
+            fn(int $id) => $id > 0
+        ));
+
+        if (empty($ids)) Response::error('Nenhum ID válido enviado');
+
+        $deleted = [];
+        $errors  = [];
+
+        foreach ($ids as $id) {
+            $media = $this->model->find($id);
+            if (!$media) {
+                $errors[] = "ID $id não encontrado";
+                continue;
+            }
+
+            $path = ROOT . $media['url'];
+            if (file_exists($path)) unlink($path);
+
+            $this->model->delete($id);
+            $this->log('delete_media', $payload['sub'], $media['url']);
+            $deleted[] = $id;
+        }
+
+        Response::json([
+            'deleted' => $deleted,
+            'count'   => count($deleted),
+            'errors'  => $errors,
+        ]);
     }
 }

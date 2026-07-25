@@ -77,10 +77,67 @@ class Request
         return (int) ($this->body[$key] ?? $this->query[$key] ?? $default);
     }
 
-    public function file(string $key): ?array
+    /**
+     * Retorna o arquivo enviado ou null.
+     * Se $errorOut for passado, preenche com mensagem descritiva em caso de falha.
+     */
+    public function file(string $key, ?string &$errorOut = null): ?array
     {
+        // post_max_size excedido → $_FILES fica completamente vazio
+        if (
+            empty($this->files) &&
+            isset($_SERVER['CONTENT_LENGTH']) &&
+            (int)$_SERVER['CONTENT_LENGTH'] > 0
+        ) {
+            $maxPost = $this->parseBytes(ini_get('post_max_size') ?: '8M');
+            $errorOut = "Arquivo excede o limite do servidor (post_max_size = "
+                      . $this->formatBytes($maxPost) . "). "
+                      . "Ajuste post_max_size e upload_max_filesize no PHP.";
+            return null;
+        }
+
         $f = $this->files[$key] ?? null;
-        return ($f && $f['error'] === UPLOAD_ERR_OK) ? $f : null;
+        if (!$f) {
+            $errorOut = 'Nenhum arquivo enviado';
+            return null;
+        }
+
+        if ($f['error'] === UPLOAD_ERR_OK) {
+            return $f;
+        }
+
+        $errorOut = match ($f['error']) {
+            UPLOAD_ERR_INI_SIZE   => 'Arquivo excede upload_max_filesize do PHP ('
+                                   . ini_get('upload_max_filesize') . '). Ajuste a configuração do servidor.',
+            UPLOAD_ERR_FORM_SIZE  => 'Arquivo excede o limite definido no formulário.',
+            UPLOAD_ERR_PARTIAL    => 'Upload interrompido — o arquivo foi enviado parcialmente. Tente novamente.',
+            UPLOAD_ERR_NO_FILE    => 'Nenhum arquivo foi selecionado.',
+            UPLOAD_ERR_NO_TMP_DIR => 'Erro interno: diretório temporário não encontrado no servidor.',
+            UPLOAD_ERR_CANT_WRITE => 'Erro interno: falha ao gravar no disco.',
+            UPLOAD_ERR_EXTENSION  => 'Upload bloqueado por extensão do PHP.',
+            default               => 'Erro desconhecido no upload (código ' . $f['error'] . ').',
+        };
+        return null;
+    }
+
+    private function parseBytes(string $val): int
+    {
+        $val  = trim($val);
+        $last = strtolower(substr($val, -1));
+        $num  = (int) $val;
+        return match ($last) {
+            'g' => $num * 1073741824,
+            'm' => $num * 1048576,
+            'k' => $num * 1024,
+            default => $num,
+        };
+    }
+
+    private function formatBytes(int $bytes): string
+    {
+        if ($bytes >= 1048576) return round($bytes / 1048576) . ' MB';
+        if ($bytes >= 1024)    return round($bytes / 1024) . ' KB';
+        return $bytes . ' B';
     }
 
     public function bearerToken(): string

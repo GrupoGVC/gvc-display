@@ -671,9 +671,8 @@ function renderPlItems() {
     const isVideo = item.type === "video" || /\.(mp4|webm|ogg)$/i.test(src);
     const thumb =
       isVideo
-        ? `<video src="${src}" muted preload="metadata" playsinline
-             style="width:100%;height:100%;object-fit:cover;display:block;"
-             onloadeddata="this.currentTime=1"></video>`
+        ? `<video src="${src}#t=1" muted preload="metadata" playsinline
+             style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;"></video>`
         : item.type === "page"
           ? `<i class="bi bi-globe" style="font-size:24px;color:var(--primary)"></i>`
           : `<img src="${src}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" />`;
@@ -901,9 +900,8 @@ function renderMpicker() {
       <div class="mp-item" title="${esc(m.original)}" onclick="pickMedia('${m.url}',this)"
            style="position:relative;">
         ${m.type === "video"
-          ? `<video src="${mediaUrl(m.url)}" muted preload="metadata" playsinline
-               style="width:100%;height:100%;object-fit:cover;display:block;"
-               onloadeddata="this.currentTime=1"></video>
+          ? `<video src="${mediaUrl(m.url)}#t=1" muted preload="metadata" playsinline
+               style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;"></video>
              <div style="position:absolute;inset:0;display:flex;align-items:center;
                justify-content:center;pointer-events:none;">
                <i class="bi bi-play-circle-fill" style="font-size:22px;color:#fff;
@@ -1086,38 +1084,211 @@ async function loadMedia() {
   renderMedia();
 }
 
-function renderMedia() {
+// ── Estado de seleção ──────────────────────────────────────────
+let _selected = new Set();   // IDs selecionados
+let _selectMode = false;     // modo seleção ativo
+
+function enterSelectMode() {
+  if (_selectMode) return;
+  _selectMode = true;
+  q("#mgrid")?.classList.add("select-mode");
+  updateSelectBar();
+}
+
+function exitSelectMode() {
+  _selectMode = false;
+  _selected.clear();
+  q("#mgrid")?.classList.remove("select-mode");
+  // Desmarca todos os checkboxes
+  qa(".mcard-chk").forEach(c => c.checked = false);
+  updateSelectBar();
+}
+
+function updateSelectBar() {
+  const bar = q("#media-select-bar");
+  if (!bar) return;
+
+  if (_selectMode) {
+    bar.style.display = "flex";
+    const count = _selected.size;
+    q("#sel-count").textContent = count > 0
+      ? `${count} selecionado${count > 1 ? "s" : ""}`
+      : "Nenhum selecionado";
+    // Desabilita botão de excluir quando não há seleção
+    const delBtn = bar.querySelector(".btn-sel-del");
+    if (delBtn) {
+      delBtn.disabled = count === 0;
+      delBtn.style.opacity = count === 0 ? "0.4" : "1";
+      delBtn.style.pointerEvents = count === 0 ? "none" : "auto";
+    }
+  } else {
+    bar.style.display = "none";
+  }
+}
+
+window.toggleMediaSelect = function(id, checkbox) {
+  if (checkbox.checked) {
+    _selected.add(id);
+    enterSelectMode();
+  } else {
+    _selected.delete(id);
+    // NÃO sai do modo seleção ao desmarcar — usuário sai pelo botão ✕
+  }
+  updateSelectBar();
+};
+
+window.selectAllMedia = function() {
+  const filtered = getFilteredMedia();
+  const allSelected = filtered.length > 0 && filtered.every(m => _selected.has(m.id));
+
+  if (allSelected) {
+    // Desmarca todos — mas CONTINUA no modo seleção
+    _selected.clear();
+    qa(".mcard-chk").forEach(c => c.checked = false);
+  } else {
+    // Seleciona tudo que está visível no filtro
+    filtered.forEach(m => _selected.add(m.id));
+    enterSelectMode();
+    qa(".mcard-chk").forEach(c => c.checked = true);
+  }
+  updateSelectBar();
+};
+
+window.cancelSelect = function() {
+  exitSelectMode();
+};
+
+window.deleteSelected = async function() {
+  if (_selected.size === 0) return;
+  const count = _selected.size;
+  if (!await confirmDlg(`Excluir ${count} mídia${count > 1 ? "s" : ""}? Esta ação não pode ser desfeita.`)) return;
+
+  const ids = [..._selected];
+  try {
+    await post("media/batch-delete", { ids });
+    S.media = S.media.filter(m => !_selected.has(m.id));
+    toast(`${count} mídia${count > 1 ? "s" : ""} removida${count > 1 ? "s" : ""}`);
+    exitSelectMode();
+    _lastMediaHash = ""; // dados mudaram, forçar re-render
+    renderMedia();
+  } catch (e) {
+    toast(e.message, "err");
+  }
+};
+
+// ── Renderização inteligente (sem flicker) ─────────────────────
+
+function getFilteredMedia() {
   if (!Array.isArray(S.media)) S.media = [];
   const search = q("#media-search")?.value.toLowerCase() ?? "";
   const type   = q("#media-filter")?.value ?? "";
-  const list   = S.media.filter(
+  return S.media.filter(
     (m) =>
       (!search || m.original.toLowerCase().includes(search)) &&
       (!type   || m.type === type),
   );
+}
+
+// Gera o HTML de um card
+function mediaCardHTML(m) {
+  const checked = _selected.has(m.id) ? "checked" : "";
+  const thumb = m.type === "video"
+    ? `<video src="${mediaUrl(m.url)}#t=1" muted preload="metadata"
+         style="width:100%;height:100%;object-fit:cover;pointer-events:none;"></video>`
+    : `<img src="${mediaUrl(m.url)}" alt="${esc(m.original)}" loading="lazy" />`;
+
+  return `<div class="mcard" data-mid="${m.id}">
+    <label class="mcard-chk-wrap" onclick="event.stopPropagation()">
+      <input type="checkbox" class="mcard-chk" ${checked}
+        onchange="toggleMediaSelect(${m.id}, this)" />
+      <span class="mcard-chk-box"><i class="bi bi-check"></i></span>
+    </label>
+    <div class="mcard-thumb">${thumb}</div>
+    <div class="mcard-info">
+      <div class="mcard-name">${esc(m.original)}</div>
+      <div class="mcard-type">${m.type} · ${fmtSize(m.size)}</div>
+    </div>
+    <button class="mcard-delbtn" onclick="delMedia(${m.id},event)" title="Excluir"><i class="bi bi-trash3"></i></button>
+  </div>`;
+}
+
+// Último hash de IDs renderizados — evita rebuild desnecessário
+let _lastMediaHash = "";
+
+function renderMedia() {
+  const list = getFilteredMedia();
   q("#media-count").textContent = `${list.length} item${list.length !== 1 ? "s" : ""}`;
-  q("#mgrid").innerHTML = list.length
-    ? list.map((m) => `
-      <div class="mcard">
-        <div class="mcard-thumb">
-          ${m.type === "video"
-            ? `<video src="${mediaUrl(m.url)}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;"></video>`
-            : `<img src="${mediaUrl(m.url)}" alt="${esc(m.original)}" loading="lazy" />`
-          }
-        </div>
-        <div class="mcard-info">
-          <div class="mcard-name">${esc(m.original)}</div>
-          <div class="mcard-type">${m.type} · ${fmtSize(m.size)}</div>
-        </div>
-        <button class="mcard-delbtn" onclick="delMedia(${m.id},event)"><i class="bi bi-x"></i></button>
-      </div>`).join("")
-    : '<div class="empty">Nenhuma mídia</div>';
+
+  // Compara com o que já está no DOM — só reconstrói se mudou
+  const newHash = list.map(m => m.id).join(",");
+  const grid    = q("#mgrid");
+
+  if (newHash === _lastMediaHash && grid.children.length === list.length) {
+    // Nada mudou — não toca no DOM
+    return;
+  }
+  _lastMediaHash = newHash;
+
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty">Nenhuma mídia</div>';
+    return;
+  }
+
+  grid.innerHTML = list.map(m => mediaCardHTML(m)).join("");
 }
 
 window.renderMedia = renderMedia;
 
 const MAX_UPLOAD_MB = 100;
 let _uploading = false;
+
+/**
+ * Envia um arquivo via XMLHttpRequest com progresso real (bytes enviados).
+ * Retorna Promise<object> com o JSON do servidor.
+ */
+function xhrUpload(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const fd  = new FormData();
+    fd.append("file", file);
+
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(e.loaded, e.total);
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      try {
+        const clean = xhr.responseText.replace(/^[^{[]*/, "");
+        const json  = JSON.parse(clean);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(json);
+        } else {
+          reject(new Error(json?.error || `Erro ${xhr.status}`));
+        }
+      } catch {
+        reject(new Error("Resposta inválida do servidor"));
+      }
+    });
+
+    xhr.addEventListener("error", () => reject(new Error("Falha na conexão — verifique sua internet")));
+    xhr.addEventListener("abort", () => reject(new Error("Upload cancelado")));
+    xhr.addEventListener("timeout", () => reject(new Error("Tempo esgotado — arquivo muito grande para a conexão")));
+
+    xhr.open("POST", `${API}/media`);
+    xhr.setRequestHeader("Authorization", `Bearer ${token.get()}`);
+    xhr.timeout = 10 * 60 * 1000; // 10 minutos para arquivos grandes
+    xhr.send(fd);
+  });
+}
+
+function formatSize(bytes) {
+  if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + " GB";
+  if (bytes >= 1048576)    return (bytes / 1048576).toFixed(1) + " MB";
+  if (bytes >= 1024)       return (bytes / 1024).toFixed(0) + " KB";
+  return bytes + " B";
+}
 
 window.doUpload = async (files) => {
   if (!files?.length) return;
@@ -1135,7 +1306,7 @@ window.doUpload = async (files) => {
     const maxBytes = MAX_UPLOAD_MB * 1024 * 1024;
     if (f.size > maxBytes) {
       fail++;
-      toast(`${f.name}: arquivo muito grande (máx ${MAX_UPLOAD_MB} MB, este tem ${(f.size/1024/1024).toFixed(0)} MB)`, "err");
+      toast(`${f.name}: arquivo muito grande (máx ${MAX_UPLOAD_MB} MB, este tem ${formatSize(f.size)})`, "err");
       continue;
     }
     const allowed = ['image/jpeg','image/png','image/gif','image/webp','video/mp4','video/webm','video/ogg'];
@@ -1145,28 +1316,17 @@ window.doUpload = async (files) => {
       continue;
     }
 
-    q("#upname").textContent = `${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`;
+    // Estado inicial do arquivo
+    q("#upname").textContent = `${f.name} (${formatSize(f.size)})`;
     q("#uppct").textContent  = `${i + 1}/${fileArr.length}`;
-    q("#upbar").style.width  = `${((i + 1) / fileArr.length) * 100}%`;
+    q("#upbar").style.width  = "0%";
 
     try {
-      const t  = token.get();
-      const fd = new FormData();
-      fd.append("file", f);
-
-      const res = await fetch(`${API}/media`, {
-        method:  "POST",
-        headers: { Authorization: `Bearer ${t}` },
-        body:    fd,
+      const json = await xhrUpload(f, (loaded, total) => {
+        const pct = Math.round((loaded / total) * 100);
+        q("#upbar").style.width = `${pct}%`;
+        q("#uppct").textContent = `${i + 1}/${fileArr.length} · ${pct}%  (${formatSize(loaded)} / ${formatSize(total)})`;
       });
-
-      const raw = await res.text();
-      const clean = raw.replace(/^[^{[]*/, '');
-      let json;
-      try { json = JSON.parse(clean); }
-      catch { throw new Error("Resposta inválida: " + raw.slice(0, 120)); }
-
-      if (!res.ok) throw new Error(json?.error || "Erro " + res.status);
 
       if (json.data && typeof json.data === "object") {
         const exists = S.media.some(m => m.id === json.data.id);
@@ -1184,6 +1344,7 @@ window.doUpload = async (files) => {
   prog.style.display = "none";
   q("#finput").value  = "";
   _uploading = false;
+  _lastMediaHash = ""; // força re-render com novos arquivos
   renderMedia();
   if (ok > 0)   toast(`${ok} arquivo(s) enviado(s) com sucesso`);
   if (fail > 0) toast(`${fail} arquivo(s) falharam`, "err");
@@ -1198,7 +1359,11 @@ window.delMedia = async (id, e) => {
   try {
     await del(`media/${id}`);
     S.media = S.media.filter((m) => m.id !== id);
+    _selected.delete(id);
+    _lastMediaHash = ""; // força re-render
     renderMedia();
+    if (_selected.size === 0 && _selectMode) exitSelectMode();
+    updateSelectBar();
     toast("Mídia removida");
   } catch (e) {
     toast(e.message, "err");

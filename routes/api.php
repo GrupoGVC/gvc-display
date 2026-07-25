@@ -50,7 +50,9 @@ $router->delete('/api/items/:id',          [ItemController::class, 'destroy']);
 
 // ── Media ─────────────────────────────────────────────────────
 $router->get('/api/media',                 [MediaController::class, 'index']);
+$router->get('/api/media/limits',          [MediaController::class, 'limits']);
 $router->post('/api/media',                [MediaController::class, 'store']);
+$router->post('/api/media/batch-delete',   [MediaController::class, 'destroyBatch']);
 $router->delete('/api/media/:id',          [MediaController::class, 'destroy']);
 
 // ── Pairing ───────────────────────────────────────────────────

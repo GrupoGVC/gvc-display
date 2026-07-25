@@ -2,6 +2,23 @@
 
 DirectoryIndex index.php index.html
 
+# ── Limites de upload (mod_php / Apache) ─────────────────────
+# post_max_size deve ser maior que upload_max_filesize
+<IfModule mod_php.c>
+  php_value upload_max_filesize 110M
+  php_value post_max_size       120M
+  php_value max_execution_time  300
+  php_value max_input_time      300
+  php_value memory_limit        256M
+</IfModule>
+<IfModule mod_php8.c>
+  php_value upload_max_filesize 110M
+  php_value post_max_size       120M
+  php_value max_execution_time  300
+  php_value max_input_time      300
+  php_value memory_limit        256M
+</IfModule>
+
 # Impede que o Apache adicione barra no final de URLs
 # (evita redirect 301 /api/dashboard → /api/dashboard/ que quebra rotas)
 <IfModule mod_dir.c>

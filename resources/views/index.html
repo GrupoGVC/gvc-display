@@ -325,6 +325,25 @@
           </div>
           <div class="progbar"><div class="progfill" id="upbar" style="width:0%"></div></div>
         </div>
+
+        <!-- Barra de seleção em lote -->
+        <div id="media-select-bar" class="media-select-bar" style="display:none;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span id="sel-count" style="font-weight:600;font-size:13px;"></span>
+            <button class="btn-sel-action btn-sel-all" onclick="selectAllMedia()">
+              <i class="bi bi-check-all"></i> Selecionar tudo
+            </button>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button class="btn-sel-action btn-sel-del" onclick="deleteSelected()">
+              <i class="bi bi-trash3"></i> Excluir selecionados
+            </button>
+            <button class="btn-sel-action btn-sel-cancel" onclick="cancelSelect()">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+
         <div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
           <input type="text" id="media-search" placeholder="Buscar mídia..." aria-label="Buscar mídia por nome" oninput="renderMedia()"
             style="width:200px;padding:7px 12px;background:var(--bg3);border:1px solid var(--bord2);border-radius:8px;color:var(--txt);font-size:13px;outline:none;"/>
@@ -677,6 +696,7 @@
     "doDupPl","doAddItem","togPairNew","doPairDevice","copyT","openLogModal",
     "openPair","pickMedia","delPl","cancelDevPairing","openPairForDevice",
     "switchPairTab","doPairDeviceNew","unpairDevice","unpairFromInfo","collapseSb",
+    "toggleMediaSelect","selectAllMedia","cancelSelect","deleteSelected",
   ].forEach(fn => {
     window[fn] = window[fn] || function() {
       const a = arguments;

@@ -7,6 +7,13 @@ declare(strict_types=1);
 error_reporting(E_ERROR | E_PARSE);
 date_default_timezone_set('UTC');
 
+// Limites de upload — fallback se .htaccess / .user.ini não aplicarem
+@ini_set('upload_max_filesize', '110M');
+@ini_set('post_max_size',       '120M');
+@ini_set('max_execution_time',  '300');
+@ini_set('max_input_time',      '300');
+@ini_set('memory_limit',        '256M');
+
 define('ROOT', __DIR__);
 
 // .env

@@ -308,6 +308,51 @@ html, body { height: 100%; overflow: hidden; }
 }
 .mcard:hover .mcard-delbtn { opacity: 1; }
 
+/* ── Checkbox de seleção ────────────────────────────────── */
+.mcard-chk-wrap {
+  position: absolute; top: 6px; left: 6px; z-index: 3;
+  width: 24px; height: 24px; cursor: pointer; margin: 0;
+  opacity: 0; transition: opacity .15s;
+}
+.mcard:hover .mcard-chk-wrap,
+.select-mode .mcard-chk-wrap { opacity: 1; }
+.mcard-chk { display: none; }
+.mcard-chk-box {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 6px;
+  background: rgba(0,0,0,.65); border: 2px solid rgba(255,255,255,.5);
+  color: transparent; font-size: 14px; transition: all .12s;
+}
+.mcard-chk:checked + .mcard-chk-box {
+  background: var(--primary); border-color: var(--primary); color: #fff;
+}
+.select-mode .mcard { cursor: pointer; }
+.select-mode .mcard.selected { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary); }
+
+/* ── Barra de seleção em lote ───────────────────────────── */
+.media-select-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  padding: 10px 16px; margin-bottom: 12px;
+  background: var(--bg3); border: 1px solid var(--primary);
+  border-radius: 10px; animation: fadeIn .15s ease;
+}
+.btn-sel-action {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 14px; border-radius: 8px; border: none;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.btn-sel-all { background: var(--bg2); color: var(--txt); }
+.btn-sel-all:hover { background: var(--bord2); }
+.btn-sel-del { background: #dc354520; color: #ff4f6a; }
+.btn-sel-del:hover { background: #dc354540; }
+.btn-sel-cancel { background: transparent; color: var(--mut); padding: 6px 8px; }
+.btn-sel-cancel:hover { color: var(--txt); }
+
+/* ── Video thumb fix: força carregar frame em #t=1 ──────── */
+.mcard-thumb video { background: var(--bg3); }
+
 /* ── Media picker ────────────────────────────────────────── */
 .mpicker { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 8px; max-height: 200px; overflow-y: auto; }
 .mp-item {
